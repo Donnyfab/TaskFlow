@@ -1,29 +1,549 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="scrollbar-hide">
-<head>
-  <meta charset="UTF-8">
-  <title>TaskFlow | Productivity</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!- Fonts>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&display=swap" rel="stylesheet">
-
-
-  <script src="https://cdn.tailwindcss.com"></script>
-
-<!--<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">--> 
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-
+  <head>
+    <meta charset="UTF-8">
+    <title>TaskFlow | Your Personal Growth OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Taskflow is an AI-powered self-improvement OS.">
   
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+   
+    body {
+      background: #0A0A0A;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+   
+    nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+   
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.3px;
+    }
+   
+    .logo-icon {
+      width: 30px;
+      height: 30px;
+      background: #fff;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+   
+    .logo-icon svg { width: 16px; height: 16px; }
+   
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+   
+    .nav-links a {
+      color: rgba(255,255,255,0.45);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+   
+    .nav-links a:hover { color: rgba(255,255,255,0.85); }
+   
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+   
+    .btn-ghost {
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+   
+    .btn-ghost:hover { color: #fff; }
+   
+    .btn-primary {
+      background: #fff;
+      color: #0A0A0A;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      padding: 9px 18px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-family: inherit;
+      letter-spacing: -0.1px;
+    }
+   
+    .btn-primary:hover { background: rgba(255,255,255,0.88); }
+   
+    /* HERO */
+    .hero {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 96px 40px 72px;
+      text-align: center;
+      overflow: hidden;
+    }
+   
+    .hero-glow {
+      position: absolute;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+   
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 32px;
+      letter-spacing: 0.2px;
+    }
+   
+    .badge-dot {
+      width: 5px;
+      height: 5px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 50%;
+    }
+   
+    .hero h1 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  font-size: clamp(28px, 4vw, 58px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  max-width: 720px;
+  margin-bottom: 22px;
+  color: #fff;
+}
+   
+    .hero h1 .dim { color: rgba(255,255,255,0.35); }
+   
+    .hero-sub {
+      font-size: 17px;
+      color: rgba(255,255,255,0.4);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+      font-weight: 400;
+    }
+   
+    .hero-ctas {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 56px;
+    }
+   
+    .cta-main {
+      background: #fff;
+      color: #0A0A0A;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      padding: 12px 24px;
+      border-radius: 9px;
+      transition: all 0.2s;
+      font-family: inherit;
+      letter-spacing: -0.2px;
+    }
+   
+    .cta-main:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+   
+    .cta-secondary {
+      background: transparent;
+      color: rgba(255,255,255,0.45);
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer;
+      padding: 12px 20px;
+      border-radius: 9px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+   
+    .cta-secondary:hover {
+      border-color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7);
+    }
+   
+    .social-proof {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 72px;
+    }
+   
+    .avatars { display: flex; }
+   
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1.5px solid #0A0A0A;
+      margin-left: -7px;
+      font-size: 9px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.7);
+    }
+   
+    .avatars .avatar:first-child { margin-left: 0; }
+   
+    /* DASHBOARD */
+    .dashboard-preview {
+      width: 100%;
+      max-width: 860px;
+      background: #111111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+   
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: #0F0F0F;
+    }
+   
+    .dot { width: 9px; height: 9px; border-radius: 50%; }
+    .dot-r { background: #3a3a3a; }
+    .dot-y { background: #3a3a3a; }
+    .dot-g { background: #3a3a3a; }
+   
+    .preview-url {
+      margin: 0 auto;
+      font-size: 11px;
+      color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.04);
+      padding: 3px 14px;
+      border-radius: 5px;
+    }
+   
+    .preview-body {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      min-height: 340px;
+    }
+   
+    .sidebar {
+      border-right: 1px solid rgba(255,255,255,0.05);
+      padding: 18px 0;
+      background: rgba(0,0,0,0.3);
+    }
+   
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 14px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      margin-bottom: 10px;
+      color: rgba(255,255,255,0.8);
+    }
+   
+    .s-icon {
+      width: 20px;
+      height: 20px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 5px;
+    }
+   
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+   
+    .sidebar-item.active {
+      color: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.05);
+    }
+   
+    .sidebar-item:hover:not(.active) { color: rgba(255,255,255,0.55); }
+   
+    .si-line {
+      width: 2px;
+      height: 12px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.12);
+    }
+   
+    .si-line.active { background: rgba(255,255,255,0.7); }
+   
+    .main-content { padding: 20px 22px; }
+   
+    .greeting {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      letter-spacing: -0.3px;
+      color: rgba(255,255,255,0.9);
+    }
+   
+    .greeting-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 18px;
+    }
+   
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+   
+    .stat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+   
+    .stat-label { font-size: 10px; color: rgba(255,255,255,0.25); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-value { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; color: rgba(255,255,255,0.85); }
+   
+    .ai-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+   
+    .ai-pip {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.08);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 1px;
+    }
+   
+    .ai-text { font-size: 11.5px; color: rgba(255,255,255,0.45); line-height: 1.55; }
+    .ai-text strong { color: rgba(255,255,255,0.75); font-weight: 500; }
+   
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+   
+    .section-title { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.25); letter-spacing: 0.6px; text-transform: uppercase; }
+    .section-add { font-size: 10px; color: rgba(255,255,255,0.25); cursor: pointer; }
+   
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 12px;
+    }
+   
+    .task-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: rgba(255,255,255,0.6);
+    }
+   
+    .task-check.done { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.12); }
+   
+    .task-name { color: rgba(255,255,255,0.6); flex: 1; }
+    .task-name.done { text-decoration: line-through; color: rgba(255,255,255,0.2); }
+   
+    .task-tag {
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.2px;
+    }
+   
+    .preview-fade {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: linear-gradient(transparent, rgba(10,10,10,0.97));
+      pointer-events: none;
+    }
+   
+    .features-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      padding: 28px 40px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      flex-wrap: wrap;
+    }
+   
+    .feature-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+   
+    .pill-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: rgba(255,255,255,0.4);
+    }
+    @media (max-width: 768px) {
+  .hero h1 {
+    font-size: clamp(28px, 7vw, 40px);
+    letter-spacing: -1px;
+  }
+
+  .hero {
+    padding: 72px 20px 48px;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+  }
+
+  .hero-ctas {
+    flex-direction: column;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .cta-main, .cta-secondary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .preview-body {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .stat-value {
+    font-size: 14px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  .features-strip {
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .dashboard-preview {
+    border-radius: 10px;
+  }
+
+  .main-content {
+    padding: 14px 14px;
+  }
+}
+  </style>
   
   
 </head>
 
-<body class="bg-[#0B0F14] scrollbar-hide">
 
-  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
+<body class="bg-[#0A0A0A] scrollbar-hide">
+
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
 
     <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
   
@@ -77,7 +597,7 @@
 
   <!-- Mobile Menu Overlay -->
 <div id="mobileMenu"
-class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-transform duration-300 ease-out">
+class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
 
 <!-- Top Bar -->
 <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
@@ -121,58 +641,158 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 
   
 
-<div class="mt-[72px] w-full min-h-[100svh] bg-[#0B0F14] relative overflow-hidden">
-
-  <!-- Video -->
-  <video
-    class="absolute inset-0 w-full h-full object-cover"
-    autoplay
-    muted
-    loop
-    playsinline
-  >
-    <source src="{{ url_for('static', filename='video/hero.mp4') }}" type="video/mp4">
-  </video>
-
-  <!-- Dark Overlay -->
-  <div class="absolute inset-0 bg-black/65"></div>
-
-  <!-- Hero Content -->
-  <div class="relative z-10 w-full h-full flex items-center justify-center px-6">
-
-    <!-- 1280 × 640 CARD -->
-    <div class="w-[1280px] h-[640px] flex items-center justify-center">
-
-      <div class="text-center flex flex-col items-center gap-6 max-w-3xl">
-      <h1 class="text-[52px] leading-[1.15] tracking-tight font-bold
-      text-white max-w-[768px] text-center drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
-      One workspace for everything that matters today
-      </h1>
-
-
-        <p class="text-lg text-white/80">
-          Taskflow cuts through the noise. Plan your day, track what moves you forward,
-          and let AI show you what's next. No switching between tools. No endless decisions.
-          Just clarity.
-        </p>
-
-        <div class="flex items-center gap-4">
-          <button class="bg-white text-gray-900 font-semibold px-6 py-3 rounded-md">
-            Start free
-          </button>
-          <button class="border border-white text-white font-semibold px-6 py-3 rounded-md">
-            Watch demo
-          </button>
+  <!-- ============================================================ -->
+  <!-- HERO -->
+  <!-- ============================================================ -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+   
+    <div class="hero-badge">
+      <div class="badge-dot"></div>
+      Personal growth OS — powered by AI
+    </div>
+   
+    <h1>
+      Stop juggling apps.<br>
+      <span class="dim">Start becoming who</span><br>
+      you're supposed to be.
+    </h1>
+   
+    <p class="hero-sub">
+      Tasks, habits, journal, and accountability — all in one place.
+      AI that studies your patterns and guides you toward
+      the best version of yourself.
+    </p>
+   
+    <div class="hero-ctas">
+      <button class="cta-main">Start for free →</button>
+      <button class="cta-secondary">See how it works</button>
+    </div>
+   
+    <div class="social-proof">
+      <div class="avatars">
+        <div class="avatar">JM</div>
+        <div class="avatar">AT</div>
+        <div class="avatar">KR</div>
+        <div class="avatar">DS</div>
+      </div>
+      <span>Joined by 2,000+ people building better habits</span>
+    </div>
+   
+    <div class="dashboard-preview">
+      <div class="preview-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="preview-url">tflow.live/home</div>
+      </div>
+   
+      <div class="preview-body">
+        <div class="sidebar">
+          <div class="sidebar-logo">
+            <div class="s-icon"></div>
+            TaskFlow
+          </div>
+          <div class="sidebar-item active">
+            <div class="si-line active"></div>
+            Home
+          </div>
+          <div class="sidebar-item">
+            <div class="si-line"></div>
+            Tasks
+          </div>
+          <div class="sidebar-item">
+            <div class="si-line"></div>
+            Habits
+          </div>
+          <div class="sidebar-item">
+            <div class="si-line"></div>
+            Journal
+          </div>
+          <div class="sidebar-item">
+            <div class="si-line"></div>
+            Calendar
+          </div>
+          <div class="sidebar-item">
+            <div class="si-line"></div>
+            Accountability
+          </div>
+        </div>
+   
+        <div class="main-content">
+          <div class="greeting">Good morning, Donny 👋</div>
+          <div class="greeting-sub">Saturday, March 28 · 7 tasks · 3 habits due</div>
+   
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-label">Streak</div>
+              <div class="stat-value">14 days</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tasks</div>
+              <div class="stat-value">5 / 7</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">NoFap</div>
+              <div class="stat-value">22 days</div>
+            </div>
+          </div>
+   
+          <div class="ai-card">
+            <div class="ai-pip">✦</div>
+            <div class="ai-text">
+              <strong>AI insight —</strong> You finish 40% more tasks on days you work out first. Your workout is at 8am today. Don't skip it.
+            </div>
+          </div>
+   
+          <div class="section-header">
+            <div class="section-title">Today's priorities</div>
+            <div class="section-add">+ Add</div>
+          </div>
+   
+          <div class="task-item">
+            <div class="task-check done">✓</div>
+            <div class="task-name done">Morning workout</div>
+            <div class="task-tag">Habit</div>
+          </div>
+          <div class="task-item">
+            <div class="task-check done">✓</div>
+            <div class="task-name done">Journal entry</div>
+            <div class="task-tag">Habit</div>
+          </div>
+          <div class="task-item">
+            <div class="task-check"></div>
+            <div class="task-name">Deploy Taskflow to production</div>
+            <div class="task-tag">Task</div>
+          </div>
+          <div class="task-item">
+            <div class="task-check"></div>
+            <div class="task-name">Rebuild landing page hero</div>
+            <div class="task-tag">Task</div>
+          </div>
+          <div class="task-item">
+            <div class="task-check"></div>
+            <div class="task-name">NoFap check-in</div>
+            <div class="task-tag">Accountability</div>
+          </div>
         </div>
       </div>
-
+      <div class="preview-fade"></div>
     </div>
+  </section>
 
+  <div class="features-strip">
+    <div class="feature-pill"><div class="pill-check">✓</div> Tasks & Goals</div>
+    <div class="feature-pill"><div class="pill-check">✓</div> Habit Tracking</div>
+    <div class="feature-pill"><div class="pill-check">✓</div> Accountability</div>
+    <div class="feature-pill"><div class="pill-check">✓</div> Journal & Notes</div>
+    <div class="feature-pill"><div class="pill-check">✓</div> AI Life Coach</div>
   </div>
-</div>
+  
+
 
 <!-- THREE TOOLS SECTION -->
-<section class="w-full px-[64px] py-[112px] bg-[#0B0F14] text-white">
+<section class="w-full px-[64px] py-[112px] bg-[#0A0A0A] text-white">
 
   <div class="max-w-[1280px] mx-auto text-center mb-16">
     <p class="text-sm font-medium text-white/50 mb-2">
@@ -197,7 +817,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 
 
   <!-- Card 1 (288px) -->
-  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#0F141B] flex flex-col">
+  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#111111] flex flex-col">
     <div class="relative h-[180px] overflow-hidden">
       <img
         src="{{ url_for('static', filename='images/landing/tool-planning.svg') }}"
@@ -227,7 +847,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
   
 
   <!-- Card 2 (288px) -->
-  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#0F141B] flex flex-col">
+  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#111111] flex flex-col">
     <div class="relative h-[180px] overflow-hidden">
       <img
         src="{{ url_for('static', filename='images/landing/tool-priorities.svg') }}"
@@ -257,7 +877,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
   
 
   <!-- Card 3 (640px, taller) -->
-  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#0F141B] flex flex-col md:flex-row">
+  <div class="border border-white/10 rounded-lg overflow-hidden bg-[#111111] flex flex-col md:flex-row">
     <div class="relative md:w-[320px] h-[180px] md:h-auto shrink-0 overflow-hidden">
       <img
         src="{{ url_for('static', filename='images/landing/tool-habits.svg') }}"
@@ -290,7 +910,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- WORK THAT STICKS -->
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
 
   <!-- Section header -->
   <div class="max-w-[1280px] mx-auto text-center mb-16">
@@ -312,7 +932,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
               lg:grid-cols-3">
 
     <!-- Card 1 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 flex flex-col overflow-hidden">
 
       <div class="p-6 flex flex-col gap-3">
@@ -344,7 +964,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Card 2 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 flex flex-col overflow-hidden">
 
       <div class="p-6 flex flex-col gap-3">
@@ -375,7 +995,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Card 3 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 flex flex-col overflow-hidden">
 
       <div class="p-6 flex flex-col gap-3">
@@ -409,7 +1029,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- HOW IT WORKS -->
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
 
   <!-- Header -->
   <div class="max-w-[1280px] mx-auto text-center mb-16">
@@ -431,7 +1051,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
               lg:grid-cols-[1.4fr_1fr_1fr]">
 
     <!-- Step 1 (Primary) -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 p-8 flex flex-col justify-between">
 
       <div>
@@ -461,7 +1081,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Step 2 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 p-6 flex flex-col justify-between">
 
       <div>
@@ -485,7 +1105,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Step 3 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B]
+    <div class="border border-white/10 rounded-lg bg-[#111111]
                 p-6 flex flex-col justify-between">
 
       <div>
@@ -512,7 +1132,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- REAL VOICES -->
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
 
   <!-- Header -->
   <div class="max-w-[1280px] mx-auto mb-16">
@@ -531,7 +1151,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
               lg:grid-cols-3">
 
     <!-- Testimonial 1 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B] p-6 flex flex-col gap-6">
+    <div class="border border-white/10 rounded-lg bg-[#111111] p-6 flex flex-col gap-6">
 
       <!-- Stars -->
       <div class="flex gap-1 text-white">
@@ -560,7 +1180,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Testimonial 2 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B] p-6 flex flex-col gap-6">
+    <div class="border border-white/10 rounded-lg bg-[#111111] p-6 flex flex-col gap-6">
 
       <div class="flex gap-1 text-white">
         ★★★★★
@@ -586,7 +1206,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Testimonial 3 -->
-    <div class="border border-white/10 rounded-lg bg-[#0F141B] p-6 flex flex-col gap-6">
+    <div class="border border-white/10 rounded-lg bg-[#111111] p-6 flex flex-col gap-6">
 
       <div class="flex gap-1 text-white">
         ★★★★★
@@ -615,7 +1235,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- FINAL CTA -->
-<section class="w-full px-6 md:px-[64px] py-[160px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[160px] bg-[#0A0A0A] text-white">
 
   <div class="max-w-[960px] mx-auto text-center flex flex-col items-center gap-6">
 
@@ -641,7 +1261,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </div>
 
     <!-- Product visual -->
-    <div class="mt-20 w-full h-[280px] sm:h-[340px] md:h-[420px] rounded-xl border border-white/10 bg-[#0F141B] overflow-hidden relative">
+    <div class="mt-20 w-full h-[280px] sm:h-[340px] md:h-[420px] rounded-xl border border-white/10 bg-[#111111] overflow-hidden relative">
       <img
         src="{{ url_for('static', filename='images/landing/cta-reclaim-focus.svg') }}"
         alt="TaskFlow focus dashboard showing top priorities and momentum"
@@ -652,7 +1272,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 
       <div class="pointer-events-none absolute inset-x-0 bottom-0 p-6 md:p-8">
         <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs text-white/70 backdrop-blur-sm">
-          <span class="h-1.5 w-1.5 rounded-full bg-[#67CDFB]"></span>
+          <span class="h-1.5 w-1.5 rounded-full bg-[#3A3A3A]"></span>
           Top priorities, one clear path
         </div>
       </div>
@@ -663,7 +1283,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- STAY IN THE LOOP -->
-<section class="w-full px-6 md:px-[64px] py-[160px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[160px] bg-[#0A0A0A] text-white">
 
   <div class="max-w-[960px] mx-auto text-center flex flex-col items-center gap-6">
 
@@ -684,7 +1304,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
         placeholder="Your email"
         required
         class="w-full flex-1 px-4 py-3 rounded-md
-               bg-[#0F141B] border border-white/10
+               bg-[#111111] border border-white/10
                text-white placeholder:text-white/40
                focus:outline-none focus:border-white/30"
       >
@@ -704,7 +1324,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
     </p>
 
     <!-- Visual container -->
-    <div class="mt-20 w-full h-[280px] sm:h-[340px] md:h-[420px] rounded-xl border border-white/10 bg-[#0F141B] overflow-hidden relative">
+    <div class="mt-20 w-full h-[280px] sm:h-[340px] md:h-[420px] rounded-xl border border-white/10 bg-[#111111] overflow-hidden relative">
       <img
         src="{{ url_for('static', filename='images/landing/cta-stay-loop.svg') }}"
         alt="TaskFlow update feed and insights panel for subscribers"
@@ -715,7 +1335,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 
       <div class="pointer-events-none absolute inset-x-0 bottom-0 p-6 md:p-8">
         <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs text-white/70 backdrop-blur-sm">
-          <span class="h-1.5 w-1.5 rounded-full bg-[#67CDFB]"></span>
+          <span class="h-1.5 w-1.5 rounded-full bg-[#3A3A3A]"></span>
           Weekly focus signals, no noise
         </div>
       </div>
@@ -726,7 +1346,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- QUESTIONS / FAQ -->
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0B0F14] text-white">
+<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
 
   <!-- Header -->
   <div class="max-w-[960px] mx-auto text-center mb-16">
@@ -742,7 +1362,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
   <div class="max-w-[1100px] mx-auto grid gap-6 grid-cols-1 md:grid-cols-2">
 
     <!-- FAQ Item -->
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">How does AI help?</h3>
         <span class="text-white/60">×</span>
@@ -753,7 +1373,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">Can I import my tasks?</h3>
         <span class="text-white/60">×</span>
@@ -764,7 +1384,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">Can I use it offline?</h3>
         <span class="text-white/60">×</span>
@@ -775,7 +1395,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">What if I need help?</h3>
         <span class="text-white/60">×</span>
@@ -786,7 +1406,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">What about my data?</h3>
         <span class="text-white/60">×</span>
@@ -797,7 +1417,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">Can teams use TaskFlow?</h3>
         <span class="text-white/60">×</span>
@@ -808,7 +1428,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">Is there a mobile app?</h3>
         <span class="text-white/60">×</span>
@@ -819,7 +1439,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">How do habits work?</h3>
         <span class="text-white/60">×</span>
@@ -830,7 +1450,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">How much does it cost?</h3>
         <span class="text-white/60">×</span>
@@ -841,7 +1461,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
       </p>
     </div>
 
-    <div class="border border-white/15 rounded-md p-6 bg-[#0F141B]">
+    <div class="border border-white/15 rounded-md p-6 bg-[#111111]">
       <div class="flex items-start justify-between gap-4">
         <h3 class="font-semibold">Do you offer discounts?</h3>
         <span class="text-white/60">×</span>
@@ -874,7 +1494,7 @@ class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-
 </section>
 
 <!-- FOOTER -->
-<footer class="w-full bg-[#0B0F14] text-white px-6 md:px-[64px] py-[96px]">
+<footer class="w-full bg-[#0A0A0A] text-white px-6 md:px-[64px] py-[96px]">
 
   <div class="max-w-[1280px] mx-auto">
 
