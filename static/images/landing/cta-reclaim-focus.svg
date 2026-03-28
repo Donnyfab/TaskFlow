@@ -1,0 +1,66 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <linearGradient id="cta-bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08111C"/>
+      <stop offset="1" stop-color="#111D2B"/>
+    </linearGradient>
+    <radialGradient id="cta-glow-main" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1170 180) rotate(150) scale(700 430)">
+      <stop stop-color="#5FCFFB" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#5FCFFB" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cta-glow-side" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 680) rotate(18) scale(520 340)">
+      <stop stop-color="#2D6EA4" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2D6EA4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel-shell" x1="280" y1="190" x2="1320" y2="730" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F1C2E"/>
+      <stop offset="1" stop-color="#0B1523"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#cta-bg)"/>
+  <rect width="1600" height="900" fill="url(#cta-glow-main)"/>
+  <rect width="1600" height="900" fill="url(#cta-glow-side)"/>
+
+  <g opacity="0.14" stroke="#86A8CA" stroke-width="1">
+    <path d="M120 220H1480"/>
+    <path d="M120 300H1480"/>
+    <path d="M120 380H1480"/>
+    <path d="M120 460H1480"/>
+    <path d="M120 540H1480"/>
+    <path d="M120 620H1480"/>
+    <path d="M120 700H1480"/>
+  </g>
+
+  <rect x="280" y="188" width="1040" height="540" rx="28" fill="url(#panel-shell)" stroke="#8FB0CF" stroke-opacity="0.2"/>
+  <rect x="330" y="240" width="940" height="70" rx="16" fill="#14233A"/>
+  <circle cx="370" cy="275" r="9" fill="#5FCFFB"/>
+  <rect x="394" y="266" width="280" height="18" rx="9" fill="#9EC2E3" fill-opacity="0.38"/>
+  <rect x="682" y="266" width="170" height="18" rx="9" fill="#7FA2C5" fill-opacity="0.24"/>
+
+  <rect x="330" y="336" width="408" height="340" rx="20" fill="#0D1929" stroke="#85A6C8" stroke-opacity="0.2"/>
+  <rect x="364" y="374" width="112" height="14" rx="7" fill="#95B6D8" fill-opacity="0.3"/>
+  <rect x="364" y="402" width="320" height="20" rx="10" fill="#67CDFB" fill-opacity="0.42"/>
+  <rect x="364" y="434" width="270" height="12" rx="6" fill="#8DADCE" fill-opacity="0.22"/>
+  <rect x="364" y="474" width="18" height="18" rx="5" fill="#67CDFB"/>
+  <rect x="394" y="477" width="228" height="12" rx="6" fill="#8DADCE" fill-opacity="0.3"/>
+  <rect x="364" y="514" width="18" height="18" rx="5" fill="#4E6F92"/>
+  <rect x="394" y="517" width="196" height="12" rx="6" fill="#7999BB" fill-opacity="0.25"/>
+  <rect x="364" y="554" width="18" height="18" rx="5" fill="#3F5C7C"/>
+  <rect x="394" y="557" width="162" height="12" rx="6" fill="#6A89AA" fill-opacity="0.22"/>
+
+  <rect x="764" y="336" width="506" height="340" rx="20" fill="#0D1929" stroke="#85A6C8" stroke-opacity="0.2"/>
+  <rect x="806" y="382" width="58" height="250" rx="12" fill="#284463"/>
+  <rect x="882" y="468" width="58" height="164" rx="12" fill="#375A7E"/>
+  <rect x="958" y="430" width="58" height="202" rx="12" fill="#466F98"/>
+  <rect x="1034" y="354" width="58" height="278" rx="12" fill="#5688B7"/>
+  <rect x="1110" y="304" width="58" height="328" rx="12" fill="#67CDFB" fill-opacity="0.76"/>
+
+  <path d="M835 486C890 438 948 453 1002 413C1052 376 1105 377 1155 328" stroke="#6FD4FF" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="835" cy="486" r="8" fill="#6FD4FF"/>
+  <circle cx="1002" cy="413" r="8" fill="#6FD4FF"/>
+  <circle cx="1155" cy="328" r="8" fill="#6FD4FF"/>
+
+  <rect x="1118" y="230" width="152" height="44" rx="12" fill="#1A3049" stroke="#69CFFC" stroke-opacity="0.45"/>
+  <rect x="1142" y="246" width="101" height="12" rx="6" fill="#8FB5D8" fill-opacity="0.34"/>
+</svg>

@@ -1,0 +1,35 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <linearGradient id="focus-bg" x1="0" y1="0" x2="1200" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A121D"/>
+      <stop offset="1" stop-color="#101B2A"/>
+    </linearGradient>
+    <radialGradient id="focus-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(600 394) rotate(90) scale(302 402)">
+      <stop stop-color="#69CCF8" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#69CCF8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="focus-panel" x1="360" y1="164" x2="840" y2="636" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E1B2D"/>
+      <stop offset="1" stop-color="#0B1523"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#focus-bg)"/>
+  <rect width="1200" height="800" fill="url(#focus-glow)"/>
+  <g opacity="0.14" stroke="#8BA9CA">
+    <path d="M120 200H1080"/>
+    <path d="M120 280H1080"/>
+    <path d="M120 360H1080"/>
+    <path d="M120 440H1080"/>
+    <path d="M120 520H1080"/>
+    <path d="M120 600H1080"/>
+  </g>
+  <rect x="360" y="164" width="480" height="472" rx="26" fill="url(#focus-panel)" stroke="#9CB9D8" stroke-opacity="0.2"/>
+  <rect x="406" y="220" width="388" height="54" rx="14" fill="#142339"/>
+  <circle cx="442" cy="247" r="10" fill="#5CC8F6" fill-opacity="0.8"/>
+  <rect x="466" y="238" width="226" height="18" rx="9" fill="#9FC3E4" fill-opacity="0.42"/>
+  <rect x="406" y="300" width="388" height="256" rx="18" fill="#0D1929" stroke="#86A7C9" stroke-opacity="0.16"/>
+  <circle cx="600" cy="428" r="86" stroke="#47688A" stroke-opacity="0.5" stroke-width="16"/>
+  <circle cx="600" cy="428" r="86" stroke="#66CDFB" stroke-width="16" stroke-linecap="round" stroke-dasharray="312 540" transform="rotate(-90 600 428)"/>
+  <path d="M566 434L590 458L640 407" stroke="#66CDFB" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="490" y="535" width="220" height="12" rx="6" fill="#8EAFD1" fill-opacity="0.28"/>
+</svg>
