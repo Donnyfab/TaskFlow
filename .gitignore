@@ -1,13 +1,19 @@
 # folders
 node_modules/
 __pycache__/
+.venv/
+
+# os/editor
+.DS_Store
+
 # files
 .env
+.env.*
+.env*
+!.env.example
 secrets.txt
+
 # file types
 *.log
 *.tmp
-.env.*
-.env*
-
 
