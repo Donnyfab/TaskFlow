@@ -151,12 +151,12 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
+    "port": int(os.environ.get("DB_PORT", 3306)),
     "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", "Smile0731."),
+    "password": os.environ.get("DB_PASSWORD", ""),
     "database": os.environ.get("DB_NAME", "todo_list"),
-    "autocommit": True,
+    "autocommit": True
 }
-
 
 # ============================================================
 # 5) GOOGLE OAUTH (Sign in with Google)
