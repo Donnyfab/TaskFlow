@@ -706,6 +706,62 @@
     padding: 14px 14px;
   }
 }
+
+/* ========== RESPONSIVE ADDITIONS ========== */
+
+/* How It Works — stack steps vertically on mobile */
+@media (max-width: 768px) {
+  .hiw-step,
+  .hiw-step.flip {
+    grid-template-columns: 1fr !important;
+    gap: 20px;
+    padding: 36px 0;
+  }
+  .hiw-step.flip .hiw-num  { order: 1 !important; }
+  .hiw-step.flip .hiw-text { order: 2 !important; text-align: left !important; }
+  .hiw-step.flip .hiw-text .hiw-desc { margin-left: 0 !important; }
+  .hiw-step.flip .hiw-card { order: 3 !important; }
+  .hiw-num {
+    flex-direction: row;
+    gap: 12px;
+    height: auto;
+    align-items: center;
+  }
+  .hiw-vline { display: none; }
+}
+
+/* Bento feature grid — single column on mobile */
+@media (max-width: 768px) {
+  .bento-grid { grid-template-columns: 1fr !important; }
+  .bento-span2 { grid-column: span 1 !important; }
+}
+
+/* Stats bar — 2×2 on mobile */
+@media (max-width: 640px) {
+  .stats-bar { grid-template-columns: 1fr 1fr !important; }
+  .stats-bar > div:nth-child(1),
+  .stats-bar > div:nth-child(2) {
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .stats-bar > div:nth-child(2) { border-right-width: 0; }
+}
+
+/* Comparison table — hidden on mobile (replaced by stacked cards) */
+
+/* Social proof — wrap on very small screens */
+@media (max-width: 480px) {
+  .social-proof {
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+}
+
+/* Section headings — scale down on very small screens */
+@media (max-width: 480px) {
+  .section-h2-lg {
+    font-size: 28px !important;
+  }
+}
   </style>
   
   
@@ -983,9 +1039,9 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
   
 <!-- HOW IT WORKS SECTION  -->
 
-  <section class="w-full px-6 md:px-[56px] py-[112px] bg-[#0A0A0A] text-white">
+  <section class="w-full px-6 md:px-[56px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
     <div class="max-w-[1280px] mx-auto">
-   
+
       <!-- STEPS -->
       <div>
    
@@ -1110,13 +1166,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
   
 <!-- FEATURE CARDS SECTION — paste right after the hero section and features-strip div -->
  
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
+<section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
   <div class="max-w-[1280px] mx-auto">
- 
+
     <!-- Section header -->
     <div class="text-center mb-14">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">Built different</p>
-      <h2 class="text-[38px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
+      <h2 class="section-h2-lg text-[38px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
         Features you won't find<br>
         <span class="text-white/28">anywhere else — for free.</span>
       </h2>
@@ -1126,10 +1182,10 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
     </div>
  
     <!-- Bento Grid -->
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
- 
+    <div class="bento-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+
       <!-- CARD 1: Daily Growth Score (wide) -->
-      <div style="grid-column:span 2; background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
+      <div class="bento-span2" style="grid-column:span 2; background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
         <div style="padding:22px 22px 16px;">
           <p style="font-size:10px; font-weight:500; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Daily Growth Score</p>
           <h3 style="font-size:15px; font-weight:700; letter-spacing:-0.3px; margin-bottom:6px; color:rgba(255,255,255,0.88); line-height:1.3;">Your day, scored. Know exactly how you performed.</h3>
@@ -1199,7 +1255,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
       </div>
  
       <!-- CARD 3: Consistency Map (wide) -->
-      <div style="grid-column:span 2; background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
+      <div class="bento-span2" style="grid-column:span 2; background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
         <div style="padding:22px 22px 16px;">
           <p style="font-size:10px; font-weight:500; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Consistency Map</p>
           <h3 style="font-size:15px; font-weight:700; letter-spacing:-0.3px; margin-bottom:6px; color:rgba(255,255,255,0.88); line-height:1.3;">See your consistency over time — the full picture.</h3>
@@ -1250,13 +1306,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 
 <!-- TESTIMONIALS SECTION — replace your existing testimonials section with this -->
  
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
+<section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
   <div class="max-w-[1280px] mx-auto">
- 
+
     <!-- Header -->
     <div class="text-center mb-14">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">Real people. Real results.</p>
-      <h2 class="text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
+      <h2 class="section-h2-lg text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
         People who stopped juggling<br>
         <span class="text-white/28">and started becoming.</span>
       </h2>
@@ -1266,7 +1322,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
     </div>
  
     <!-- FEATURED BIG QUOTE -->
-    <div class="max-w-[860px] mx-auto mb-10 bg-[#111] border border-white/9 rounded-[20px] px-11 py-10 relative overflow-hidden">
+    <div class="max-w-[860px] mx-auto mb-10 bg-[#111] border border-white/9 rounded-[20px] px-6 md:px-11 py-8 md:py-10 relative overflow-hidden">
       <div class="absolute top-[-20px] left-8 text-[160px] font-bold text-white/[0.03] leading-none pointer-events-none select-none">"</div>
       <p class="text-[22px] font-bold leading-[1.45] text-white/88 mb-7 max-w-[680px] relative z-10" style="letter-spacing:-0.5px;">
         "I've tried every productivity app out there. Taskflow is the <span class="text-white">first one that actually feels like it's on my side.</span> The AI knows when I'm slipping before I do."
@@ -1341,7 +1397,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
     </div>
  
     <!-- STATS BAR -->
-    <div class="max-w-[860px] mx-auto grid grid-cols-4 bg-[#111] border border-white/7 rounded-2xl overflow-hidden">
+    <div class="stats-bar max-w-[860px] mx-auto grid grid-cols-2 md:grid-cols-4 bg-[#111] border border-white/7 rounded-2xl overflow-hidden">
       <div class="px-6 py-6 text-center border-r border-white/7">
         <div class="text-[28px] font-bold text-white/90 mb-1" style="letter-spacing:-1px;">2,000+</div>
         <div class="text-xs text-white/30">People signed up</div>
@@ -1365,14 +1421,14 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 
 <!-- COMPARISON SECTION — paste after HOW IT WORKS, before TESTIMONIALS -->
 
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
+<section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
   <div class="max-w-[1280px] mx-auto">
 
     <!-- Header -->
     <div class="flex items-end justify-between gap-10 mb-10 flex-wrap">
       <div>
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">The math is simple</p>
-        <h2 class="text-[38px] font-bold leading-[1.1] mb-3" style="letter-spacing:-1.5px;">
+        <h2 class="section-h2-lg text-[38px] font-bold leading-[1.1] mb-3" style="letter-spacing:-1.5px;">
           Why pay $50/month<br>
           <span class="text-white/28">for 5 different apps?</span>
         </h2>
@@ -1387,8 +1443,9 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
       </div>
     </div>
 
-    <!-- Table -->
-    <div class="border border-white/8 rounded-2xl overflow-hidden">
+    <!-- Table (desktop only) -->
+    <div class="comp-table-scroll hidden md:block">
+    <div class="comp-table-inner border border-white/8 rounded-2xl overflow-hidden">
 
       <!-- Table Header -->
       <div class="grid border-b border-white/7 bg-white/[0.03]" style="grid-template-columns: 1fr 140px 140px;">
@@ -1453,6 +1510,141 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
       </div>
 
     </div>
+    </div><!-- /comp-table-scroll -->
+
+    <!-- Stacked cards (mobile only) -->
+    <div class="md:hidden flex flex-col gap-2">
+
+      <!-- Card: Task management -->
+      <div class="bg-[#111] border border-white/[0.07] rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-base flex-shrink-0">✅</span>
+          <span class="text-sm font-medium text-white/75">Task management</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs font-semibold text-red-400/70">$5/mo</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Habit tracking -->
+      <div class="bg-[#111] border border-white/[0.07] rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-base flex-shrink-0">🔁</span>
+          <span class="text-sm font-medium text-white/75">Habit tracking + streaks</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs font-semibold text-red-400/70">$8/mo</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Journal & notes -->
+      <div class="bg-[#111] border border-white/[0.07] rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-base flex-shrink-0">📓</span>
+          <span class="text-sm font-medium text-white/75">Journal &amp; notes</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs font-semibold text-red-400/70">$10/mo</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Calendar planning -->
+      <div class="bg-[#111] border border-white/[0.07] rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-base flex-shrink-0">📅</span>
+          <span class="text-sm font-medium text-white/75">Calendar planning</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs font-semibold text-red-400/70">$19/mo</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Accountability tracker -->
+      <div class="bg-[#111] border border-white/[0.07] rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-base flex-shrink-0">🚫</span>
+          <span class="text-sm font-medium text-white/75">Accountability tracker</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs font-semibold text-red-400/70">$12/mo</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: AI coaching (highlighted) -->
+      <div class="bg-white/[0.02] border border-white/[0.08] rounded-xl p-4">
+        <div class="flex items-start gap-2 mb-3">
+          <div class="w-5 h-5 rounded-md bg-white/7 flex items-center justify-center text-[9px] text-white/45 flex-shrink-0 mt-0.5">✦</div>
+          <span class="text-sm text-white/60 leading-snug"><strong class="text-white/75 font-medium">AI that studies your patterns</strong> and coaches you toward a better version of yourself</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Others:</span>
+            <span class="text-xs text-white/20">—</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-white/30">Taskflow:</span>
+            <div class="w-4 h-4 rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div>
+            <span class="bg-white text-[#0A0A0A] text-[8px] font-bold px-1.5 py-[1px] rounded-full">FREE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total card -->
+      <div class="bg-white/[0.03] border border-white/8 rounded-xl p-4 mt-1">
+        <div class="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-3">Total per month</div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-[10px] text-white/25 mb-1">Other apps</div>
+            <div class="text-lg font-bold text-red-400/80">$54 / mo</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] text-white/25 mb-1">Taskflow</div>
+            <div class="text-lg font-bold text-white/90">$0 / mo</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /mobile stacked cards -->
 
     <!-- CTA -->
     <div class="flex items-center gap-5 mt-8">
@@ -1467,13 +1659,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 <!-- ============================================================ -->
 
 <section class="w-full bg-[#0A0A0A] text-white border-b border-white/5">
-  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-[100px]">
+  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
 
       <!-- Left -->
       <div class="flex flex-col">
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-4">Ready when you are</p>
-        <h2 class="text-[42px] font-bold leading-[1.08] mb-5" style="letter-spacing:-1.5px;">
+        <h2 class="section-h2-lg text-[42px] font-bold leading-[1.08] mb-5" style="letter-spacing:-1.5px;">
           Stop planning.<br>
           <span class="text-white/28">Start becoming.</span>
         </h2>
@@ -1540,26 +1732,26 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 <!-- ============================================================ -->
 
 <section class="w-full bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-[100px]">
+  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
 
       <!-- Left -->
       <div class="flex flex-col">
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-4">Stay in the loop</p>
-        <h2 class="text-[36px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
+        <h2 class="section-h2-lg text-[36px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
           Be first to know<br>
           <span class="text-white/28">what's coming next.</span>
         </h2>
         <p class="text-sm text-white/40 leading-[1.7] mb-7 max-w-[380px]">
           Get early access to new features, AI updates, and weekly growth tips — straight to your inbox. No spam. Just signal.
         </p>
-        <div class="flex gap-2 mb-3">
+        <div class="flex flex-col sm:flex-row gap-2 mb-3">
           <input
             type="email"
             placeholder="Your email address"
             class="flex-1 bg-white/[0.04] border border-white/10 rounded-[9px] px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-white/20"
           />
-          <button class="bg-white text-gray-900 text-sm font-semibold px-5 py-3 rounded-[9px] hover:bg-white/90 transition whitespace-nowrap">Subscribe →</button>
+          <button class="w-full sm:w-auto bg-white text-gray-900 text-sm font-semibold px-5 py-3 rounded-[9px] hover:bg-white/90 transition">Subscribe →</button>
         </div>
         <p class="text-[11px] text-white/22">We respect your inbox. Unsubscribe anytime.</p>
       </div>
@@ -1597,13 +1789,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
   </div>
 </section>
 
-<section class="w-full px-6 md:px-[64px] py-[112px] bg-[#0A0A0A] text-white">
+<section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
   <div class="max-w-[1280px] mx-auto">
 
     <!-- Header -->
     <div class="text-center mb-12">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">FAQ</p>
-      <h2 class="text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
+      <h2 class="section-h2-lg text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
         Questions? We got you.<br>
         <span class="text-white/28">Answers to everything.</span>
       </h2>
@@ -1707,7 +1899,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
     </div>
 
     <!-- Bottom CTA -->
-    <div class="max-w-[900px] mx-auto bg-[#111] border border-white/[0.07] rounded-2xl px-9 py-8 flex items-center justify-between gap-6 flex-wrap">
+    <div class="max-w-[900px] mx-auto bg-[#111] border border-white/[0.07] rounded-2xl px-5 md:px-9 py-6 md:py-8 flex items-center justify-between gap-6 flex-wrap">
       <div>
         <div class="text-sm font-bold text-white/85 mb-1">Still have questions?</div>
         <div class="text-xs text-white/35">We're real people — reach out and we'll get back to you fast.</div>
