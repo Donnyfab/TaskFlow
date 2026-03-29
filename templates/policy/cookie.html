@@ -1,153 +1,164 @@
-<!DOCTYPE html>
-<html lang="en" class="scrollbar-hide scroll-smooth">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskFlow — Cookie Settings</title>
+{% extends "policy/base_policy.html" %}
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% block meta_title %}Cookies Policy | TaskFlow{% endblock %}
+{% block hero_eyebrow %}Cookies{% endblock %}
+{% block hero_title %}Small cookies. <span class="dim">Clear purpose.</span>{% endblock %}
+{% block hero_subtitle %}TaskFlow keeps cookie use narrow. This page explains the cookies the app uses today, why they exist, and what happens if you disable them in your browser.{% endblock %}
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-[#0B0F14] text-white font-[Inter]">
-
-<!-- HEADER -->
-<header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
-  <div class="max-w-[1280px] mx-auto h-full flex items-center justify-between px-6">
-    <a href="/" class="flex items-center gap-2">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-      <span class="font-semibold tracking-tight">TaskFlow</span>
-    </a>
-
-    <a href="/" class="text-sm text-white/60 hover:text-white transition">
-      Back to home
-    </a>
+{% block quick_cards %}
+  <div class="quick-card">
+    <div class="quick-label">Short version</div>
+    <div class="quick-title">TaskFlow uses cookies mainly for login and product memory.</div>
+    <p class="quick-copy">Today, the app relies on cookies to keep signed-in sessions working and to remember note context so the notes experience feels continuous instead of reset every visit.</p>
   </div>
-</header>
-
-<!-- PAGE -->
-<main class="pt-[120px] pb-[140px] px-6">
-  <div class="max-w-[960px] mx-auto">
-
-    <!-- Header -->
-    <div class="mb-14">
-      <h1 class="text-[40px] font-bold tracking-tight mb-3">
-        Cookie settings
-      </h1>
-      <p class="text-white/60 max-w-[720px]">
-        TaskFlow uses cookies to operate, improve performance, and personalize your experience.
-        You’re in control — choose what you allow.
-      </p>
-    </div>
-
-    <!-- Cookie Cards -->
-    <div class="space-y-6">
-
-      <!-- Essential -->
-      <div class="bg-[#0F141B] border border-white/10 rounded-xl p-6 flex items-start justify-between gap-6">
-        <div>
-          <h3 class="font-semibold text-lg mb-1">Essential cookies</h3>
-          <p class="text-sm text-white/60 max-w-[600px]">
-            Required for core functionality like authentication, security, and saving your preferences.
-            These cookies cannot be disabled.
-          </p>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-white/40">Always on</span>
-          <div class="w-10 h-6 rounded-full bg-white/30 relative">
-            <div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Analytics -->
-      <div class="bg-[#0F141B] border border-white/10 rounded-xl p-6 flex items-start justify-between gap-6">
-        <div>
-          <h3 class="font-semibold text-lg mb-1">Analytics cookies</h3>
-          <p class="text-sm text-white/60 max-w-[600px]">
-            Help us understand how TaskFlow is used so we can improve performance and usability.
-            Data is aggregated and anonymized.
-          </p>
-        </div>
-
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" class="sr-only peer">
-          <div class="w-11 h-6 bg-white/20 rounded-full peer peer-checked:bg-white transition"></div>
-          <div class="absolute left-1 top-1 w-4 h-4 bg-[#0B0F14] rounded-full transition peer-checked:translate-x-5"></div>
-        </label>
-      </div>
-
-      <!-- Functional -->
-      <div class="bg-[#0F141B] border border-white/10 rounded-xl p-6 flex items-start justify-between gap-6">
-        <div>
-          <h3 class="font-semibold text-lg mb-1">Functional cookies</h3>
-          <p class="text-sm text-white/60 max-w-[600px]">
-            Remember preferences such as theme, layout, and onboarding state
-            to make TaskFlow feel personal.
-          </p>
-        </div>
-
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" class="sr-only peer">
-          <div class="w-11 h-6 bg-white/20 rounded-full peer peer-checked:bg-white transition"></div>
-          <div class="absolute left-1 top-1 w-4 h-4 bg-[#0B0F14] rounded-full transition peer-checked:translate-x-5"></div>
-        </label>
-      </div>
-
-      <!-- Marketing -->
-      <div class="bg-[#0F141B] border border-white/10 rounded-xl p-6 flex items-start justify-between gap-6">
-        <div>
-          <h3 class="font-semibold text-lg mb-1">Marketing cookies</h3>
-          <p class="text-sm text-white/60 max-w-[600px]">
-            Used to show relevant content or announcements.
-            TaskFlow does not sell personal data or run invasive ad tracking.
-          </p>
-        </div>
-
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" class="sr-only peer">
-          <div class="w-11 h-6 bg-white/20 rounded-full peer peer-checked:bg-white transition"></div>
-          <div class="absolute left-1 top-1 w-4 h-4 bg-[#0B0F14] rounded-full transition peer-checked:translate-x-5"></div>
-        </label>
-      </div>
-
-    </div>
-
-    <!-- Actions -->
-    <div class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-white/10 pt-8">
-      <p class="text-sm text-white/50">
-        Changes apply immediately and can be updated anytime.
-      </p>
-
-      <div class="flex items-center gap-4">
-        <button
-          class="border border-white/20 px-5 py-2 rounded-md text-sm hover:border-white/40 transition">
-          Reject optional
-        </button>
-
-        <button
-          class="bg-white text-gray-900 px-5 py-2 rounded-md text-sm font-semibold hover:bg-white/90 transition">
-          Save preferences
-        </button>
-      </div>
-    </div>
-
-    <!-- Footer Links -->
-    <div class="mt-16 flex flex-col sm:flex-row items-center justify-between text-sm text-white/50 gap-4">
-      <div class="flex gap-6">
-        <a href="/privacy" class="hover:text-white transition">Privacy Policy</a>
-        <a href="/terms" class="hover:text-white transition">Terms of Service</a>
-      </div>
-
-      <span>© 2025 TaskFlow</span>
-    </div>
-
+  <div class="quick-card">
+    <div class="quick-label">What we use today</div>
+    <div class="quick-title">Essential cookies and note-context cookies.</div>
+    <p class="quick-copy">That includes the session cookie used for authenticated pages and the note cookies used to remember which note you last opened and in which notes scope.</p>
   </div>
-</main>
+  <div class="quick-card">
+    <div class="quick-label">What we do not use today</div>
+    <div class="quick-title">No ad-tech cookies or cross-site tracking.</div>
+    <p class="quick-copy">TaskFlow does not currently describe itself as using invasive advertising cookies or behavioral tracking pixels to follow you around the web.</p>
+  </div>
+{% endblock %}
 
-</body>
-</html>
+{% block toc %}
+  <div class="toc-heading">Jump to</div>
+  <div class="toc-links">
+    <a href="#overview" class="toc-link">Overview</a>
+    <a href="#today" class="toc-link">Cookies we use today</a>
+    <a href="#details" class="toc-link">Cookie details</a>
+    <a href="#third-party" class="toc-link">Third-party services</a>
+    <a href="#manage" class="toc-link">How to manage them</a>
+    <a href="#changes" class="toc-link">Changes and contact</a>
+  </div>
+{% endblock %}
+
+{% block intro_callout %}
+  <div class="section-card">
+    <div class="section-label">In plain English</div>
+    <h2 class="section-title">Cookies should solve a product problem, not create a trust problem.</h2>
+    <p class="section-copy">TaskFlow uses a small set of cookies to make the web app usable. If a cookie is there, it should have a concrete job: keep you signed in, keep your app state stable, or preserve context you would reasonably expect us to remember.</p>
+    <div class="callout">
+      <div class="callout-title">The one-minute summary</div>
+      <div class="callout-copy">If you sign in, TaskFlow needs a session cookie. If you use notes, TaskFlow may store the last note you opened so it can reopen the right context later. That is the main cookie story today.</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block policy_content %}
+  <section id="overview" class="section-card">
+    <div class="section-label">1. Overview</div>
+    <h2 class="section-title">A cookie is a small piece of browser data tied to your use of the site.</h2>
+    <p class="section-copy">Cookies can be essential, functional, or optional depending on what they do. TaskFlow keeps that footprint intentionally small.</p>
+    <p class="section-copy">This Cookies Policy explains the cookies used by the TaskFlow website and web app today. If our cookie usage changes in a meaningful way, we will update this page.</p>
+  </section>
+
+  <section id="today" class="section-card">
+    <div class="section-label">2. Cookies we use today</div>
+    <h2 class="section-title">Current cookie use is centered on sessions and notes.</h2>
+    <div class="detail-grid">
+      <div class="mini-card">
+        <h3>Essential session behavior</h3>
+        <p>TaskFlow uses a session cookie so authenticated parts of the app know which signed-in user is making a request.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Notes context memory</h3>
+        <p>The app stores the last note you opened and a scope-based note map so the notes view can restore where you left off.</p>
+      </div>
+      <div class="mini-card">
+        <h3>HttpOnly protection</h3>
+        <p>The note-context cookies set by the app are marked HttpOnly and SameSite=Lax, which helps reduce casual client-side access and some cross-site risks.</p>
+      </div>
+      <div class="mini-card">
+        <h3>No ad cookie stack today</h3>
+        <p>TaskFlow is not currently presented as using cross-site advertising cookies, social ad retargeting pixels, or third-party behavioral ad trackers.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="details" class="section-card">
+    <div class="section-label">3. Cookie details</div>
+    <h2 class="section-title">Here are the product cookies we can describe clearly today.</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Purpose</th>
+            <th>Type</th>
+            <th>How long it lasts</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <span class="cookie-tag">session</span><br>
+              Flask session cookie
+            </td>
+            <td>Keeps authenticated requests tied to your signed-in account so protected app pages can work.</td>
+            <td>Essential</td>
+            <td>Usually until you sign out or the browser session ends, depending on browser behavior and session settings.</td>
+          </tr>
+          <tr>
+            <td>
+              <span class="cookie-tag">last_opened_note_id</span>
+            </td>
+            <td>Remembers the most recent note you opened so TaskFlow can restore note context when you come back.</td>
+            <td>Functional</td>
+            <td>30 days</td>
+          </tr>
+          <tr>
+            <td>
+              <span class="cookie-tag">last_opened_note_by_scope</span>
+            </td>
+            <td>Stores a small scope-to-note map so the notes area can remember the last opened note for different views.</td>
+            <td>Functional</td>
+            <td>30 days</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <div class="callout-title">Why we list actual cookie names here</div>
+      <div class="callout-copy">A cookies page is more useful when it reflects what the app really sets. The note-context cookie names above come directly from the current app behavior.</div>
+    </div>
+  </section>
+
+  <section id="third-party" class="section-card">
+    <div class="section-label">4. Third-party services</div>
+    <h2 class="section-title">Some third-party features may involve their own cookies or storage rules.</h2>
+    <p class="section-copy">If you choose a third-party sign-in method, such as Google sign-in, that provider may use its own cookies or browser storage as part of its authentication flow. Those providers control their own cookies and policies.</p>
+    <p class="section-copy">If TaskFlow adds analytics, measurements, or other optional cookie categories later, we will update this page and any consent flow that is legally required before relying on them.</p>
+  </section>
+
+  <section id="manage" class="section-card">
+    <div class="section-label">5. How to manage them</div>
+    <h2 class="section-title">You can control cookies from your browser, but some product behavior depends on them.</h2>
+    <ul class="policy-list">
+      <li>You can delete TaskFlow cookies through your browser settings at any time.</li>
+      <li>You can block cookies entirely, but that may prevent sign-in sessions from working correctly.</li>
+      <li>If you remove the note-context cookies, the app may stop remembering the note you last opened or the notes scope you were using.</li>
+      <li>If you use a shared device, signing out when you are done is still the safest habit.</li>
+    </ul>
+  </section>
+
+  <section id="changes" class="section-card">
+    <div class="section-label">6. Changes and contact</div>
+    <h2 class="section-title">If our cookie use changes, this page should change with it.</h2>
+    <p class="section-copy">We will update this Cookies Policy when TaskFlow adds, removes, or materially changes how cookies are used.</p>
+    <p class="section-copy">If you have questions about cookies or browser storage in TaskFlow, email <a href="mailto:hello@taskflow.io" class="inline-link">hello@taskflow.io</a> and include "Cookies" in the subject line.</p>
+  </section>
+{% endblock %}
+
+{% block related_links %}
+  <a href="/privacy" class="related-link">
+    <h3>Privacy Policy</h3>
+    <p>The broader explanation of what information TaskFlow collects and how it is used.</p>
+  </a>
+  <a href="/terms" class="related-link">
+    <h3>Terms of Service</h3>
+    <p>The rules for using TaskFlow, including accounts, acceptable use, AI, and service changes.</p>
+  </a>
+{% endblock %}

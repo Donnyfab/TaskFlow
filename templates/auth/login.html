@@ -40,6 +40,7 @@
     .login-right { display: flex; align-items: center; justify-content: center; padding: 40px 56px; background: #0D0D0D; }
  
     .form-wrap { width: 100%; max-width: 380px; }
+    .mobile-logo { display: none; margin-bottom: 28px; width: fit-content; }
     .form-title { font-size: 24px; font-weight: 800; letter-spacing: -0.8px; margin-bottom: 6px; color: rgba(255,255,255,0.9); }
     .form-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 28px; }
  
@@ -54,6 +55,9 @@
  
     .s-btn { background: #fff; color: #0A0A0A; font-size: 14px; font-weight: 600; border: none; border-radius: 9px; padding: 13px; width: 100%; cursor: pointer; font-family: inherit; transition: all 0.2s; letter-spacing: -0.2px; }
     .s-btn:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+
+    .form-alert { background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: rgba(255,120,120,0.8); margin-bottom: 12px; }
+    .form-alert.info { background: rgba(120,255,180,0.08); border-color: rgba(120,255,180,0.2); color: rgba(180,255,210,0.88); }
  
     .s-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
     .s-div-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
@@ -70,6 +74,7 @@
       .login-wrap { grid-template-columns: 1fr; }
       .login-left { display: none; }
       .login-right { padding: 40px 24px; }
+      .mobile-logo { display: inline-flex; }
     }
   </style>
 </head>
@@ -116,30 +121,50 @@
   <!-- RIGHT -->
   <div class="login-right">
     <div class="form-wrap">
+      <a href="/" class="s-logo mobile-logo">
+        <div class="s-logo-icon">
+          <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        TaskFlow
+      </a>
       <div class="form-title">Welcome back</div>
       <div class="form-sub">Sign in to continue your growth journey.</div>
  
-      <form method="POST" action="/login">
+      <form method="POST" action="/login" id="loginForm">
         <div class="s-field">
           <div class="s-label">Username or email</div>
-          <input class="s-input" type="text" name="username" placeholder="donny@tflow.live" required>
+          <input class="s-input" type="text" id="identifier" name="identifier" placeholder="jane@example.com or janedoe" value="{{ request.form.get('identifier') or request.form.get('username') or request.form.get('email') or '' }}" required>
         </div>
         <div class="s-field">
           <div class="s-label">Password</div>
-          <input class="s-input" type="password" name="password" placeholder="••••••••" required>
+          <input class="s-input" type="password" id="password" name="password" placeholder="••••••••" required>
         </div>
  
-        <a href="/forgot-password" class="forgot">Forgot password?</a>
+        <a href="/accountreset" class="forgot">Forgot password?</a>
+
+        {% if info_message %}
+          <div class="form-alert info">{{ info_message }}</div>
+        {% endif %}
+
+        {% if error_identifier %}
+          <div class="form-alert">{{ error_identifier }}</div>
+        {% endif %}
+
+        {% if error_password %}
+          <div class="form-alert">{{ error_password }}</div>
+        {% endif %}
  
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div style="background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:rgba(255,120,120,0.8);margin-bottom:12px;">{{ message }}</div>
+              <div class="form-alert">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
  
-        <button type="submit" class="s-btn">Sign in →</button>
+        <button type="submit" class="s-btn" id="submitBtn">Sign in →</button>
       </form>
  
       <div class="s-divider">
@@ -167,12 +192,15 @@
     }
 
     // Loading state
-    document.getElementById("loginForm").addEventListener("submit", () => {
-      const btn = document.getElementById("submitBtn");
-      btn.textContent = "Signing in…";
-      btn.disabled = true;
-      btn.classList.add("opacity-80");
-    });
+    const loginForm = document.getElementById("loginForm");
+    if (loginForm) {
+      loginForm.addEventListener("submit", () => {
+        const btn = document.getElementById("submitBtn");
+        btn.textContent = "Signing in…";
+        btn.disabled = true;
+        btn.classList.add("opacity-80");
+      });
+    }
   </script>
 
 </body>

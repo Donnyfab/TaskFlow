@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Blog | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Thoughtful writing on discipline, systems, productivity, and building better days with TaskFlow." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; }
+    a { text-decoration: none; }
+
+    .b-hero { padding: 140px 56px 74px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .b-shell, .b-footer-inner { max-width: 1200px; margin: 0 auto; }
+    .b-pill { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 6px 14px; font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 24px; }
+    .b-pill-dot { width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.58); }
+    .b-title { font-size: clamp(38px, 5vw, 68px); font-weight: 800; letter-spacing: -2px; line-height: 1.02; max-width: 880px; margin-bottom: 18px; }
+    .b-title .dim { color: rgba(255,255,255,0.28); }
+    .b-sub { font-size: 16px; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 720px; margin-bottom: 34px; }
+    .b-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn-p { background: #fff; color: #0A0A0A; font-size: 14px; font-weight: 600; border: none; border-radius: 9px; padding: 13px 24px; transition: all 0.2s; display: inline-block; }
+    .btn-p:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+    .btn-s { background: transparent; color: rgba(255,255,255,0.5); font-size: 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 13px 22px; transition: all 0.2s; display: inline-block; }
+    .btn-s:hover { border-color: rgba(255,255,255,0.22); color: rgba(255,255,255,0.75); }
+
+    .b-section { padding: 84px 56px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .b-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 12px; }
+    .b-heading { font-size: clamp(24px, 3vw, 40px); font-weight: 800; letter-spacing: -1.2px; line-height: 1.08; margin-bottom: 16px; color: rgba(255,255,255,0.92); }
+    .b-copy { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.8; }
+
+    .featured-card {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 28px;
+    }
+    .feature-panel, .feature-side, .post-card, .pillar-card, .cta-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+    }
+    .feature-panel { padding: 28px; }
+    .feature-meta, .post-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; font-size: 11px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.7px; }
+    .feature-chip, .post-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.48); }
+    .feature-title { font-size: clamp(28px, 3vw, 42px); font-weight: 800; letter-spacing: -1px; line-height: 1.08; margin-bottom: 16px; color: rgba(255,255,255,0.92); max-width: 720px; }
+    .feature-desc { font-size: 15px; color: rgba(255,255,255,0.42); line-height: 1.8; margin-bottom: 24px; max-width: 700px; }
+    .feature-link { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.88); }
+    .feature-link:hover { color: #fff; }
+
+    .feature-side { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .takeaway-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 16px; }
+    .takeaway-num { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.2); letter-spacing: 0.8px; margin-bottom: 8px; }
+    .takeaway-copy { font-size: 13px; color: rgba(255,255,255,0.42); line-height: 1.7; }
+
+    .post-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+    .post-card { padding: 22px; transition: transform 0.2s, border-color 0.2s; }
+    .post-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.15); }
+    .post-title { font-size: 20px; font-weight: 750; line-height: 1.18; letter-spacing: -0.6px; color: rgba(255,255,255,0.9); margin-bottom: 12px; }
+    .post-desc { font-size: 13px; line-height: 1.75; color: rgba(255,255,255,0.38); margin-bottom: 18px; }
+    .post-points { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .post-point { font-size: 12px; color: rgba(255,255,255,0.48); line-height: 1.6; padding-left: 16px; position: relative; }
+    .post-point::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.3); }
+    .post-link { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.82); }
+    .post-link:hover { color: #fff; }
+
+    .pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+    .pillar-card { padding: 24px; }
+    .pillar-title { font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 10px; letter-spacing: -0.3px; }
+    .pillar-copy { font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.75; }
+
+    .b-cta { padding: 84px 56px 100px; }
+    .cta-card { max-width: 1200px; margin: 0 auto; padding: 44px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+    .cta-title { font-size: clamp(24px, 3vw, 38px); font-weight: 800; letter-spacing: -1px; line-height: 1.08; margin-bottom: 10px; }
+    .cta-copy { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.75; max-width: 620px; }
+
+    .b-footer { border-top: 1px solid rgba(255,255,255,0.07); padding: 24px 56px 36px; }
+    .b-footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+    .b-footer-copy { font-size: 12px; color: rgba(255,255,255,0.22); }
+    .b-footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
+    .b-footer-links a { font-size: 12px; color: rgba(255,255,255,0.26); transition: color 0.18s; }
+    .b-footer-links a:hover { color: rgba(255,255,255,0.56); }
+
+    @media (max-width: 1040px) {
+      .featured-card, .post-grid, .pillar-grid, .cta-card { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .b-hero, .b-section, .b-cta, .b-footer { padding-left: 24px; padding-right: 24px; }
+      .b-hero { padding-top: 124px; }
+      .featured-card, .feature-panel, .feature-side, .post-card, .pillar-card, .cta-card { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
+    <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
+      <div class="flex items-center gap-10">
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          TaskFlow
+        </a>
+        <nav class="hidden md:flex gap-10 text-sm">
+          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
+          <a href="/pricing" class="text-white/70 hover:text-white transition">Pricing</a>
+          <a href="/about" class="text-white/70 hover:text-white transition">About</a>
+          <a href="/blog" class="text-white transition">Blog</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="hidden md:block h-6 w-px bg-white/20"></div>
+        <div class="hidden md:flex gap-4">
+          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
+          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
+        </div>
+      </div>
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
+    </div>
+  </header>
+
+  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+      <a href="/" class="flex items-center gap-2 text-white font-bold">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        TaskFlow
+      </a>
+      <button id="menuClose" class="text-2xl">✕</button>
+    </div>
+    <div class="px-6 py-8 flex flex-col gap-6 text-base">
+      <a href="/features" class="text-white/80 hover:text-white">Features</a>
+      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
+      <a href="/about" class="text-white/80 hover:text-white">About</a>
+      <a href="/blog" class="text-white">Blog</a>
+      <div class="mt-8 flex flex-col gap-4">
+        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
+        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="b-hero">
+    <div class="b-shell">
+      <div class="b-pill"><span class="b-pill-dot"></span>TaskFlow Blog</div>
+      <h1 class="b-title">Ideas, systems, and honest writing for building <span class="dim">better days.</span></h1>
+      <p class="b-sub">This is where we write about discipline, consistency, AI that actually helps, and how to build a life system that survives real life instead of perfect weeks.</p>
+      <div class="b-actions">
+        <a href="{{ url_for('blog_post_page', slug=featured_post.slug) }}" class="btn-p">Read the latest</a>
+        <a href="/register" class="btn-s">Start using TaskFlow</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="b-section">
+    <div class="b-shell">
+      <div class="b-label">Featured</div>
+      <div class="featured-card">
+        <div class="feature-panel">
+          <div class="feature-meta">
+            <span class="feature-chip">{{ featured_post.category }}</span>
+            <span>{{ featured_post.published_at }}</span>
+            <span>{{ featured_post.read_time }}</span>
+          </div>
+          <h2 class="feature-title">{{ featured_post.title }}</h2>
+          <p class="feature-desc">{{ featured_post.description }}</p>
+          <a href="{{ url_for('blog_post_page', slug=featured_post.slug) }}" class="feature-link">Read article <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="feature-side">
+          {% for point in featured_post.summary_points %}
+            <div class="takeaway-card">
+              <div class="takeaway-num">Key idea {{ loop.index }}</div>
+              <div class="takeaway-copy">{{ point }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="b-section">
+    <div class="b-shell">
+      <div class="b-label">Latest writing</div>
+      <h2 class="b-heading">Practical reads for people serious about progress.</h2>
+      <p class="b-copy">No filler. No motivation bait. Just useful thinking on how to organize your work, protect momentum, and build habits that last longer than a good mood.</p>
+      <div class="post-grid">
+        {% for post in recent_posts %}
+          <article class="post-card">
+            <div class="post-meta">
+              <span class="post-chip">{{ post.category }}</span>
+              <span>{{ post.published_at }}</span>
+              <span>{{ post.read_time }}</span>
+            </div>
+            <h3 class="post-title">{{ post.title }}</h3>
+            <p class="post-desc">{{ post.description }}</p>
+            <div class="post-points">
+              {% for point in post.summary_points[:2] %}
+                <div class="post-point">{{ point }}</div>
+              {% endfor %}
+            </div>
+            <a href="{{ url_for('blog_post_page', slug=post.slug) }}" class="post-link">Read article →</a>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="b-section">
+    <div class="b-shell">
+      <div class="b-label">What we write about</div>
+      <h2 class="b-heading">Three themes show up again and again.</h2>
+      <div class="pillar-grid">
+        <div class="pillar-card">
+          <div class="pillar-title">Systems that hold up under pressure</div>
+          <div class="pillar-copy">How to build routines, reviews, and planning loops that still work when your energy is low and your week is crowded.</div>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-title">Discipline without self-deception</div>
+          <div class="pillar-copy">Writing about consistency, recovery, accountability, and the gap between what we say matters and what our actions actually show.</div>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-title">AI that makes the next step clearer</div>
+          <div class="pillar-copy">We care about AI as a coach, not entertainment. The useful question is whether it shortens the path from confusion to action.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="b-cta">
+    <div class="cta-card">
+      <div>
+        <h2 class="cta-title">Want to turn these ideas into a real system?</h2>
+        <p class="cta-copy">TaskFlow brings your tasks, habits, notes, accountability, and AI guidance into one place so the advice does not stay theoretical.</p>
+      </div>
+      <div class="b-actions" style="margin: 0; justify-content: flex-end;">
+        <a href="/register" class="btn-p">Start for free</a>
+        <a href="/features" class="btn-s">See features</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="b-footer">
+    <div class="b-footer-inner">
+      <div class="b-footer-copy">© 2026 TaskFlow. Built for people serious about growth.</div>
+      <div class="b-footer-links">
+        <a href="/">Home</a>
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/cookie">Cookies</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const menuOpen = document.getElementById("menuOpen");
+    const menuClose = document.getElementById("menuClose");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    menuOpen.addEventListener("click", () => mobileMenu.classList.remove("translate-x-full"));
+    menuClose.addEventListener("click", () => mobileMenu.classList.add("translate-x-full"));
+  </script>
+</body>
+</html>

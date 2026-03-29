@@ -24,6 +24,7 @@ import os
 import json
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
 
 
 # Load environment variables from .env FIRST (so os.environ works)
@@ -157,6 +158,24 @@ DB_CONFIG = {
     "database": os.environ.get("DB_NAME", "todo_list"),
     "autocommit": True
 }
+
+AUTH_DB_ERROR_MESSAGE = (
+    "We can't reach the database right now. Make sure MySQL is running and your DB settings are correct."
+)
+
+AUTH_MAIL_ERROR_MESSAGE = (
+    "Your account was created, but we couldn't send the verification email right now."
+)
+
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@taskflow.io")
+CONTACT_INQUIRY_OPTIONS = [
+    "Support",
+    "Account help",
+    "Plans & pricing",
+    "Product feedback",
+    "Partnership",
+    "Other",
+]
 
 # ============================================================
 # 5) GOOGLE OAUTH (Sign in with Google)
@@ -361,6 +380,15 @@ def verify_email_token(token: str):
     return serializer.loads(token, salt=EMAIL_VERIFY_SALT, max_age=EMAIL_VERIFY_MAX_AGE)
 
 
+def safe_send_message(message: Message, label: str) -> bool:
+    try:
+        mail.send(message)
+        return True
+    except Exception:
+        app.logger.exception("Failed to send %s email.", label)
+        return False
+
+
 def send_verification_email(email: str, token: str):
     verify_url = url_for("verify_email", token=token, _external=True)
     msg = Message(
@@ -368,7 +396,7 @@ def send_verification_email(email: str, token: str):
         recipients=[email],
         body=f"Welcome to TaskFlow!\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours."
     )
-    mail.send(msg)
+    return safe_send_message(msg, "verification")
 
 
 def send_welcome_email(email: str, first_name: str):
@@ -394,7 +422,26 @@ Need help? Reply to this email anytime — we are here for you.
 Happy planning,
 The TaskFlow Team
 """.strip()
-    mail.send(msg)
+    return safe_send_message(msg, "welcome")
+
+
+def send_contact_form_email(name: str, email: str, inquiry_type: str, message_text: str) -> bool:
+    msg = Message(
+        subject=f"[TaskFlow Contact] {inquiry_type} from {name}",
+        recipients=[CONTACT_EMAIL],
+        reply_to=email,
+    )
+    msg.body = f"""
+New contact form submission
+
+Name: {name}
+Email: {email}
+Inquiry type: {inquiry_type}
+
+Message:
+{message_text}
+""".strip()
+    return safe_send_message(msg, "contact form")
 
 
 # ============================================================
@@ -456,6 +503,31 @@ def landing_page():
     return render_template("landing_page.html")
 
 
+@app.route("/blog")
+def blog_page():
+    featured_post = BLOG_POSTS[0]
+    recent_posts = BLOG_POSTS[1:]
+    return render_template(
+        "navlinks/blog.html",
+        featured_post=featured_post,
+        recent_posts=recent_posts,
+    )
+
+
+@app.route("/blog/<slug>")
+def blog_post_page(slug):
+    post = BLOG_POSTS_BY_SLUG.get(slug)
+    if not post:
+        abort(404)
+
+    related_posts = [item for item in BLOG_POSTS if item["slug"] != slug][:3]
+    return render_template(
+        "navlinks/blog_post.html",
+        post=post,
+        related_posts=related_posts,
+    )
+
+
 @app.route("/terms")
 def terms_page():
     return render_template("policy/terms.html")
@@ -463,9 +535,69 @@ def terms_page():
 @app.route("/cookie")
 def cookie_page():
     return render_template("policy/cookie.html")
-@app.route("/contact")
+@app.route("/contact", methods=["GET", "POST"])
 def contact_page():
-    return render_template("navlinks/contact.html")
+    form_data = {
+        "name": "",
+        "email": "",
+        "inquiry_type": "Support",
+        "message": "",
+    }
+    errors = {}
+    success_message = None
+
+    if request.args.get("sent") == "1":
+        success_message = "Message sent. We usually reply within 24 to 48 hours."
+
+    if request.method == "POST":
+        form_data = {
+            "name": (request.form.get("name") or "").strip(),
+            "email": (request.form.get("email") or "").strip().lower(),
+            "inquiry_type": (request.form.get("inquiry_type") or "Support").strip(),
+            "message": (request.form.get("message") or "").strip(),
+        }
+
+        if not form_data["name"]:
+            errors["name"] = "Please enter your name."
+
+        if not form_data["email"] or "@" not in form_data["email"]:
+            errors["email"] = "Please enter a valid email address."
+
+        if form_data["inquiry_type"] not in CONTACT_INQUIRY_OPTIONS:
+            errors["inquiry_type"] = "Please choose a valid inquiry type."
+
+        if not form_data["message"]:
+            errors["message"] = "Please enter a message."
+        elif len(form_data["message"]) < 20:
+            errors["message"] = "Add a bit more detail so we can help you faster."
+
+        mail_ready = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
+        if not errors and not mail_ready:
+            errors["general"] = (
+                f"We couldn't send the form right now. Email us directly at {CONTACT_EMAIL}."
+            )
+
+        if not errors:
+            if send_contact_form_email(
+                form_data["name"],
+                form_data["email"],
+                form_data["inquiry_type"],
+                form_data["message"],
+            ):
+                return redirect(url_for("contact_page", sent=1))
+
+            errors["general"] = (
+                f"We couldn't send your message right now. Email us directly at {CONTACT_EMAIL}."
+            )
+
+    return render_template(
+        "navlinks/contact.html",
+        form_data=form_data,
+        errors=errors,
+        success_message=success_message,
+        contact_email=CONTACT_EMAIL,
+        inquiry_options=CONTACT_INQUIRY_OPTIONS,
+    )
 
 
 @app.route("/privacy")
@@ -495,44 +627,58 @@ def register_page():
     if request.method == "POST":
         first = request.form.get("first_name", "").strip().capitalize()
         last = request.form.get("last_name", "").strip().capitalize()
+        email = request.form.get("email", "").strip().lower()
+        username = request.form.get("username", "").strip().lower()
         identifier = request.form.get("identifier", "").strip().lower()
         password = request.form.get("password", "").strip()
 
-        if not all([first, last, identifier, password]):
-            return render_template("auth/register.html", error_identifier="Please fill out all fields.")
+        # Support both the current template fields and the older identifier-only form.
+        if identifier:
+            if not email and "@" in identifier:
+                email = identifier
+            elif not username:
+                username = identifier
 
-        if "@" not in identifier:
+        if not all([first, last, email, password]):
+            return render_template("auth/register.html", error_identifier="Please fill out all required fields.")
+
+        if "@" not in email:
             return render_template("auth/register.html", error_identifier="Please use a valid email address.")
 
-        email = identifier
-        username = None
+        if username and "@" in username:
+            return render_template("auth/register.html", error_identifier="Username cannot be an email address.")
 
-        if username and fetch_user_by_username(username):
-            return render_template("auth/register.html", error_identifier="Username already exists.")
+        try:
+            if username and fetch_user_by_username(username):
+                return render_template("auth/register.html", error_identifier="Username already exists.")
 
-        if email and fetch_user_by_email(email):
-            return render_template("auth/register.html", error_identifier="Email already exists.")
+            if email and fetch_user_by_email(email):
+                return render_template("auth/register.html", error_identifier="Email already exists.")
 
-        # If user registered with email only, auto-generate username from email prefix
-        if username is None:
-            base = email.split("@")[0]
-            username = base
-            i = 0
-            while fetch_user_by_username(username):
-                i += 1
-                username = f"{base}{i}"
+            # If user registered with email only, auto-generate username from email prefix.
+            if not username:
+                base = email.split("@")[0]
+                username = base
+                i = 0
+                while fetch_user_by_username(username):
+                    i += 1
+                    username = f"{base}{i}"
 
-        password_hash = generate_password_hash(password)
-        full_name = f"{first} {last}"
+            password_hash = generate_password_hash(password)
+            full_name = f"{first} {last}"
 
-        user_id = create_user_local(full_name, username, email, password_hash)
+            user_id = create_user_local(full_name, username, email, password_hash)
+            token = generate_email_verification_token(user_id, email)
+            set_email_verification_token(user_id, token)
+        except mysql.connector.Error:
+            app.logger.exception("Registration failed because the database is unavailable.")
+            return render_template("auth/register.html", error_identifier=AUTH_DB_ERROR_MESSAGE), 503
 
         send_welcome_email(email, first)
-        token = generate_email_verification_token(user_id, email)
-        set_email_verification_token(user_id, token)
-        send_verification_email(email, token)
+        verification_sent = send_verification_email(email, token)
 
-        return redirect(url_for("login_page", verify="sent"))
+        verify_status = "sent" if verification_sent else "mail_error"
+        return redirect(url_for("login_page", verify=verify_status))
 
     return render_template("auth/register.html")
 
@@ -541,38 +687,66 @@ def register_page():
 def login_page():
     error_identifier = None
     error_password = None
+    info_message = None
+
+    verify_status = request.args.get("verify")
+    if verify_status == "sent":
+        info_message = "Account created. Check your email for the verification link."
+    elif verify_status == "mail_error":
+        info_message = AUTH_MAIL_ERROR_MESSAGE
+
     if request.method == "POST":
-        identifier = request.form.get("identifier", "").strip().lower()
+        identifier = (
+            request.form.get("identifier")
+            or request.form.get("username")
+            or request.form.get("email")
+            or ""
+        ).strip().lower()
         password = request.form.get("password", "")
 
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            """
-            SELECT id, name, username, password_hash, auth_provider, email
-            FROM users
-            WHERE username=%s OR email=%s
-            """,
-            (identifier, identifier),
-        )
-        user = cursor.fetchone()
-        cursor.close()
-
-        if not user:
-            error_identifier = "Invalid username/email or password."
-        elif not user[3] or not check_password_hash(user[3], password):
-            error_password = "Invalid username/email or password."
+        if not identifier:
+            error_identifier = "Enter your username or email."
+        elif not password:
+            error_password = "Enter your password."
         else:
-            session.update({
-                "user_id": user[0],
-                "user_name": user[1],
-                "username": user[2]
-            })
-            return redirect(url_for("home_page"))
+            try:
+                db = get_db()
+                cursor = db.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, name, username, password_hash, auth_provider, email
+                    FROM users
+                    WHERE username=%s OR email=%s
+                    """,
+                    (identifier, identifier),
+                )
+                user = cursor.fetchone()
+                cursor.close()
+            except mysql.connector.Error:
+                app.logger.exception("Login failed because the database is unavailable.")
+                return render_template(
+                    "auth/login.html",
+                    error_identifier=AUTH_DB_ERROR_MESSAGE,
+                    error_password=error_password,
+                    info_message=info_message,
+                ), 503
+
+            if not user:
+                error_identifier = "Invalid username/email or password."
+            elif not user[3] or not check_password_hash(user[3], password):
+                error_password = "Invalid username/email or password."
+            else:
+                session.update({
+                    "user_id": user[0],
+                    "user_name": user[1],
+                    "username": user[2]
+                })
+                return redirect(url_for("home_page"))
 
     return render_template("auth/login.html",
                            error_identifier=error_identifier,
-                           error_password=error_password)
+                           error_password=error_password,
+                           info_message=info_message)
 
 
 @app.route("/verify-email")
@@ -616,24 +790,28 @@ def username_suggestions():
     if not first or not last:
         return {"suggestions": []}
 
-    patterns = [
-        f"{first}{last}",
-        f"{first}.{last}",
-        f"{first}_{last}",
-        f"{first}{last[:1]}",
-        f"{first[:1]}{last}",
-        f"{first}{last}{len(first)}",
-        f"{first}{last}dev",
-        f"{first}{last}ai",
-        f"{first}_{last}_tf"
-    ]
+    try:
+        patterns = [
+            f"{first}{last}",
+            f"{first}.{last}",
+            f"{first}_{last}",
+            f"{first}{last[:1]}",
+            f"{first[:1]}{last}",
+            f"{first}{last}{len(first)}",
+            f"{first}{last}dev",
+            f"{first}{last}ai",
+            f"{first}_{last}_tf"
+        ]
 
-    suggestions = []
-    for name in patterns:
-        if not fetch_user_by_username(name):
-            suggestions.append(name)
-        if len(suggestions) >= 6:
-            break
+        suggestions = []
+        for name in patterns:
+            if not fetch_user_by_username(name):
+                suggestions.append(name)
+            if len(suggestions) >= 6:
+                break
+    except mysql.connector.Error:
+        app.logger.exception("Username suggestions failed because the database is unavailable.")
+        return {"suggestions": [], "error": "database_unavailable"}, 503
 
     return {"suggestions": suggestions}
 
@@ -641,11 +819,15 @@ def username_suggestions():
 def check_identifier():
     identifier = (request.form.get("identifier") or "").lower()
 
-    exists = False
-    if "@" in identifier:
-        exists = bool(fetch_user_by_email(identifier))
-    else:
-        exists = bool(fetch_user_by_username(identifier))
+    try:
+        exists = False
+        if "@" in identifier:
+            exists = bool(fetch_user_by_email(identifier))
+        else:
+            exists = bool(fetch_user_by_username(identifier))
+    except mysql.connector.Error:
+        app.logger.exception("Identifier availability check failed because the database is unavailable.")
+        return {"exists": False, "error": "database_unavailable"}, 503
 
     return {"exists": exists}
 

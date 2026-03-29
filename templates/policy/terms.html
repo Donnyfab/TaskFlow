@@ -1,180 +1,169 @@
-<!DOCTYPE html>
-<html lang="en" class="scrollbar-hide scroll-smooth">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskFlow — Terms of Service</title>
+{% extends "policy/base_policy.html" %}
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% block meta_title %}Terms of Service | TaskFlow{% endblock %}
+{% block hero_eyebrow %}Terms{% endblock %}
+{% block hero_title %}Use TaskFlow like a tool for growth, <span class="dim">not a place to cause damage.</span>{% endblock %}
+{% block hero_subtitle %}These Terms explain the rules for using TaskFlow, what stays yours, what we need permission to do to operate the service, and how we handle AI, access, and service changes.{% endblock %}
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-[#0B0F14] text-white font-[Inter]">
-
-<!-- HEADER -->
-<header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
-  <div class="max-w-[1280px] mx-auto h-full flex items-center justify-between px-6">
-    <a href="/" class="flex items-center gap-2">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-      <span class="font-semibold tracking-tight">TaskFlow</span>
-    </a>
-
-    <a href="/register" class="text-sm text-white/60 hover:text-white transition">
-      Create account
-    </a>
+{% block quick_cards %}
+  <div class="quick-card">
+    <div class="quick-label">Short version</div>
+    <div class="quick-title">You own your content. You are responsible for how you use the service.</div>
+    <p class="quick-copy">TaskFlow is here to help with productivity, habits, notes, planning, and accountability. Use it lawfully, honestly, and without trying to break the product or other people's access.</p>
   </div>
-</header>
-
-<!-- PAGE -->
-<main class="pt-[120px] pb-[140px] px-6">
-  <div class="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-12">
-
-    <!-- TABLE OF CONTENTS -->
-    <aside class="hidden lg:block sticky top-[120px] h-fit">
-      <p class="text-sm font-semibold text-white/50 mb-4">On this page</p>
-      <nav class="space-y-3 text-sm">
-        <a href="#acceptance" class="block text-white/60 hover:text-white">Acceptance</a>
-        <a href="#eligibility" class="block text-white/60 hover:text-white">Eligibility</a>
-        <a href="#accounts" class="block text-white/60 hover:text-white">Accounts</a>
-        <a href="#usage" class="block text-white/60 hover:text-white">Acceptable Use</a>
-        <a href="#content" class="block text-white/60 hover:text-white">User Content</a>
-        <a href="#ai" class="block text-white/60 hover:text-white">AI Features</a>
-        <a href="#availability" class="block text-white/60 hover:text-white">Availability</a>
-        <a href="#termination" class="block text-white/60 hover:text-white">Termination</a>
-        <a href="#liability" class="block text-white/60 hover:text-white">Liability</a>
-        <a href="#contact" class="block text-white/60 hover:text-white">Contact</a>
-      </nav>
-    </aside>
-
-    <!-- CONTENT -->
-    <section class="bg-[#0F141B] border border-white/10 rounded-xl p-8 md:p-12">
-
-      <h1 class="text-[40px] font-bold tracking-tight">Terms of Service</h1>
-      <p class="mt-2 text-sm text-white/50">Last updated: December 18, 2025</p>
-
-      <div class="mt-12 space-y-10 text-sm text-white/75 leading-relaxed">
-
-        <!-- 1 -->
-        <section id="acceptance">
-          <h2 class="text-white font-semibold text-lg mb-2">1. Acceptance of Terms</h2>
-          <p>
-            By accessing or using TaskFlow (“TaskFlow,” “we,” “us,” or “our”), you agree to be
-            bound by these Terms of Service (“Terms”). If you do not agree, do not use the Service.
-          </p>
-        </section>
-
-        <!-- 2 -->
-        <section id="eligibility">
-          <h2 class="text-white font-semibold text-lg mb-2">2. Eligibility</h2>
-          <p>
-            You must be able to form a legally binding contract in your jurisdiction.
-            If you are under the minimum age required by law, you may only use TaskFlow
-            with parental or guardian consent.
-          </p>
-        </section>
-
-        <!-- 3 -->
-        <section id="accounts">
-          <h2 class="text-white font-semibold text-lg mb-2">3. Account Registration & Security</h2>
-          <ul class="list-disc pl-5 space-y-2">
-            <li>You are responsible for all activity under your account.</li>
-            <li>You must keep your credentials secure and confidential.</li>
-            <li>You agree to notify us immediately of any unauthorized access.</li>
-          </ul>
-        </section>
-
-        <!-- 4 -->
-        <section id="usage">
-          <h2 class="text-white font-semibold text-lg mb-2">4. Acceptable Use</h2>
-          <p>You agree not to:</p>
-          <ul class="list-disc pl-5 space-y-2 mt-2">
-            <li>Use TaskFlow for illegal, harmful, or abusive activities.</li>
-            <li>Reverse engineer, scrape, or disrupt the Service.</li>
-            <li>Upload malware or exploit vulnerabilities.</li>
-            <li>Impersonate others or misrepresent your identity.</li>
-          </ul>
-        </section>
-
-        <!-- 5 -->
-        <section id="content">
-          <h2 class="text-white font-semibold text-lg mb-2">5. User Content</h2>
-          <p>
-            You retain ownership of all content you create in TaskFlow.
-            By using the Service, you grant TaskFlow a limited, non-exclusive license
-            to host, process, and display your content solely to operate and improve the Service.
-          </p>
-        </section>
-
-        <!-- 6 -->
-        <section id="ai">
-          <h2 class="text-white font-semibold text-lg mb-2">6. AI Features</h2>
-          <p>
-            TaskFlow may offer AI-powered suggestions, insights, or recommendations.
-            These outputs are provided for informational purposes only and may be inaccurate.
-          </p>
-          <p class="mt-2">
-            You are solely responsible for decisions made based on AI-generated content.
-            TaskFlow does not guarantee outcomes or results.
-          </p>
-        </section>
-
-        <!-- 7 -->
-        <section id="availability">
-          <h2 class="text-white font-semibold text-lg mb-2">7. Service Availability & Changes</h2>
-          <p>
-            We may modify, suspend, or discontinue any part of the Service at any time.
-            While we aim for high availability, the Service is provided “as is”
-            and may experience interruptions.
-          </p>
-        </section>
-
-        <!-- 8 -->
-        <section id="termination">
-          <h2 class="text-white font-semibold text-lg mb-2">8. Termination</h2>
-          <p>
-            We may suspend or terminate your account if you violate these Terms.
-            You may stop using TaskFlow at any time.
-          </p>
-        </section>
-
-        <!-- 9 -->
-        <section id="liability">
-          <h2 class="text-white font-semibold text-lg mb-2">9. Disclaimer & Limitation of Liability</h2>
-          <p>
-            TaskFlow is provided without warranties of any kind.
-            To the maximum extent permitted by law, TaskFlow will not be liable
-            for indirect, incidental, consequential, or punitive damages,
-            including loss of data, profits, or productivity.
-          </p>
-        </section>
-
-        <!-- 10 -->
-        <section id="contact">
-          <h2 class="text-white font-semibold text-lg mb-2">10. Contact</h2>
-          <p>
-            Questions about these Terms?
-            Email us at
-            <a href="mailto:support@taskflowhq.com"
-               class="underline underline-offset-4 hover:text-white transition">
-              support@taskflowhq.com
-            </a>
-          </p>
-        </section>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div class="mt-14 pt-6 border-t border-white/10 flex items-center justify-between text-sm">
-        <a href="/privacy" class="text-white/60 hover:text-white transition">Privacy Policy</a>
-        <a href="/" class="text-white/60 hover:text-white transition">Back to home</a>
-      </div>
-
-    </section>
+  <div class="quick-card">
+    <div class="quick-label">AI reminder</div>
+    <div class="quick-title">AI can guide you, but it can still be wrong.</div>
+    <p class="quick-copy">AI features are assistive. They do not replace your judgment, and they are not a substitute for professional advice in health, mental health, legal, or financial matters.</p>
   </div>
-</main>
+  <div class="quick-card">
+    <div class="quick-label">Billing today</div>
+    <div class="quick-title">There is no live in-app billing contract in the app right now.</div>
+    <p class="quick-copy">Marketing pages may describe pricing and plan ideas, but unless you are actually shown a checkout and billing flow, there is no paid subscription purchase happening inside the current app.</p>
+  </div>
+{% endblock %}
 
-</body>
-</html>
+{% block toc %}
+  <div class="toc-heading">Jump to</div>
+  <div class="toc-links">
+    <a href="#agreement" class="toc-link">Agreement</a>
+    <a href="#accounts" class="toc-link">Accounts and eligibility</a>
+    <a href="#use" class="toc-link">Using TaskFlow</a>
+    <a href="#content" class="toc-link">Your content</a>
+    <a href="#ai" class="toc-link">AI features</a>
+    <a href="#billing" class="toc-link">Pricing and paid plans</a>
+    <a href="#termination" class="toc-link">Suspension and termination</a>
+    <a href="#availability" class="toc-link">Availability and changes</a>
+    <a href="#liability" class="toc-link">Warranty and liability</a>
+    <a href="#contact" class="toc-link">Contact</a>
+  </div>
+{% endblock %}
+
+{% block intro_callout %}
+  <div class="section-card">
+    <div class="section-label">In plain English</div>
+    <h2 class="section-title">These Terms are here to set expectations, not hide them.</h2>
+    <p class="section-copy">TaskFlow is designed for people trying to get their life together: students, builders, creators, and anyone juggling tasks, habits, notes, calendars, and accountability in one place. These Terms make clear what you can expect from the service and what we expect from users in return.</p>
+    <div class="callout">
+      <div class="callout-title">The one-minute summary</div>
+      <div class="callout-copy">Use TaskFlow responsibly. Keep your account secure. Do not try to abuse the service or access data that is not yours. You keep ownership of the content you create, and we only need a limited license to host and operate it for you.</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block policy_content %}
+  <section id="agreement" class="section-card">
+    <div class="section-label">1. Agreement</div>
+    <h2 class="section-title">By using TaskFlow, you agree to these Terms.</h2>
+    <p class="section-copy">If you create an account, sign in, or use the site or app, you agree to follow these Terms of Service. If you do not agree, do not use TaskFlow.</p>
+    <p class="section-copy">We may update these Terms from time to time. If the changes are important, we will update the date on this page and, where appropriate, provide notice inside the product or through account communication.</p>
+  </section>
+
+  <section id="accounts" class="section-card">
+    <div class="section-label">2. Accounts and eligibility</div>
+    <h2 class="section-title">Your account should represent a real person using the service honestly.</h2>
+    <ul class="policy-list">
+      <li>You must be old enough to use online services and enter into this agreement where you live.</li>
+      <li>You agree to provide accurate account information and keep it reasonably up to date.</li>
+      <li>You are responsible for activity that happens through your account until you notify us of unauthorized access.</li>
+      <li>If you use email-and-password sign-in, keep your password secure. If you use Google sign-in, keep that third-party account secure too.</li>
+      <li>We may ask you to verify your email or otherwise confirm account ownership for access and security reasons.</li>
+    </ul>
+  </section>
+
+  <section id="use" class="section-card">
+    <div class="section-label">3. Using TaskFlow</div>
+    <h2 class="section-title">Use the service lawfully and in a way that does not harm the product or other users.</h2>
+    <ul class="policy-list">
+      <li>Do not use TaskFlow for illegal activity, harassment, fraud, or abusive behavior.</li>
+      <li>Do not attempt to access another person's account, data, or private content.</li>
+      <li>Do not scrape, reverse engineer, attack, overload, or interfere with the normal operation of the service.</li>
+      <li>Do not upload malware, attempt to exploit vulnerabilities, or bypass feature or security limits.</li>
+      <li>Do not impersonate another person or misrepresent who is behind an account.</li>
+    </ul>
+    <div class="callout">
+      <div class="callout-title">A simple standard</div>
+      <div class="callout-copy">If a behavior would make the product less safe, less reliable, or less private for other people, it is probably not allowed.</div>
+    </div>
+  </section>
+
+  <section id="content" class="section-card">
+    <div class="section-label">4. Your content</div>
+    <h2 class="section-title">You keep ownership of what you create in TaskFlow.</h2>
+    <p class="section-copy">Your tasks, notes, lists, plans, habits, and other content remain yours. We do not claim ownership over the substance of what you write or store in the app.</p>
+    <p class="section-copy">To operate the service, you give TaskFlow a limited, non-exclusive permission to host, store, process, transmit, and display that content only as needed to run the product for you. That includes things like saving notes, rendering tasks, restoring recent state, generating plans, and supporting account features.</p>
+    <div class="detail-grid">
+      <div class="mini-card">
+        <h3>What this permission allows</h3>
+        <p>Running the product, syncing account content, storing what you create, and delivering the features you asked to use.</p>
+      </div>
+      <div class="mini-card">
+        <h3>What it does not allow</h3>
+        <p>It does not turn your private content into public content, and it does not transfer ownership of your work to us.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="ai" class="section-card">
+    <div class="section-label">5. AI features</div>
+    <h2 class="section-title">AI in TaskFlow is designed to assist, not replace judgment.</h2>
+    <p class="section-copy">Some parts of TaskFlow include or preview AI-driven planning, coaching, or insight features. Those outputs are meant to help you think, prioritize, and reflect. They are not guaranteed to be correct, complete, or right for your situation.</p>
+    <ul class="policy-list">
+      <li>Use your own judgment before acting on AI-generated suggestions or plans.</li>
+      <li>Do not treat AI output as medical, mental health, crisis, legal, or financial advice.</li>
+      <li>You remain responsible for decisions you make based on AI output from the service.</li>
+    </ul>
+  </section>
+
+  <section id="billing" class="section-card">
+    <div class="section-label">6. Pricing and paid plans</div>
+    <h2 class="section-title">TaskFlow does not currently complete a live paid subscription purchase inside the app.</h2>
+    <p class="section-copy">The site may describe free, premium, or future plan options as part of the product story and roadmap. But unless and until you are presented with an actual billing flow, checkout, and payment terms, there is no active in-app payment agreement being formed through the current app experience.</p>
+    <p class="section-copy">If TaskFlow introduces paid billing later, we will present pricing, renewal behavior, cancellation rules, and any trial details clearly before you are charged.</p>
+  </section>
+
+  <section id="termination" class="section-card">
+    <div class="section-label">7. Suspension and termination</div>
+    <h2 class="section-title">We may restrict access to protect the service, other users, or the law.</h2>
+    <ul class="policy-list">
+      <li>We may suspend or terminate accounts that violate these Terms or create security, abuse, or legal risk.</li>
+      <li>You may stop using TaskFlow at any time.</li>
+      <li>If you want your account deleted, contact us and we will handle the request through support.</li>
+    </ul>
+  </section>
+
+  <section id="availability" class="section-card">
+    <div class="section-label">8. Availability and changes</div>
+    <h2 class="section-title">The service will evolve, and it may occasionally be interrupted.</h2>
+    <p class="section-copy">We are building TaskFlow actively. Features may be added, changed, renamed, tested, paused, or removed as the product improves. We aim for reliability, but we cannot promise uninterrupted uptime or that every feature will always stay the same.</p>
+    <p class="section-copy">That includes experimental or AI-driven features, which may change faster than the rest of the product.</p>
+  </section>
+
+  <section id="liability" class="section-card">
+    <div class="section-label">9. Warranty and liability</div>
+    <h2 class="section-title">TaskFlow is provided as-is, to the fullest extent allowed by law.</h2>
+    <p class="section-copy">We work hard to make the product useful, stable, and trustworthy. But we cannot promise that TaskFlow will always be error-free, always available, or always produce the exact outcome you want.</p>
+    <p class="section-copy">To the maximum extent allowed by law, TaskFlow is not liable for indirect, incidental, special, consequential, or punitive damages, or for loss of data, opportunity, or productivity arising from your use of the service.</p>
+    <div class="callout">
+      <div class="callout-title">Why this section exists</div>
+      <div class="callout-copy">It reflects a practical reality of software: no app can promise zero bugs, zero downtime, or perfect output every time.</div>
+    </div>
+  </section>
+
+  <section id="contact" class="section-card">
+    <div class="section-label">10. Contact</div>
+    <h2 class="section-title">Questions about these Terms?</h2>
+    <p class="section-copy">Email <a href="mailto:hello@taskflow.io" class="inline-link">hello@taskflow.io</a> and include "Terms" in the subject line so we can route it quickly.</p>
+  </section>
+{% endblock %}
+
+{% block related_links %}
+  <a href="/privacy" class="related-link">
+    <h3>Privacy Policy</h3>
+    <p>What information TaskFlow collects, how it is used, and the choices you have around your account and content.</p>
+  </a>
+  <a href="/cookie" class="related-link">
+    <h3>Cookies Policy</h3>
+    <p>The small pieces of browser storage TaskFlow uses today for sessions and note context.</p>
+  </a>
+{% endblock %}

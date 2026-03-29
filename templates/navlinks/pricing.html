@@ -1,996 +1,347 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="scrollbar-hide">
 <head>
   <meta charset="UTF-8">
-  <title>TaskFlow | Productivity</title>
+  <title>Pricing | TaskFlow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!- Fonts>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&display=swap" rel="stylesheet">
-
-
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; }
 
-<!--<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">--> 
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    .p-hero { padding: 140px 56px 64px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .p-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .p-title { font-size: clamp(30px, 4vw, 52px); font-weight: 800; letter-spacing: -1.8px; line-height: 1.06; margin-bottom: 14px; }
+    .p-dim { color: rgba(255,255,255,0.28); }
+    .p-sub { font-size: 15px; color: rgba(255,255,255,0.4); max-width: 480px; margin: 0 auto; line-height: 1.75; }
 
+    .toggle-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px 56px 0; }
+    .toggle { display: flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 4px; }
+    .toggle-btn { padding: 6px 18px; border-radius: 100px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
+    .toggle-btn.active { background: #fff; color: #0A0A0A; }
+    .toggle-btn:not(.active) { background: transparent; color: rgba(255,255,255,0.4); }
+    .save-badge { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 100px; padding: 4px 10px; font-size: 10px; color: rgba(255,255,255,0.5); }
 
-  
-  
-  
+    .cards-wrap { padding: 48px 56px 0; }
+    .cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; max-width: 1200px; margin: 0 auto; align-items: start; }
+
+    .card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 28px 24px; transition: border-color 0.2s; position: relative; }
+    .card:hover { border-color: rgba(255,255,255,0.14); }
+    .card.featured { background: #fff; color: #0A0A0A; border-color: transparent; transform: translateY(-8px); }
+
+    .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #0A0A0A; color: #fff; font-size: 9px; font-weight: 700; padding: 4px 12px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1); }
+
+    .card-tier { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+    .card.featured .card-tier { color: rgba(0,0,0,0.4); }
+
+    .price-wrap { display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px; }
+    .price-amt { font-size: 36px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+    .card.featured .price-amt { color: #0A0A0A; }
+    .price-per { font-size: 12px; color: rgba(255,255,255,0.3); }
+    .card.featured .price-per { color: rgba(0,0,0,0.4); }
+
+    .tagline { font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.6; margin-bottom: 20px; min-height: 36px; }
+    .card.featured .tagline { color: rgba(0,0,0,0.5); }
+
+    .card-btn { width: 100%; padding: 11px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all 0.2s; margin-bottom: 6px; text-decoration: none; display: block; text-align: center; }
+    .btn-ghost { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-dark { background: #0A0A0A; color: #fff; }
+    .btn-dark:hover { background: #1a1a1a; }
+
+    .card-note { font-size: 10px; color: rgba(255,255,255,0.22); text-align: center; margin-bottom: 18px; }
+    .card.featured .card-note { color: rgba(0,0,0,0.35); }
+
+    .divider { height: 1px; background: rgba(255,255,255,0.07); margin-bottom: 16px; }
+    .card.featured .divider { background: rgba(0,0,0,0.08); }
+
+    .feats { display: flex; flex-direction: column; gap: 9px; }
+    .feat { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.4; }
+    .card.featured .feat { color: rgba(0,0,0,0.6); }
+    .feat-icon { font-size: 7px; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; color: rgba(255,255,255,0.4); }
+    .card.featured .feat-icon { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
+    .feat-muted { opacity: 0.3; }
+
+    .compare-wrap { padding: 64px 56px 0; }
+    .compare { max-width: 1200px; margin: 0 auto; background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden; }
+    .compare-hd { padding: 24px 32px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .compare-hd-title { font-size: 16px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 4px; }
+    .compare-hd-sub { font-size: 12px; color: rgba(255,255,255,0.35); }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; }
+    .compare-col { padding: 20px 32px; }
+    .compare-col:first-child { border-right: 1px solid rgba(255,255,255,0.06); }
+    .compare-col-title { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 14px; }
+    .compare-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
+    .compare-item.bad { color: rgba(255,100,100,0.55); }
+    .compare-item.good { color: rgba(255,255,255,0.6); }
+
+    .faq-wrap { padding: 48px 56px 100px; }
+    .faq-label { text-align: center; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 20px; }
+    .faq { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .faq-item { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px 18px; }
+    .faq-q { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); margin-bottom: 5px; }
+    .faq-a { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.65; }
+
+    @media (max-width: 960px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .card.featured { transform: none; }
+      .p-hero, .toggle-wrap, .cards-wrap, .compare-wrap, .faq-wrap { padding-left: 24px; padding-right: 24px; }
+      .faq { grid-template-columns: 1fr; }
+      .compare-grid { grid-template-columns: 1fr; }
+      .compare-col:first-child { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    }
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
+<body class="scrollbar-hide">
 
-<body class="bg-[#0B0F14] scrollbar-hide">
-
-  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
-
+  <!-- NAVBAR -->
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
     <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
-  
-      <!-- Left -->
       <div class="flex items-center gap-10">
-        <a href="/" class="flex items-center gap-2 text-white">
-          <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-          <span class="font-semibold tracking-tight">TaskFlow</span>
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          TaskFlow
         </a>
-  
         <nav class="hidden md:flex gap-10 text-sm">
-          <a href="/features" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/features' else 'text-white/70' }}">
-            Features
-          </a>
-          <a href="/premium" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/premium' else 'text-white/70' }}">
-            Premium
-          </a>
-          <a href="/pricing" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/pricing' else 'text-white/70' }}">
-            Pricing
-          </a>
-          <a href="/about" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/about' else 'text-white/70' }}">
-            About
-          </a>
+          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
+          <a href="/pricing" class="text-white transition">Pricing</a>
+          <a href="/about" class="text-white/70 hover:text-white transition">About</a>
         </nav>
       </div>
-  
-      <!-- Right -->
       <div class="flex items-center gap-6">
         <div class="hidden md:block h-6 w-px bg-white/20"></div>
-  
         <div class="hidden md:flex gap-4">
-          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">
-            Log in
-          </a>
-          <a href="/register"
-             class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">
-            Sign up
-          </a>
+          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
+          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
         </div>
-  
       </div>
-
-      <!-- Mobile Menu Button -->
-    <button id="menuOpen" class="md:hidden text-white text-2xl">
-      ☰
-    </button>
-
-  
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
     </div>
   </header>
 
-  <!-- Mobile Menu Overlay -->
-<div id="mobileMenu"
-class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-transform duration-300 ease-out">
-
-<!-- Top Bar -->
-<div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-  <a href="/" class="flex items-center gap-2 text-white">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-    <span class="font-semibold tracking-tight">TaskFlow</span>
-  </a>
-
-<button id="menuClose" class="text-2xl">✕</button>
-</div>
-
-<!-- Menu Content -->
-<div class="px-6 py-8 flex flex-col gap-6 text-base">
-
-<a href="/features" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/features' else 'text-white/80' }}">Features</a>
-<a href="/pricing" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/pricing' else 'text-white/80' }}">Pricing</a>
-<a href="/blog" class="text-white/80 hover:text-white">Blog</a>
-
-<details class="group">
- <summary class="cursor-pointer text-white/80 hover:text-white">
-   More
- </summary>
- <div class="mt-4 ml-4 flex flex-col gap-3 text-white/60">
-   <a href="/contact">Contact</a>
-   <a href="/about" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/about' else '' }}">About</a>
- </div>
-</details>
-
-<div class="mt-8 flex flex-col gap-4">
- <a href="/register"
-    class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">
-   Sign up
- </a>
- <a href="/login"
-    class="w-full text-center border border-white/20 py-3 rounded-md">
-   Log in
- </a>
-</div>
-</div>
-</div>
-
-<!-- ONE PRICE, ALL IN (UPGRADED) -->
-<section class="relative w-full bg-[#0B0F14] text-white px-6 md:px-[64px] py-[180px] overflow-hidden">
-
-  <!-- Subtle glow background -->
-  <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px]
-              bg-gradient-to-tr from-white/10 via-white/5 to-transparent
-              rounded-full blur-[120px] pointer-events-none"></div>
-
-  <div class="relative max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-
-    <!-- LEFT: Copy -->
-    <div class="flex flex-col gap-6">
-
-      <!-- Eyebrow -->
-      <p class="text-sm font-medium text-white/50 tracking-wide uppercase">
-        Simple pricing
-      </p>
-
-      <!-- Heading -->
-      <h1 class="text-[44px] md:text-[56px]
-                 leading-[1.1]
-                 tracking-tight
-                 font-bold">
-        One price.
-        <span class="text-white/70">Everything included.</span>
-      </h1>
-
-      <!-- Subtext -->
-      <p class="text-base md:text-lg text-white/70 max-w-[520px]">
-        No feature gates. No hidden upgrades. No confusing tiers.
-        You get the full TaskFlow experience from day one.
-      </p>
-
-      <!-- Value bullets -->
-      <ul class="mt-4 space-y-3 text-sm text-white/80">
-        <li class="flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
-          Daily planning, habits, and reflection
-        </li>
-        <li class="flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
-          AI guidance that adapts to you
-        </li>
-        <li class="flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
-          Upgrade or cancel anytime
-        </li>
-      </ul>
-
-      <!-- CTAs -->
-      <div class="flex items-center gap-4 mt-6">
-        <a
-          href="/register"
-          class="bg-white text-gray-900
-                 px-6 py-3 rounded-md
-                 font-semibold
-                 hover:bg-white/90 transition">
-          Start free
-        </a>
-
-        <a
-          href="/pricing"
-          class="border border-white/20
-                 text-white
-                 px-6 py-3 rounded-md
-                 font-semibold
-                 hover:border-white/40 transition">
-          See plans
-        </a>
-      </div>
-    </div>
-
-    <!-- RIGHT: Visual card -->
-    <div class="relative border border-white/15 rounded-xl p-8
-                bg-white/5 backdrop-blur-sm">
-
-      <p class="text-sm text-white/60 mb-2">Starting at</p>
-
-      <div class="flex items-end gap-2 mb-4">
-        <span class="text-5xl font-bold">$19</span>
-        <span class="text-white/60 mb-1">/ month</span>
-      </div>
-
-      <p class="text-white/70 mb-6">
-        Full access. No locked features.
-      </p>
-
-      <div class="space-y-3 text-sm text-white/80">
-        <div class="flex justify-between border-b border-white/10 pb-2">
-          <span>AI guidance</span>
-          <span>✓</span>
-        </div>
-        <div class="flex justify-between border-b border-white/10 pb-2">
-          <span>Habits & streaks</span>
-          <span>✓</span>
-        </div>
-        <div class="flex justify-between">
-          <span>Future features</span>
-          <span>✓</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-
-<!-- PICK YOUR PLAN -->
-<section class="w-full bg-[#0B0F14] px-6 md:px-[64px] py-[160px] text-white">
-
-  <!-- Header -->
-  <div class="max-w-[960px] mx-auto text-center mb-16">
-    <p class="text-sm font-medium text-white/50 mb-3">
-      Simple
-    </p>
-
-    <h2 class="text-[40px] md:text-[48px] font-bold tracking-tight mb-4">
-      Pick your plan
-    </h2>
-
-    <p class="text-white/70 text-base md:text-lg">
-      All plans include daily planning and AI guidance. Scale up as you grow.
-    </p>
-
-    <!-- Toggle (visual only for now) -->
-    <div class="mt-8 inline-flex border border-white/20 rounded-md overflow-hidden text-sm">
-      <button id="monthlyBtn"
-      class="px-4 py-2 bg-white text-gray-900 font-medium transition">
-        Monthly
-      </button>
-      <button id="yearlyBtn" 
-      class="px-4 py-2 text-white/70 hover:text-white transition">
-        Yearly
-      </button>
-    </div>
-  </div>
-
-  <!-- Pricing Cards -->
-  <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-
-    <!-- Free -->
-    <div class="border border-white/20 rounded-md p-8 flex flex-col">
-      <p class="font-medium mb-2">Free plan</p>
-      <h3 class="text-4xl font-bold mb-6" data-price-free>$0</h3>
-
-      <ul class="space-y-3 text-sm text-white/70 mb-8">
-        <li>✓ Daily planning and tasks</li>
-        <li>✓ Basic habit tracking</li>
-        <li>✓ AI-guided priorities</li>
-      </ul>
-
-      <a href="/register"
-         class="mt-auto bg-black text-white text-center py-3 rounded-md font-medium hover:bg-black/80 transition">
-        Get started
+  <!-- MOBILE MENU -->
+  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+      <a href="/" class="flex items-center gap-2 text-white font-bold">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        TaskFlow
       </a>
+      <button id="menuClose" class="text-2xl">✕</button>
     </div>
-
-    <!-- Pro -->
-    <div class="border border-white/20 rounded-md p-8 flex flex-col">
-      <p class="font-medium mb-2">Pro plan</p>
-      <h3 class="text-4xl font-bold mb-6" data-price-pro>$19/mo</h3>
-
-      <ul class="space-y-3 text-sm text-white/70 mb-8">
-        <li>✓ Everything in Free</li>
-        <li>✓ Advanced habit analytics</li>
-        <li>✓ Reflection and journaling</li>
-        <li>✓ Custom templates</li>
-      </ul>
-
-      <a href="/register"
-         class="mt-auto bg-black text-white text-center py-3 rounded-md font-medium hover:bg-black/80 transition">
-        Get started
-      </a>
-    </div>
-
-    <!-- Team -->
-    <div class="border border-white/20 rounded-md p-8 flex flex-col">
-      <p class="font-medium mb-2">Team plan</p>
-      <h3 class="text-4xl font-bold mb-6" data-price-team>$49/mo</h3>
-
-      <ul class="space-y-3 text-sm text-white/70 mb-8">
-        <li>✓ Everything in Pro</li>
-        <li>✓ Team collaboration tools</li>
-        <li>✓ Priority email support</li>
-        <li>✓ Advanced integrations</li>
-      </ul>
-
-      <a href="/register"
-         class="mt-auto bg-black text-white text-center py-3 rounded-md font-medium hover:bg-black/80 transition">
-        Get started
-      </a>
-    </div>
-
-  </div>
-</section>
-
-<!-- COMPARE PLANS -->
-<section class="w-full bg-[#0B0F14] px-6 md:px-[64px] py-[160px] text-white">
-
-  <!-- Header -->
-  <div class="max-w-[1100px] mx-auto text-center mb-20">
-    <p class="text-sm font-medium text-white/50 mb-3">
-      Compare
-    </p>
-
-    <h2 class="text-[40px] md:text-[48px] font-bold tracking-tight mb-4">
-      See what’s included
-    </h2>
-
-    <p class="text-white/70 text-base md:text-lg">
-      Find the right fit for your workflow and growth
-    </p>
-  </div>
-
-  <!-- Plans header -->
-  <div class="max-w-[1200px] mx-auto grid grid-cols-[1.4fr_repeat(3,1fr)] gap-6 items-end mb-12">
-
-    <div></div>
-
-    <div class="text-center">
-      <p class="font-medium mb-2">Free</p>
-      <p class="text-3xl font-bold">$0</p>
-      <p class="text-sm text-white/60 mt-1">Forever free to start</p>
-      <a href="/register"
-         class="mt-4 inline-block w-full bg-black text-white py-3 rounded-md text-sm font-medium">
-        Get started
-      </a>
-    </div>
-
-    <div class="text-center">
-      <p class="font-medium mb-2">Pro</p>
-      <p class="text-3xl font-bold">$19<span class="text-sm font-medium text-white/60">/mo</span></p>
-      <p class="text-sm text-white/60 mt-1">For serious builders</p>
-      <a href="/register"
-         class="mt-4 inline-block w-full bg-black text-white py-3 rounded-md text-sm font-medium">
-        Get started
-      </a>
-    </div>
-
-    <div class="text-center">
-      <p class="font-medium mb-2">Team</p>
-      <p class="text-3xl font-bold">$49<span class="text-sm font-medium text-white/60">/mo</span></p>
-      <p class="text-sm text-white/60 mt-1">For teams and groups</p>
-      <a href="/register"
-         class="mt-4 inline-block w-full bg-black text-white py-3 rounded-md text-sm font-medium">
-        Get started
-      </a>
-    </div>
-
-  </div>
-
-  <!-- Comparison table -->
-  <div class="max-w-[1200px] mx-auto space-y-16">
-
-    <!-- CORE FEATURES -->
-    <div>
-      <h3 class="font-semibold mb-6">Core features</h3>
-
-      <div class="grid grid-cols-[1.4fr_repeat(3,1fr)] gap-6 text-sm">
-
-        <p>Daily planning workspace</p>
-        <p class="text-center">Yes</p>
-        <p class="text-center">Yes</p>
-        <p class="text-center">Yes</p>
-
-        <p>Task and habit management</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>AI-guided next actions</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>Reflection tools</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>Custom templates</p>
-        <p class="text-center">—</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-
+    <div class="px-6 py-8 flex flex-col gap-6 text-base">
+      <a href="/features" class="text-white/80 hover:text-white">Features</a>
+      <a href="/pricing" class="text-white">Pricing</a>
+      <a href="/about" class="text-white/80 hover:text-white">About</a>
+      <div class="mt-8 flex flex-col gap-4">
+        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
+        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
       </div>
     </div>
-
-    <!-- ADVANCED FEATURES -->
-    <div>
-      <h3 class="font-semibold mb-6">Advanced features</h3>
-
-      <div class="grid grid-cols-[1.4fr_repeat(3,1fr)] gap-6 text-sm">
-
-        <p>Habit analytics dashboard</p>
-        <p class="text-center">No</p>
-        <p class="text-center">Yes</p>
-        <p class="text-center">Yes</p>
-
-        <p>Journaling and insights</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>Team workspaces</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>API access</p>
-        <p class="text-center">—</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-
-        <p>Priority support</p>
-        <p class="text-center">—</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-
-      </div>
-    </div>
-
-    <!-- SUPPORT -->
-    <div>
-      <h3 class="font-semibold mb-6">Support and access</h3>
-
-      <div class="grid grid-cols-[1.4fr_repeat(3,1fr)] gap-6 text-sm">
-
-        <p>Community support</p>
-        <p class="text-center">Yes</p>
-        <p class="text-center">Yes</p>
-        <p class="text-center">Yes</p>
-
-        <p>Email support</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>Integrations library</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-        <p class="text-center">✓</p>
-
-        <p>Custom integrations</p>
-        <p class="text-center">—</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-
-        <p>Dedicated support</p>
-        <p class="text-center">—</p>
-        <p class="text-center">—</p>
-        <p class="text-center">✓</p>
-
-      </div>
-    </div>
-
   </div>
 
-  <!-- Bottom CTAs -->
-  <div class="max-w-[1200px] mx-auto grid grid-cols-[1.4fr_repeat(3,1fr)] gap-6 mt-16">
-    <div></div>
-
-    <a href="/register"
-       class="bg-black text-white py-3 rounded-md text-center text-sm font-medium">
-      Get started
-    </a>
-
-    <a href="/register"
-       class="bg-black text-white py-3 rounded-md text-center text-sm font-medium">
-      Get started
-    </a>
-
-    <a href="/register"
-       class="bg-black text-white py-3 rounded-md text-center text-sm font-medium">
-      Get started
-    </a>
+  <!-- HERO -->
+  <div class="p-hero">
+    <div class="p-label">Pricing</div>
+    <h1 class="p-title">The best time to start<br><span class="p-dim">was yesterday. This is now.</span></h1>
+    <p class="p-sub">Most people keep juggling apps, missing streaks, and wondering why nothing sticks. You don't have to. Start free — no card, no catch.</p>
   </div>
 
-</section>
-
-<!-- REAL VOICES -->
-<section class="w-full bg-[#0B0F14] text-white px-6 md:px-[64px] py-[160px]">
-  <div class="max-w-[1200px] mx-auto">
-
-    <!-- Header -->
-    <div class="mb-16">
-      <h2 class="text-[36px] md:text-[44px] font-bold tracking-tight mb-3">
-        Real voices
-      </h2>
-      <p class="text-white/70 text-base md:text-lg">
-        What users say about the value
-      </p>
+  <!-- TOGGLE -->
+  <div class="toggle-wrap">
+    <div class="toggle">
+      <button class="toggle-btn active" onclick="setBilling('monthly',this)">Monthly</button>
+      <button class="toggle-btn" onclick="setBilling('yearly',this)">Yearly</button>
     </div>
+    <div class="save-badge" id="save-badge">Save up to 30% yearly</div>
+  </div>
 
-    <!-- Testimonials Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+  <!-- CARDS -->
+  <div class="cards-wrap">
+    <div class="cards">
 
-      <!-- Testimonial 1 -->
-      <div class="flex flex-col gap-6">
-        <!-- Stars -->
-        <div class="text-lg">★★★★★</div>
-
-        <!-- Quote -->
-        <p class="text-white text-lg leading-relaxed">
-          “TaskFlow cut my planning time in half. The AI knows what I should do next before I do.”
-        </p>
-
-        <!-- Author -->
-        <div class="flex items-center gap-4 mt-auto">
-          <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/40">
-            👤
-          </div>
-          <div>
-            <p class="font-medium">Sarah Chen</p>
-            <p class="text-sm text-white/50">Student, Stanford</p>
-          </div>
-        </div>
-
-        <!-- Logo -->
-        <div class="mt-2 text-white/50 text-sm font-medium">
-          Webflow
+      <!-- FREE -->
+      <div class="card">
+        <div class="card-tier">Free</div>
+        <div class="price-wrap"><span class="price-amt">$0</span><span class="price-per">forever</span></div>
+        <div class="tagline">Everything you need to build consistency and start winning your days.</div>
+        <a href="/register" class="card-btn btn-ghost">Get started free →</a>
+        <div class="card-note">No card. No time limit.</div>
+        <div class="divider"></div>
+        <div class="feats">
+          <div class="feat"><div class="feat-icon">✓</div>Tasks & goals</div>
+          <div class="feat"><div class="feat-icon">✓</div>Habit tracking + streaks</div>
+          <div class="feat"><div class="feat-icon">✓</div>Journal & notes</div>
+          <div class="feat"><div class="feat-icon">✓</div>Calendar</div>
+          <div class="feat"><div class="feat-icon">✓</div>Daily Growth Score</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>AI life coach</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>Focus Mode</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>Weekly AI summary</div>
         </div>
       </div>
 
-      <!-- Testimonial 2 -->
-      <div class="flex flex-col gap-6">
-        <div class="text-lg">★★★★★</div>
-
-        <p class="text-white text-lg leading-relaxed">
-          “No more switching between apps. Everything I need is right here, and it costs less than my coffee habit.”
-        </p>
-
-        <div class="flex items-center gap-4 mt-auto">
-          <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/40">
-            👤
-          </div>
-          <div>
-            <p class="font-medium">Marcus Webb</p>
-            <p class="text-sm text-white/50">Creator, Brooklyn</p>
-          </div>
-        </div>
-
-        <div class="mt-2 text-white/50 text-sm font-medium">
-          Webflow
+      <!-- PLUS -->
+      <div class="card">
+        <div class="card-tier">Plus</div>
+        <div class="price-wrap"><span class="price-amt" id="plus-price">$5</span><span class="price-per" id="plus-per">/month</span></div>
+        <div class="tagline">Smarter habits. AI-powered insights. For people ready to level up.</div>
+        <a href="/register" class="card-btn btn-ghost">Start your flow →</a>
+        <div class="card-note" id="plus-note">7-day free trial.</div>
+        <div class="divider"></div>
+        <div class="feats">
+          <div class="feat"><div class="feat-icon">✓</div>Everything in Free</div>
+          <div class="feat"><div class="feat-icon">✓</div>AI life coach (50 msgs/mo)</div>
+          <div class="feat"><div class="feat-icon">✓</div>Focus Mode + Pomodoro</div>
+          <div class="feat"><div class="feat-icon">✓</div>Weekly AI summary</div>
+          <div class="feat"><div class="feat-icon">✓</div>Consistency Map</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>Unlimited AI messages</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>Pattern detection</div>
+          <div class="feat feat-muted"><div class="feat-icon">—</div>Priority support</div>
         </div>
       </div>
 
-      <!-- Testimonial 3 -->
-      <div class="flex flex-col gap-6">
-        <div class="text-lg">★★★★★</div>
-
-        <p class="text-white text-lg leading-relaxed">
-          “The clarity alone is worth it. I stopped wasting money on tools I never used.”
-        </p>
-
-        <div class="flex items-center gap-4 mt-auto">
-          <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/40">
-            👤
-          </div>
-          <div>
-            <p class="font-medium">Elena Rodriguez</p>
-            <p class="text-sm text-white/50">Builder, Austin</p>
-          </div>
+      <!-- PRO FEATURED -->
+      <div class="card featured">
+        <div class="badge">Most popular</div>
+        <div class="card-tier">Pro</div>
+        <div class="price-wrap"><span class="price-amt" id="pro-price">$9</span><span class="price-per" id="pro-per">/month</span></div>
+        <div class="tagline">The full experience. AI that knows you, guides you, and keeps you accountable.</div>
+        <a href="/register" class="card-btn btn-dark">Build your system →</a>
+        <div class="card-note" id="pro-note">7-day free trial. Cancel anytime.</div>
+        <div class="divider"></div>
+        <div class="feats">
+          <div class="feat"><div class="feat-icon">✓</div>Everything in Plus</div>
+          <div class="feat"><div class="feat-icon">✓</div>Unlimited AI messages</div>
+          <div class="feat"><div class="feat-icon">✓</div>Pattern detection & nudges</div>
+          <div class="feat"><div class="feat-icon">✓</div>AI daily planning</div>
+          <div class="feat"><div class="feat-icon">✓</div>Advanced journal analysis</div>
+          <div class="feat"><div class="feat-icon">✓</div>Accountability tools</div>
+          <div class="feat"><div class="feat-icon">✓</div>Priority support</div>
         </div>
+      </div>
 
-        <div class="mt-2 text-white/50 text-sm font-medium">
-          Webflow
+      <!-- TEAMS -->
+      <div class="card">
+        <div class="card-tier">Teams</div>
+        <div class="price-wrap"><span class="price-amt">Custom</span></div>
+        <div class="tagline">Build a culture of consistency. TaskFlow for teams — coming soon.</div>
+        <a href="/contact" class="card-btn btn-ghost">Join the waitlist →</a>
+        <div class="card-note">First to know when it launches.</div>
+        <div class="divider"></div>
+        <div class="feats">
+          <div class="feat"><div class="feat-icon">✓</div>Everything in Pro</div>
+          <div class="feat"><div class="feat-icon">✓</div>Shared team dashboards</div>
+          <div class="feat"><div class="feat-icon">✓</div>Group accountability</div>
+          <div class="feat"><div class="feat-icon">✓</div>Team AI insights</div>
+          <div class="feat"><div class="feat-icon">✓</div>Admin controls</div>
+          <div class="feat"><div class="feat-icon">✓</div>Dedicated onboarding</div>
+          <div class="feat"><div class="feat-icon">✓</div>SLA support</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPARE -->
+  <div class="compare-wrap">
+    <div class="compare">
+      <div class="compare-hd">
+        <div class="compare-hd-title">What does staying the same actually cost you?</div>
+        <div class="compare-hd-sub">Most people don't calculate the real price of not starting.</div>
+      </div>
+      <div class="compare-grid">
+        <div class="compare-col">
+          <div class="compare-col-title">Without TaskFlow</div>
+          <div class="compare-item bad"><span>✕</span>&nbsp;$54/month across 5 separate apps</div>
+          <div class="compare-item bad"><span>✕</span>&nbsp;Losing streaks because nothing connects</div>
+          <div class="compare-item bad"><span>✕</span>&nbsp;No AI that knows your actual patterns</div>
+          <div class="compare-item bad"><span>✕</span>&nbsp;Starting over every Monday with a new system</div>
+          <div class="compare-item bad"><span>✕</span>&nbsp;Wondering why progress never compounds</div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-col-title">With TaskFlow Free</div>
+          <div class="compare-item good"><span>✓</span>&nbsp;$0 — free forever, no credit card needed</div>
+          <div class="compare-item good"><span>✓</span>&nbsp;Tasks, habits, journal, calendar in one place</div>
+          <div class="compare-item good"><span>✓</span>&nbsp;Daily Growth Score shows exactly how you did</div>
+          <div class="compare-item good"><span>✓</span>&nbsp;One system that compounds over time</div>
+          <div class="compare-item good"><span>✓</span>&nbsp;Progress that's actually visible every day</div>
         </div>
       </div>
     </div>
   </div>
-</section>
 
-<!-- QUESTIONS / FAQ -->
-<section class="w-full bg-[#0B0F14] px-6 md:px-[64px] py-[160px] text-white">
-
-  <!-- Header -->
-  <div class="max-w-[960px] mx-auto text-center mb-16">
-    <h2 class="text-[40px] md:text-[48px] font-bold tracking-tight mb-4">
-      Questions
-    </h2>
-    <p class="text-white/70 text-base md:text-lg">
-      Everything you need to know about billing, plans, and getting started
-    </p>
+  <!-- FAQ -->
+  <div class="faq-wrap">
+    <div class="faq-label">Common questions</div>
+    <div class="faq">
+      <div class="faq-item"><div class="faq-q">Is the free plan actually free?</div><div class="faq-a">Yes — completely free, forever. No credit card, no expiration. Tasks, habits, journal, and calendar stay free forever.</div></div>
+      <div class="faq-item"><div class="faq-q">What's the difference between Plus and Pro?</div><div class="faq-a">Plus gives you AI with a monthly message limit and core smart features. Pro unlocks unlimited AI, pattern detection, and the full coaching experience.</div></div>
+      <div class="faq-item"><div class="faq-q">Can I switch plans anytime?</div><div class="faq-a">Yes. Upgrade, downgrade, or cancel whenever you want. If you cancel you keep access until the end of your billing period.</div></div>
+      <div class="faq-item"><div class="faq-q">Why start with the free plan?</div><div class="faq-a">Because there's literally nothing to lose. Start free, build the habit, upgrade when you're ready for the AI to start coaching you daily.</div></div>
+    </div>
   </div>
 
-  <!-- FAQ Grid -->
-  <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-
-    <!-- FAQ Item -->
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Can I cancel anytime?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        Yes. No contracts, no penalties. Cancel whenever you want. Your data stays yours.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Is there a team plan?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        The Business and Enterprise plans support team collaboration. Invite teammates
-        and manage permissions from your workspace.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>What’s included free?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        The free plan gives you daily planning, task management, and basic habit tracking.
-        It’s enough to get started and see if TaskFlow fits your flow.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Do you offer refunds?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        We offer a 14-day money-back guarantee if you’re not satisfied. No questions asked.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Do you offer discounts?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        Yes. Pay yearly and save 20% on any plan. The discount applies automatically
-        when you switch to yearly billing.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>What about student discounts?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        Students get 50% off any paid plan with a valid .edu email.
-        Verify your status during signup.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Can I upgrade or downgrade?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        Anytime. Change your plan whenever you need to. We’ll prorate any charges
-        or credits based on your cycle.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>Is there an API for integrations?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        The Business and Enterprise plans include API access. Connect TaskFlow to
-        your other tools and automate your workflow.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>What payment methods do you accept?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        We accept credit cards, debit cards, and PayPal. All payments are processed
-        securely through Stripe.
-      </p>
-    </div>
-
-    <div class="faq-item">
-      <button class="faq-toggle">
-        <span>How does billing work?</span>
-        <span class="faq-icon">+</span>
-      </button>
-      <p class="faq-content">
-        We bill monthly or yearly depending on your choice. Your card is charged
-        on the same day each cycle.
-      </p>
-    </div>
-
-  </div>
-
-  <!-- Footer CTA -->
-  <div class="text-center mt-20">
-    <h3 class="text-2xl font-semibold mb-2">Still have questions?</h3>
-    <p class="text-white/70 mb-6">Reach out to our team. We’re here to help.</p>
-    <a href="/contact"
-       class="inline-block bg-white text-gray-900 px-6 py-3 rounded-md font-semibold hover:bg-white/90 transition">
-      Contact support
-    </a>
-  </div>
-
-</section>
-
-
-<style>
-  .faq-item {
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 6px;
-    padding: 20px;
-  }
-
-  .faq-toggle {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 500;
-    text-align: left;
-  }
-
-  .faq-icon {
-    font-size: 20px;
-    transition: transform 0.2s ease;
-  }
-
-  .faq-content {
-    margin-top: 12px;
-    color: rgba(255,255,255,0.7);
-    display: none;
-  }
-
-  .faq-item.open .faq-content {
-    display: block;
-  }
-
-  .faq-item.open .faq-icon {
-    transform: rotate(45deg);
-  }
-</style>
-
-<!-- READY TO FOCUS -->
-<section class="w-full bg-white text-gray-900 px-6 md:px-[64px] py-[160px]">
-
-  <div class="max-w-[1200px] mx-auto flex flex-col items-center gap-10">
-
-    <!-- Text -->
-    <div class="max-w-[720px] text-center flex flex-col items-center gap-4">
-      <h2 class="text-[40px] md:text-[48px] font-bold tracking-tight">
-        Ready to focus on what matters?
-      </h2>
-
-      <p class="text-gray-600 text-base md:text-lg">
-        Start free today. No credit card required. Upgrade whenever you're ready.
-      </p>
-
-      <!-- CTAs -->
-      <div class="flex items-center gap-4 mt-4">
-        <a
-          href="/register"
-          class="bg-black text-white px-6 py-3 rounded-md font-medium hover:bg-black/90 transition"
-        >
-          Start free
-        </a>
-
-        <a
-          href="/features"
-          class="border border-gray-300 text-gray-900 px-6 py-3 rounded-md font-medium hover:border-gray-500 transition"
-        >
-          See features
-        </a>
-      </div>
-    </div>
-
-    <!-- Preview / Image Placeholder -->
-    <div class="w-full mt-10">
-      <div
-        class="w-full h-[420px] md:h-[520px] rounded-md bg-gray-200 flex items-center justify-center"
-      >
-        <span class="text-gray-400 text-sm">
-          Product preview / illustration
-        </span>
-      </div>
-    </div>
-
-  </div>
-
-</section>
-
-<footer class="bg-[#0B0F14] border-t border-white/10 px-6 md:px-[64px] py-20 text-white">
-  <div class="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
-
-    <!-- Brand / Contact -->
-    <div class="flex flex-col gap-4">
-      <div class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-        <span class="font-semibold">TaskFlow</span>
-      </div>
-
-      <p class="text-white/60 text-sm max-w-xs">
-        One workspace for clarity, focus, and momentum.
-      </p>
-
-      <div class="text-white/50 text-sm space-y-2 mt-4">
-        <p>500 N Akard St<br>Dallas, TX 75201</p>
-        <p>1 (844) 827-5435</p>
-        <p>
-          <a href="mailto:hello@taskflowhq.com" class="hover:text-white transition">
-            hello@taskflowhq.com
+  <!-- FOOTER -->
+  <footer class="w-full border-t border-white/[0.07] px-6 md:px-[56px] pt-16 pb-10 bg-[#0A0A0A] text-white">
+    <div class="max-w-[1280px] mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-14">
+        <div class="flex flex-col gap-4 md:col-span-2">
+          <a href="/" class="flex items-center gap-2 text-white/90 font-bold text-base w-fit">
+            <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            TaskFlow
           </a>
-        </p>
+          <p class="text-sm text-white/35 leading-relaxed max-w-[280px]">Your personal growth OS. Tasks, habits, journal, accountability, and AI — all in one place. Free forever.</p>
+          <a href="/register" class="inline-flex items-center gap-1.5 bg-white text-gray-900 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-white/88 transition w-fit">Start for free →</a>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Product</div>
+          <a href="/features" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Features</a>
+          <a href="/pricing" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Pricing</a>
+          <a href="/premium" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Premium</a>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Company</div>
+          <a href="/about" class="text-sm text-white/35 hover:text-white/70 transition w-fit">About</a>
+          <a href="/contact" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Contact</a>
+          <a href="/privacy" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Privacy Policy</a>
+          <a href="/terms" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Terms of Service</a>
+        </div>
       </div>
-
-      <!-- Socials -->
-      <div class="flex items-center gap-4 mt-4 text-white/50">
-        <!-- Facebook -->
-  <a href="#" aria-label="Facebook" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H8v-3h2.4V9.5c0-2.4 1.4-3.7 3.6-3.7
-               1 0 2 .2 2 .2v2.3h-1.1c-1.1 0-1.4.7-1.4 1.4V12H16l-.4 3h-2.5v7A10
-               10 0 0 0 22 12z"/>
-    </svg>
-  </a>
-
-  <!-- Instagram -->
-  <a href="#" aria-label="Instagram" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2
-               5-5V7c0-2.8-2.2-5-5-5H7zm10 2c1.7 0 3 1.3 3 3v10c0 1.7-1.3
-               3-3 3H7c-1.7 0-3-1.3-3-3V7c0-1.7 1.3-3 3-3h10zm-5
-               3a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0
-               2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm4.5-.9a1.1
-               1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/>
-    </svg>
-  </a>
-
-  <!-- X / Twitter -->
-  <a href="#" aria-label="X" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.3 2H21l-6.6 7.6L22 22h-6.6l-5.2-6.8L4.6 22H2l7.1-8.2
-               L2 2h6.8l4.7 6.2L18.3 2zm-2.3 18h1.5L8.2
-               4H6.6l9.4 16z"/>
-    </svg>
-  </a>
-
-  <!-- LinkedIn -->
-  <a href="#" aria-label="LinkedIn" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4.98 3.5A2.5 2.5 0 1 0 5 8a2.5 2.5
-               0 0 0-.02-4.5zM3 9h4v12H3V9zm7
-               0h3.8v1.6h.1c.5-.9 1.7-1.8
-               3.6-1.8 3.9 0 4.6 2.5
-               4.6 5.8V21h-4v-5.3c0-1.3
-               0-3-1.9-3s-2.2 1.4-2.2
-               2.9V21h-4V9z"/>
-    </svg>
-  </a>
+      <div class="flex items-center justify-between flex-wrap gap-4 pt-7 border-t border-white/[0.06]">
+        <div class="text-xs text-white/22">© 2026 <span class="text-white/40">TaskFlow</span>. Built by <span class="text-white/40">Donny Fabuluje</span>.</div>
+        <div class="flex gap-5">
+          <a href="/privacy" class="text-xs text-white/22 hover:text-white/50 transition">Privacy</a>
+          <a href="/terms" class="text-xs text-white/22 hover:text-white/50 transition">Terms</a>
+          <a href="/contact" class="text-xs text-white/22 hover:text-white/50 transition">Contact</a>
+        </div>
       </div>
     </div>
+  </footer>
 
-    <!-- Product -->
-    <div>
-      <p class="font-semibold mb-4">Product</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/features" class="hover:text-white transition">Features</a></li>
-        <li><a href="/pricing" class="hover:text-white transition">Pricing</a></li>
-        <li><a href="/premium" class="hover:text-white transition">Premium</a></li>
-      </ul>
-    </div>
+  <script>
+    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('translate-x-full'));
+    document.getElementById('menuClose').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
 
-    <!-- Company -->
-    <div>
-      <p class="font-semibold mb-4">Company</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/about" class="hover:text-white transition">About</a></li>
-        <li><a href="/blog" class="hover:text-white transition">Blog</a></li>
-        <li><a href="/contact" class="hover:text-white transition">Contact</a></li>
-      </ul>
-    </div>
-
-    <!-- Legal -->
-    <div>
-      <p class="font-semibold mb-4">Legal</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/privacy" class="hover:text-white transition">Privacy Policy</a></li>
-        <li><a href="/terms" class="hover:text-white transition">Terms of Service</a></li>
-        <li><a href="/cookie" class="hover:text-white transition">Cookies Settings</a></li>
-      </ul>
-    </div>
-
-  </div>
-
-  <!-- Bottom Bar -->
-  <div class="max-w-[1280px] mx-auto mt-16 pt-8 border-t border-white/10
-              flex flex-col md:flex-row justify-between items-center
-              text-white/40 text-sm gap-4">
-    <span>© 2025 TaskFlow. All rights reserved.</span>
-
-    <div class="flex items-center gap-6">
-      <a href="/privacy" class="hover:text-white">Privacy Policy</a>
-      <a href="/terms" class="hover:text-white">Terms of Service</a>
-      <a href="/cookie" class="hover:text-white">Cookies Settings</a>
-    </div>
-  </div>
-</footer>
-
-
-<script>
-  document.querySelectorAll(".faq-toggle").forEach(button => {
-    button.addEventListener("click", () => {
-      const item = button.parentElement;
-      item.classList.toggle("open");
-    });
-  });
-</script>
-
-
-<script>
-  const monthlyBtn = document.getElementById("monthlyBtn");
-  const yearlyBtn = document.getElementById("yearlyBtn");
-
-  const prices = {
-    monthly: {
-      free: "$0",
-      pro: "$19/mo",
-      team: "$49/mo",
-    },
-    yearly: {
-      free: "$0",
-      pro: "$230/yr",
-      team: "$600/yr",
-    },
-  };
-
-  function setBilling(mode) {
-    // Update prices
-    document.querySelector("[data-price-free]").textContent =
-      prices[mode].free;
-    document.querySelector("[data-price-pro]").textContent =
-      prices[mode].pro;
-    document.querySelector("[data-price-team]").textContent =
-      prices[mode].team;
-
-    // Toggle button styles
-    if (mode === "monthly") {
-      monthlyBtn.classList.add("bg-white", "text-gray-900");
-      monthlyBtn.classList.remove("text-white/70");
-
-      yearlyBtn.classList.remove("bg-white", "text-gray-900");
-      yearlyBtn.classList.add("text-white/70");
-    } else {
-      yearlyBtn.classList.add("bg-white", "text-gray-900");
-      yearlyBtn.classList.remove("text-white/70");
-
-      monthlyBtn.classList.remove("bg-white", "text-gray-900");
-      monthlyBtn.classList.add("text-white/70");
+    const prices = {
+      monthly: { plus: '$5', pro: '$9', plusNote: '7-day free trial.', proNote: '7-day free trial. Cancel anytime.', badge: 'Save up to 30% yearly' },
+      yearly:  { plus: '$3', pro: '$6', plusNote: 'Billed $36/year.', proNote: 'Billed $72/year. 7-day free trial.', badge: '✦ You save up to $36/year' }
+    };
+    function setBilling(type, btn) {
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const p = prices[type];
+      document.getElementById('plus-price').textContent = p.plus;
+      document.getElementById('pro-price').textContent = p.pro;
+      document.getElementById('plus-note').textContent = p.plusNote;
+      document.getElementById('pro-note').textContent = p.proNote;
+      document.getElementById('save-badge').textContent = p.badge;
     }
-  }
-
-  monthlyBtn.addEventListener("click", () => setBilling("monthly"));
-  yearlyBtn.addEventListener("click", () => setBilling("yearly"));
-</script>
-
-  
+  </script>
 
 </body>
 </html>

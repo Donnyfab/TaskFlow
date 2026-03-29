@@ -1,160 +1,201 @@
-<!DOCTYPE html>
-<html lang="en" class="scrollbar-hide scroll-smooth">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskFlow — Privacy Policy</title>
+{% extends "policy/base_policy.html" %}
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% block meta_title %}Privacy Policy | TaskFlow{% endblock %}
+{% block hero_eyebrow %}Privacy{% endblock %}
+{% block hero_title %}Your data should help you <span class="dim">build better days.</span>{% endblock %}
+{% block hero_subtitle %}This page explains what TaskFlow collects, why it is needed, and how we handle the private information you trust us with when you use accounts, notes, planning tools, and AI-assisted product features.{% endblock %}
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-[#0B0F14] text-white font-[Inter]">
-
-<!-- HEADER -->
-<header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
-  <div class="max-w-[1280px] mx-auto h-full flex items-center justify-between px-6">
-    <a href="/" class="flex items-center gap-2">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-      <span class="font-semibold tracking-tight">TaskFlow</span>
-    </a>
-
-    <a href="/register" class="text-sm text-white/60 hover:text-white transition">
-      Create account
-    </a>
+{% block quick_cards %}
+  <div class="quick-card">
+    <div class="quick-label">Short version</div>
+    <div class="quick-title">We use data to run TaskFlow, not to sell ads.</div>
+    <p class="quick-copy">We collect account details, the content you create in the app, and a small amount of cookie-based product memory so the product can work the way you expect.</p>
   </div>
-</header>
-
-<!-- PAGE -->
-<main class="pt-[120px] pb-[140px] px-6">
-  <div class="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-12">
-
-    <!-- TABLE OF CONTENTS -->
-    <aside class="hidden lg:block sticky top-[120px] h-fit">
-      <p class="text-sm font-semibold text-white/50 mb-4">On this page</p>
-      <nav class="space-y-3 text-sm">
-        <a href="#overview" class="block text-white/60 hover:text-white">Overview</a>
-        <a href="#data" class="block text-white/60 hover:text-white">Data We Collect</a>
-        <a href="#usage" class="block text-white/60 hover:text-white">How We Use Data</a>
-        <a href="#ai" class="block text-white/60 hover:text-white">AI Features</a>
-        <a href="#sharing" class="block text-white/60 hover:text-white">Data Sharing</a>
-        <a href="#retention" class="block text-white/60 hover:text-white">Retention</a>
-        <a href="#security" class="block text-white/60 hover:text-white">Security</a>
-        <a href="#rights" class="block text-white/60 hover:text-white">Your Rights</a>
-        <a href="#contact" class="block text-white/60 hover:text-white">Contact</a>
-      </nav>
-    </aside>
-
-    <!-- CONTENT -->
-    <section class="bg-[#0F141B] border border-white/10 rounded-xl p-8 md:p-12">
-
-      <h1 class="text-[40px] font-bold tracking-tight">Privacy Policy</h1>
-      <p class="mt-2 text-sm text-white/50">Last updated: December 18, 2025</p>
-
-      <div class="mt-12 space-y-10 text-sm text-white/75 leading-relaxed">
-
-        <!-- SECTION -->
-        <section id="overview">
-          <h2 class="text-white font-semibold text-lg mb-2">1. Overview</h2>
-          <p>
-            This Privacy Policy explains how TaskFlow (“TaskFlow,” “we,” “us,” or “our”)
-            collects, uses, and protects your information when you use our services.
-          </p>
-        </section>
-
-        <section id="data">
-          <h2 class="text-white font-semibold text-lg mb-2">2. Information We Collect</h2>
-          <ul class="list-disc pl-5 space-y-2">
-            <li><strong>Account data:</strong> name, email, username, and authentication credentials.</li>
-            <li><strong>User content:</strong> tasks, habits, notes, plans, and related metadata.</li>
-            <li><strong>Usage data:</strong> interactions, feature usage, and performance metrics.</li>
-            <li><strong>Device data:</strong> browser type, OS, IP address (for security).</li>
-          </ul>
-        </section>
-
-        <section id="usage">
-          <h2 class="text-white font-semibold text-lg mb-2">3. How We Use Your Information</h2>
-          <ul class="list-disc pl-5 space-y-2">
-            <li>Operate, maintain, and improve TaskFlow.</li>
-            <li>Personalize your daily workflow and experience.</li>
-            <li>Provide AI-powered recommendations (when enabled).</li>
-            <li>Ensure platform security and prevent abuse.</li>
-            <li>Communicate important service updates.</li>
-          </ul>
-        </section>
-
-        <section id="ai">
-          <h2 class="text-white font-semibold text-lg mb-2">4. AI Features & Data Processing</h2>
-          <p>
-            TaskFlow uses AI to assist with planning, prioritization, and insights.
-            AI processing is limited to what is required to deliver features.
-          </p>
-          <p class="mt-2">
-            We do <strong>not</strong> sell AI inputs, use them for advertising,
-            or train third-party models on your private content.
-          </p>
-        </section>
-
-        <section id="sharing">
-          <h2 class="text-white font-semibold text-lg mb-2">5. Data Sharing</h2>
-          <p>We do not sell your personal data.</p>
-          <ul class="list-disc pl-5 space-y-2 mt-2">
-            <li>Legal compliance or lawful requests.</li>
-            <li>Security, fraud prevention, or abuse mitigation.</li>
-            <li>Infrastructure providers under strict confidentiality.</li>
-          </ul>
-        </section>
-
-        <section id="retention">
-          <h2 class="text-white font-semibold text-lg mb-2">6. Data Retention</h2>
-          <p>
-            Data is retained while your account is active.
-            You may request deletion at any time.
-          </p>
-        </section>
-
-        <section id="security">
-          <h2 class="text-white font-semibold text-lg mb-2">7. Security</h2>
-          <p>
-            We use encryption, access controls, and best practices to protect your data.
-            No system is 100% secure — safeguard your credentials.
-          </p>
-        </section>
-
-        <section id="rights">
-          <h2 class="text-white font-semibold text-lg mb-2">8. Your Rights</h2>
-          <ul class="list-disc pl-5 space-y-2">
-            <li>Access or update your information.</li>
-            <li>Request deletion or export of your data.</li>
-            <li>Opt out of optional communications.</li>
-          </ul>
-        </section>
-
-        <section id="contact">
-          <h2 class="text-white font-semibold text-lg mb-2">9. Contact</h2>
-          <p>
-            Privacy questions? Email us at
-            <a href="mailto:privacy@taskflowhq.com"
-               class="underline underline-offset-4 hover:text-white transition">
-              privacy@taskflowhq.com
-            </a>
-          </p>
-        </section>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div class="mt-14 pt-6 border-t border-white/10 flex items-center justify-between text-sm">
-        <a href="/terms" class="text-white/60 hover:text-white transition">Terms of Service</a>
-        <a href="/" class="text-white/60 hover:text-white transition">Back to home</a>
-      </div>
-
-    </section>
+  <div class="quick-card">
+    <div class="quick-label">What this covers</div>
+    <div class="quick-title">Accounts, content, and product memory.</div>
+    <p class="quick-copy">That includes sign-in, email verification, optional Google login, tasks, notes, habits, planning data, profile settings, and the cookies used to keep your session and recent notes working.</p>
   </div>
-</main>
+  <div class="quick-card">
+    <div class="quick-label">What we do not do</div>
+    <div class="quick-title">No payment card collection in-app today.</div>
+    <p class="quick-copy">TaskFlow does not currently process payments inside the app, and we do not use invasive advertising or cross-site tracking to monetize your account data.</p>
+  </div>
+{% endblock %}
 
-</body>
-</html>
+{% block toc %}
+  <div class="toc-heading">Jump to</div>
+  <div class="toc-links">
+    <a href="#overview" class="toc-link">Overview</a>
+    <a href="#collect" class="toc-link">What we collect</a>
+    <a href="#use" class="toc-link">How we use it</a>
+    <a href="#ai" class="toc-link">AI features</a>
+    <a href="#sharing" class="toc-link">How data is shared</a>
+    <a href="#retention" class="toc-link">Retention and deletion</a>
+    <a href="#security" class="toc-link">Security</a>
+    <a href="#choices" class="toc-link">Your choices</a>
+    <a href="#contact" class="toc-link">Contact</a>
+  </div>
+{% endblock %}
+
+{% block intro_callout %}
+  <div class="section-card">
+    <div class="section-label">In plain English</div>
+    <h2 class="section-title">TaskFlow is built for personal growth, so privacy has to feel personal too.</h2>
+    <p class="section-copy">Most people use TaskFlow for information that matters: goals, streaks, notes, routines, and the private patterns behind them. We want this page to be clear about what enters the product, where it is used, and where the line is.</p>
+    <div class="callout">
+      <div class="callout-title">The one-minute summary</div>
+      <div class="callout-copy">If you create an account, we need enough information to identify you, secure your session, save the content you create, and deliver the features you choose to use. We do not sell your personal data, and we do not treat your notes, habits, or planning data like ad inventory.</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block policy_content %}
+  <section id="overview" class="section-card">
+    <div class="section-label">1. Overview</div>
+    <h2 class="section-title">This policy applies to the TaskFlow website and web app.</h2>
+    <p class="section-copy">When we say "TaskFlow," "we," "us," or "our," we mean the TaskFlow product and the people operating it. When we say "you," we mean the person using the site or app.</p>
+    <p class="section-copy">This Privacy Policy applies to your use of the public marketing site, account registration and sign-in flows, the authenticated app experience, and product features tied to your account such as tasks, notes, planning data, calendars, habits, and other self-improvement tools shown across the product.</p>
+    <div class="detail-grid">
+      <div class="mini-card">
+        <h3>What it does not cover</h3>
+        <p>If you follow a link to another site or use a third-party service outside TaskFlow, that service has its own privacy policy and rules.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Who it is for</h3>
+        <p>TaskFlow is designed for people trying to get their life more organized and consistent. If you are under the age required to consent to online services where you live, use TaskFlow only with parent or guardian permission.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="collect" class="section-card">
+    <div class="section-label">2. What we collect</div>
+    <h2 class="section-title">We collect the information needed to create your account, store your content, and keep the product usable.</h2>
+    <div class="detail-grid">
+      <div class="mini-card">
+        <h3>Account and profile data</h3>
+        <p>Your name, username, email address, password hash, account verification status, optional profile image, and the sign-in method tied to your account.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Authentication data</h3>
+        <p>If you use Google sign-in, we receive basic account information from Google such as your name, email, and provider identifier needed to create or match your account.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Content you create</h3>
+        <p>The content you put into TaskFlow, including task lists, tasks, notes, note folders, saved planning information, and other feature data connected to your account.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Preferences and product memory</h3>
+        <p>Session data and certain cookie-based preferences, such as remembering the last note you opened so the app can restore context when you return.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Emails and support messages</h3>
+        <p>We may store messages you send us, plus service emails tied to your account such as verification and account-access communications.</p>
+      </div>
+      <div class="mini-card">
+        <h3>What we do not collect in-app today</h3>
+        <p>TaskFlow does not currently collect payment card details through the product itself because there is no in-app billing flow live in the app today.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="use" class="section-card">
+    <div class="section-label">3. How we use it</div>
+    <h2 class="section-title">We use your information to run the product you signed up for.</h2>
+    <ul class="policy-list">
+      <li>Create and manage your account, authenticate sign-ins, and keep protected routes private to your account.</li>
+      <li>Store, organize, and restore your tasks, notes, lists, planning data, and account settings.</li>
+      <li>Send account-related emails such as verification or other service messages tied to access and security.</li>
+      <li>Remember app state that improves usability, such as note context and recent navigation inside the notes experience.</li>
+      <li>Protect the service, investigate suspicious activity, and troubleshoot product issues.</li>
+      <li>Power AI-assisted planning, guidance, or insight features when you choose to use them.</li>
+    </ul>
+    <div class="callout">
+      <div class="callout-title">A practical rule we follow</div>
+      <div class="callout-copy">If a piece of information is not needed to run a feature, secure an account, or support the product, it should not be collected just because it might be useful later.</div>
+    </div>
+  </section>
+
+  <section id="ai" class="section-card">
+    <div class="section-label">4. AI features</div>
+    <h2 class="section-title">AI features work by using the context you choose to put into TaskFlow.</h2>
+    <p class="section-copy">TaskFlow is built around AI-guided planning and coaching. If you use those features, the relevant information needed to produce the output may include account context and the content connected to the feature, such as tasks, habits, journal-like notes, plans, and related activity.</p>
+    <p class="section-copy">AI output can be helpful, but it can also be incomplete or wrong. That is why we treat it as assistive product functionality, not a replacement for your judgment.</p>
+    <div class="detail-grid">
+      <div class="mini-card">
+        <h3>What AI data is for</h3>
+        <p>Generating the response, plan, summary, or recommendation you asked the product to create.</p>
+      </div>
+      <div class="mini-card">
+        <h3>What AI data is not for</h3>
+        <p>We do not use your private TaskFlow content as a reason to sell ads to you, and we do not describe TaskFlow as a product built around invasive behavioral ad targeting.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sharing" class="section-card">
+    <div class="section-label">5. How data is shared</div>
+    <h2 class="section-title">We do not sell your personal data.</h2>
+    <p class="section-copy">We only share information when it is needed to operate the service, complete a feature you chose to use, or meet a legal or safety obligation.</p>
+    <ul class="policy-list">
+      <li>With infrastructure providers that host the app, database, file storage, and supporting systems needed to keep TaskFlow online.</li>
+      <li>With authentication and email providers when you sign in with Google or when we send account-related emails.</li>
+      <li>With model providers or AI infrastructure only when an AI-powered feature needs that processing to produce the output.</li>
+      <li>When required by law, legal process, or a good-faith need to protect users, the service, or the public.</li>
+    </ul>
+    <div class="callout">
+      <div class="callout-title">What we do not do</div>
+      <div class="callout-copy">We do not publish your private content publicly by default, and we do not run a marketplace where your notes, streaks, or personal growth data are sold to other companies.</div>
+    </div>
+  </section>
+
+  <section id="retention" class="section-card">
+    <div class="section-label">6. Retention and deletion</div>
+    <h2 class="section-title">We keep data for as long as your account and product usage need it.</h2>
+    <p class="section-copy">Account information and product content stay associated with your account while the account remains active, unless you delete individual content or ask us to remove the account.</p>
+    <ul class="policy-list">
+      <li>If you delete notes in the app, some content may first move into the Recently Deleted area before you permanently purge it.</li>
+      <li>If you want your full account deleted, contact us and we will work through the request with you.</li>
+      <li>If we no longer need data to operate the product or support the account relationship, we should not keep it longer than necessary.</li>
+    </ul>
+  </section>
+
+  <section id="security" class="section-card">
+    <div class="section-label">7. Security</div>
+    <h2 class="section-title">We take account and content security seriously, but no internet service is perfect.</h2>
+    <p class="section-copy">TaskFlow uses account authentication, hashed passwords for local sign-in, access controls, and related security practices to protect the service and your information.</p>
+    <p class="section-copy">You also play a role: use a strong password, keep your email account secure, and sign out on devices you do not trust.</p>
+    <div class="callout">
+      <div class="callout-title">Important note</div>
+      <div class="callout-copy">No website or app can promise absolute security. If you think your account was accessed without permission, contact us as soon as possible.</div>
+    </div>
+  </section>
+
+  <section id="choices" class="section-card">
+    <div class="section-label">8. Your choices</div>
+    <h2 class="section-title">You have control over how you use TaskFlow and how much you store in it.</h2>
+    <ul class="policy-list">
+      <li>You can update parts of your profile and choose how you sign in when multiple sign-in options are available.</li>
+      <li>You can manage browser cookies and site data, although some essential product behavior may stop working if you disable them.</li>
+      <li>You can delete content you no longer want in the app and request account deletion through support.</li>
+      <li>You can choose not to use AI-assisted features if you do not want that context processed for those outputs.</li>
+    </ul>
+  </section>
+
+  <section id="contact" class="section-card">
+    <div class="section-label">9. Contact</div>
+    <h2 class="section-title">Questions, requests, or privacy concerns?</h2>
+    <p class="section-copy">Email us at <a href="mailto:hello@taskflow.io" class="inline-link">hello@taskflow.io</a> and include "Privacy" in the subject line so we can route it quickly.</p>
+  </section>
+{% endblock %}
+
+{% block related_links %}
+  <a href="/terms" class="related-link">
+    <h3>Terms of Service</h3>
+    <p>How to use TaskFlow responsibly, what you own, and the rules around accounts, AI, and service access.</p>
+  </a>
+  <a href="/cookie" class="related-link">
+    <h3>Cookies Policy</h3>
+    <p>The specific cookies TaskFlow uses today, why they exist, and how to manage them in your browser.</p>
+  </a>
+{% endblock %}

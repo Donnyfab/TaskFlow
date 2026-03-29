@@ -1,716 +1,350 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="scrollbar-hide">
 <head>
   <meta charset="UTF-8">
-  <title>TaskFlow | Productivity</title>
+  <title>Contact | TaskFlow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!- Fonts>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&display=swap" rel="stylesheet">
-
-
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; }
+    a { text-decoration: none; }
 
-<!--<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">--> 
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    .c-hero { padding: 140px 56px 76px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .c-hero-inner, .c-section-inner, .c-footer-inner { max-width: 1200px; margin: 0 auto; }
+    .c-hero-pill { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 6px 14px; font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 24px; }
+    .c-pill-dot { width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.58); }
+    .c-title { font-size: clamp(36px, 5vw, 64px); font-weight: 800; letter-spacing: -2px; line-height: 1.03; margin-bottom: 18px; max-width: 860px; }
+    .c-title .dim { color: rgba(255,255,255,0.28); }
+    .c-sub { font-size: 16px; color: rgba(255,255,255,0.42); line-height: 1.8; max-width: 720px; margin-bottom: 32px; }
+    .c-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 42px; }
+    .btn-p { background: #fff; color: #0A0A0A; font-size: 14px; font-weight: 600; border: none; border-radius: 9px; padding: 13px 24px; transition: all 0.2s; display: inline-block; }
+    .btn-p:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+    .btn-s { background: transparent; color: rgba(255,255,255,0.5); font-size: 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 13px 22px; transition: all 0.2s; display: inline-block; }
+    .btn-s:hover { border-color: rgba(255,255,255,0.22); color: rgba(255,255,255,0.75); }
+    .c-trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .c-trust-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 22px; }
+    .c-trust-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+    .c-trust-title { font-size: 17px; font-weight: 700; letter-spacing: -0.4px; color: rgba(255,255,255,0.88); margin-bottom: 8px; }
+    .c-trust-copy { font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.7; }
 
+    .c-section { padding: 84px 56px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .c-grid { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 18px; align-items: start; }
+    .c-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 28px; }
+    .c-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 12px; }
+    .c-heading { font-size: clamp(24px, 3vw, 40px); font-weight: 800; letter-spacing: -1.2px; line-height: 1.08; margin-bottom: 16px; color: rgba(255,255,255,0.92); }
+    .c-copy { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.8; }
+    .c-copy + .c-copy { margin-top: 12px; }
+    .c-stack { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+    .c-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; }
+    .c-mini-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.84); margin-bottom: 7px; }
+    .c-mini-copy { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,0.38); }
+    .c-email-link { color: rgba(255,255,255,0.88); text-decoration: underline; text-underline-offset: 3px; }
+    .c-email-link:hover { color: #fff; }
 
-  
-  
-  
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.46); text-transform: uppercase; letter-spacing: 0.8px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 12px;
+      padding: 13px 14px;
+      color: #fff;
+      font: inherit;
+      outline: none;
+      transition: all 0.15s;
+    }
+    .field select { appearance: none; }
+    .field textarea { min-height: 170px; resize: vertical; }
+    .field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,0.22); }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); }
+    .field-error { font-size: 12px; color: rgba(255,120,120,0.9); }
+    .form-note { font-size: 12px; color: rgba(255,255,255,0.28); line-height: 1.7; margin-top: 2px; }
+    .form-alert { border-radius: 14px; padding: 14px 16px; font-size: 13px; line-height: 1.7; margin-bottom: 16px; }
+    .form-alert.success { background: rgba(120,255,180,0.08); border: 1px solid rgba(120,255,180,0.18); color: rgba(190,255,220,0.92); }
+    .form-alert.error { background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.18); color: rgba(255,150,150,0.9); }
+    .submit-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-top: 20px; }
+    .submit-note { font-size: 12px; color: rgba(255,255,255,0.26); }
+
+    .c-guidance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .faq-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .faq-item { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px 20px; }
+    .faq-item summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.84); }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-plus { font-size: 18px; color: rgba(255,255,255,0.3); transition: transform 0.2s, color 0.2s; }
+    .faq-item[open] .faq-plus { transform: rotate(45deg); color: rgba(255,255,255,0.68); }
+    .faq-answer { margin-top: 14px; font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.75; }
+
+    .c-cta { padding: 84px 56px 100px; }
+    .c-cta-card { max-width: 1200px; margin: 0 auto; background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 44px; display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: center; }
+    .c-cta-title { font-size: clamp(24px, 3vw, 38px); font-weight: 800; letter-spacing: -1px; line-height: 1.08; margin-bottom: 10px; }
+    .c-cta-copy { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.75; max-width: 620px; }
+
+    .c-footer { border-top: 1px solid rgba(255,255,255,0.07); padding: 24px 56px 36px; }
+    .c-footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+    .c-footer-copy { font-size: 12px; color: rgba(255,255,255,0.22); }
+    .c-footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
+    .c-footer-links a { font-size: 12px; color: rgba(255,255,255,0.26); transition: color 0.18s; }
+    .c-footer-links a:hover { color: rgba(255,255,255,0.56); }
+
+    @media (max-width: 980px) {
+      .c-trust-grid, .c-guidance-grid, .faq-grid, .c-grid, .c-cta-card { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .c-hero, .c-section, .c-cta, .c-footer { padding-left: 24px; padding-right: 24px; }
+      .c-hero { padding-top: 124px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .c-card { padding: 24px 20px; }
+    }
+  </style>
 </head>
-
 <body class="scrollbar-hide">
 
-  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
     <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
-  
-      <!-- Left -->
       <div class="flex items-center gap-10">
-        <a href="/" class="flex items-center gap-2 text-gray-900">
-          <img src="{{ url_for('static', filename='images/logo.png') }}"
-               class="w-8 h-8 rounded-full">
-          <span class="font-semibold tracking-tight">TaskFlow</span>
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          TaskFlow
         </a>
-  
         <nav class="hidden md:flex gap-10 text-sm">
-          <a href="/features" class="text-gray-600 hover:text-gray-900 transition">
-            Features
-          </a>
-          <a href="/premium" class="text-gray-600 hover:text-gray-900 transition">
-            Premium
-          </a>
-          <a href="/pricing" class="text-gray-600 hover:text-gray-900 transition">
-            Pricing
-          </a>
-          <a href="/about" class="text-gray-600 hover:text-gray-900 transition">
-            About
-          </a>
+          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
+          <a href="/pricing" class="text-white/70 hover:text-white transition">Pricing</a>
+          <a href="/about" class="text-white/70 hover:text-white transition">About</a>
+          <a href="/contact" class="text-white transition">Contact</a>
         </nav>
       </div>
-  
-      <!-- Right -->
       <div class="flex items-center gap-6">
-        <div class="hidden md:block h-6 w-px bg-gray-200"></div>
-  
+        <div class="hidden md:block h-6 w-px bg-white/20"></div>
         <div class="hidden md:flex gap-4">
-          <a href="/login"
-             class="text-gray-600 hover:text-gray-900 px-4 py-2 transition">
-            Log in
-          </a>
-          <a href="/register"
-             class="bg-black text-white px-4 py-2 rounded-md font-semibold hover:bg-black/90 transition">
-            Sign up
-          </a>
+          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
+          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
         </div>
       </div>
-  
-      <!-- Mobile Menu Button -->
-      <button id="menuOpen" class="md:hidden text-gray-900 text-2xl">
-        ☰
-      </button>
-  
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
     </div>
   </header>
-  
 
-  <!-- Mobile Menu Overlay -->
-  <div id="mobileMenu"
-  class="fixed inset-0 z-[60] bg-white text-gray-900 translate-x-full transition-transform duration-300 ease-out">
-  
-
-<!-- Top Bar -->
-<div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-  <a href="/" class="flex items-center gap-2 text-white">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-    <span class="font-semibold tracking-tight">TaskFlow</span>
-  </a>
-
-<button id="menuClose" class="text-2xl">✕</button>
-</div>
-
-<!-- Menu Content -->
-<div class="px-6 py-8 flex flex-col gap-6 text-base">
-
-  <a href="/pricing" class="text-gray-700 hover:text-gray-900">Pricing</a>
-  <a href="/blog" class="text-gray-700 hover:text-gray-900">Blog</a>
-  <a href="/features" class="text-gray-700 hover:text-gray-900">Features</a>
-  
-<details class="group">
- <summary class="cursor-pointer text-white/80 hover:text-white">
-   More
- </summary>
- <div class="mt-4 ml-4 flex flex-col gap-3 text-white/60">
-   <a href="/contact">Contact</a>
-   <a href="/about">About</a>
- </div>
-</details>
-
-<div class="mt-8 flex flex-col gap-4">
- <a href="/register"
-    class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">
-   Sign up
- </a>
- <a href="/login"
-    class="w-full text-center border border-white/20 py-3 rounded-md">
-   Log in
- </a>
-</div>
-</div>
-</div>
-
-<!-- LET'S TALK -->
-<section class="w-full bg-white text-gray-900 px-6 md:px-[64px] py-[144px]">
-
-  <div class="max-w-[960px] mx-auto text-center flex flex-col items-center gap-6">
-
-    <!-- Eyebrow -->
-    <p class="text-sm font-medium text-gray-500">
-      Connect
-    </p>
-
-    <!-- Heading -->
-    <h1 class="text-[44px] md:text-[52px]
-               leading-[1.1]
-               tracking-tight
-               font-bold">
-      Let’s talk
-    </h1>
-
-    <!-- Subtext -->
-    <p class="text-base md:text-lg text-gray-600 max-w-[640px]">
-      We’re here to help you build better days, one task at a time.
-    </p>
-
-    <!-- CTAs -->
-    <div class="flex items-center gap-4 mt-6">
-
-      <!-- Primary -->
-      <a
-        href="#contact-form"
-        class="bg-black text-white
-               px-6 py-3 rounded-md
-               font-semibold
-               hover:bg-black/90 transition"
-      >
-        Message
+  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+      <a href="/" class="flex items-center gap-2 text-white font-bold">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        TaskFlow
       </a>
-
-      <!-- Secondary -->
-      <a
-        href="/features"
-        class="border border-gray-300
-               text-gray-900
-               px-6 py-3 rounded-md
-               font-semibold
-               hover:border-gray-400 transition"
-      >
-        Learn
-      </a>
-
+      <button id="menuClose" class="text-2xl">✕</button>
     </div>
-
+    <div class="px-6 py-8 flex flex-col gap-6 text-base">
+      <a href="/features" class="text-white/80 hover:text-white">Features</a>
+      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
+      <a href="/about" class="text-white/80 hover:text-white">About</a>
+      <a href="/contact" class="text-white">Contact</a>
+      <div class="mt-8 flex flex-col gap-4">
+        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
+        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
+      </div>
+    </div>
   </div>
 
-</section>
-
-<!-- GET IN TOUCH -->
-<section class="w-full bg-white text-gray-900 px-6 md:px-[64px] py-[144px]">
-
-  <div class="max-w-[1200px] mx-auto">
-
-    <!-- Header -->
-    <div class="max-w-[640px] mb-16">
-      <p class="text-sm font-medium text-gray-500 mb-3">
-        Reach
-      </p>
-
-      <h2 class="text-[36px] md:text-[44px]
-                 leading-[1.15]
-                 font-bold tracking-tight mb-4">
-        Get in touch
-      </h2>
-
-      <p class="text-base md:text-lg text-gray-600">
-        We respond to every message and take your feedback seriously.
-      </p>
+  <section class="c-hero">
+    <div class="c-hero-inner">
+      <div class="c-hero-pill"><span class="c-pill-dot"></span>Contact</div>
+      <h1 class="c-title">We’re here to help you <span class="dim">keep moving.</span></h1>
+      <p class="c-sub">Questions about your account, feedback on the product, or help figuring out the right next step? Send a message. We read everything, and we reply like humans.</p>
+      <div class="c-hero-actions">
+        <a href="#contact-form" class="btn-p">Send a message</a>
+        <a href="/features" class="btn-s">See what TaskFlow does</a>
+      </div>
+      <div class="c-trust-grid">
+        <div class="c-trust-card">
+          <div class="c-trust-label">Response time</div>
+          <div class="c-trust-title">Usually within 24 to 48 hours</div>
+          <div class="c-trust-copy">If it is a support issue, the more detail you send up front, the faster we can help.</div>
+        </div>
+        <div class="c-trust-card">
+          <div class="c-trust-label">Best for</div>
+          <div class="c-trust-title">Support, feedback, and plan questions</div>
+          <div class="c-trust-copy">Use this page for product issues, account questions, pricing questions, partnerships, or feedback that could make TaskFlow better.</div>
+        </div>
+        <div class="c-trust-card">
+          <div class="c-trust-label">Direct email</div>
+          <div class="c-trust-title"><a href="mailto:{{ contact_email }}" class="c-email-link">{{ contact_email }}</a></div>
+          <div class="c-trust-copy">If the form ever fails, email us directly and we will still get it.</div>
+        </div>
+      </div>
     </div>
+  </section>
 
-    <!-- Contact Methods -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
-
-      <!-- Email -->
-      <div class="flex flex-col gap-4">
-        <div class="w-10 h-10 flex items-center justify-center rounded-md bg-gray-100">
-          ✉️
-        </div>
-
-        <h3 class="text-lg font-semibold">
-          Email
-        </h3>
-
-        <p class="text-gray-600 text-sm leading-relaxed">
-          Send us a message and we’ll get back to you within hours.
-        </p>
-
-        <a
-          href="mailto:hello@taskflow.io"
-          class="text-sm font-medium text-gray-900 hover:underline"
-        >
-          hello@taskflow.io
-        </a>
-      </div>
-
-      <!-- Phone -->
-      <div class="flex flex-col gap-4">
-        <div class="w-10 h-10 flex items-center justify-center rounded-md bg-gray-100">
-          📞
-        </div>
-
-        <h3 class="text-lg font-semibold">
-          Phone
-        </h3>
-
-        <p class="text-gray-600 text-sm leading-relaxed">
-          Call us during business hours if you need immediate help.
-        </p>
-
-        <a
-          href="tel:+14155550147"
-          class="text-sm font-medium text-gray-900 hover:underline"
-        >
-          +1 (415) 555-0147
-        </a>
-      </div>
-
-      <!-- Office -->
-      <div class="flex flex-col gap-4">
-        <div class="w-10 h-10 flex items-center justify-center rounded-md bg-gray-100">
-          📍
-        </div>
-
-        <h3 class="text-lg font-semibold">
-          Office
-        </h3>
-
-        <p class="text-gray-600 text-sm leading-relaxed">
-          Visit us in person or send mail to our headquarters.
-        </p>
-
-        <p class="text-sm font-medium text-gray-900">
-          San Francisco, California 94105 US
-        </p>
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- DROP A LINE -->
-<section id="contact-form" class="w-full bg-white text-gray-900 px-6 md:px-[64px] py-[144px]">
-
-  <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-16">
-
-    <!-- Left: Context -->
-    <div class="flex flex-col gap-6 max-w-[480px]">
-
-      <p class="text-sm font-medium text-gray-500">
-        Send
-      </p>
-
-      <h2 class="text-[36px] md:text-[44px] font-bold tracking-tight leading-[1.15]">
-        Drop a line
-      </h2>
-
-      <p class="text-base md:text-lg text-gray-600">
-        Tell us what’s on your mind. Whether it’s feedback, support, or a question
-        about TaskFlow, we’ll point you in the right direction.
-      </p>
-
-      <div class="flex flex-col gap-3 text-sm text-gray-700 mt-4">
-        <div class="flex items-center gap-2">
-          ✉️ <span>hello@taskflow.io</span>
-        </div>
-        <div class="flex items-center gap-2">
-          📞 <span>+1 (415) 555-0147</span>
-        </div>
-        <div class="flex items-center gap-2">
-          📍 <span>San Francisco, California 94105 US</span>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Right: Form -->
-    <form class="w-full">
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- First name -->
-        <div>
-          <label class="block text-sm font-medium mb-2">First name</label>
-          <input
-            type="text"
-            class="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-          />
-        </div>
-
-        <!-- Last name -->
-        <div>
-          <label class="block text-sm font-medium mb-2">Last name</label>
-          <input
-            type="text"
-            class="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-          />
-        </div>
-
-        <!-- Email -->
-        <div>
-          <label class="block text-sm font-medium mb-2">Email</label>
-          <input
-            type="email"
-            class="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-          />
-        </div>
-
-        <!-- Phone -->
-        <div>
-          <label class="block text-sm font-medium mb-2">Phone number</label>
-          <input
-            type="tel"
-            class="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-          />
-        </div>
-
-        <!-- Topic -->
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-2">What’s this about?</label>
-          <select
-            class="w-full border border-gray-300 rounded-md px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-black"
-          >
-            <option>Select one…</option>
-            <option>Product feedback</option>
-            <option>Support</option>
-            <option>Pricing / plans</option>
-            <option>Partnership</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <!-- Usage -->
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-4">
-            How do you use TaskFlow?
-          </label>
-
-          <div class="grid grid-cols-2 gap-4 text-sm text-gray-700">
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Student
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Creator
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Builder
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Team lead
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Researcher
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="radio" name="role"> Other
-            </label>
+  <section class="c-section" id="contact-form">
+    <div class="c-section-inner c-grid">
+      <div class="c-card">
+        <div class="c-label">Before you hit send</div>
+        <h2 class="c-heading">A little context helps us respond faster.</h2>
+        <p class="c-copy">TaskFlow is built for people trying to get their life more organized, more disciplined, and more consistent. That means messages usually fall into a few buckets: support, account help, pricing questions, and product feedback.</p>
+        <div class="c-stack">
+          <div class="c-mini">
+            <div class="c-mini-title">If this is support</div>
+            <div class="c-mini-copy">Include the email on your account, what you expected to happen, what actually happened, and any screenshot or page name that helps us reproduce it.</div>
+          </div>
+          <div class="c-mini">
+            <div class="c-mini-title">If this is about plans or pricing</div>
+            <div class="c-mini-copy">Tell us whether you are comparing options, trying to understand what is included, or asking about a future plan or team use case.</div>
+          </div>
+          <div class="c-mini">
+            <div class="c-mini-title">If this is feedback</div>
+            <div class="c-mini-copy">Be specific. The best feedback explains what felt confusing, what slowed you down, or what would make TaskFlow easier to trust and keep using.</div>
           </div>
         </div>
-
-        <!-- Message -->
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-2">Message</label>
-          <textarea
-            rows="5"
-            placeholder="Tell us more…"
-            class="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-          ></textarea>
-        </div>
-
-        <!-- Consent -->
-        <div class="md:col-span-2 flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox">
-          <span>I agree to the terms</span>
-        </div>
-
-        <!-- Submit -->
-        <div class="md:col-span-2">
-          <button
-            type="submit"
-            class="bg-black text-white px-6 py-3 rounded-md font-semibold hover:bg-black/90 transition"
-          >
-            Send
-          </button>
-        </div>
-
       </div>
 
-    </form>
+      <div class="c-card">
+        <div class="c-label">Send message</div>
+        <h2 class="c-heading">Tell us what you need.</h2>
 
-  </div>
+        {% if success_message %}
+          <div class="form-alert success">{{ success_message }}</div>
+        {% endif %}
 
-</section>
+        {% if errors.get("general") %}
+          <div class="form-alert error">{{ errors["general"] }}</div>
+        {% endif %}
 
-<!-- QUESTIONS -->
-<section class="w-full bg-white text-gray-900 px-6 md:px-[64px] py-[144px]">
+        <form method="POST" action="/contact">
+          <div class="form-grid">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" name="name" placeholder="Jane Doe" value="{{ form_data.name }}" required>
+              {% if errors.get("name") %}<div class="field-error">{{ errors["name"] }}</div>{% endif %}
+            </div>
 
-  <div class="max-w-[1200px] mx-auto">
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" name="email" placeholder="jane@example.com" value="{{ form_data.email }}" required>
+              {% if errors.get("email") %}<div class="field-error">{{ errors["email"] }}</div>{% endif %}
+            </div>
 
-    <!-- Header -->
-    <div class="text-center max-w-[640px] mx-auto mb-20">
-      <h2 class="text-[36px] md:text-[44px] font-bold tracking-tight mb-4">
-        Questions
-      </h2>
-      <p class="text-base md:text-lg text-gray-600">
-        Find answers to the most common questions about TaskFlow
-      </p>
-    </div>
+            <div class="field full">
+              <label for="inquiry_type">Inquiry type</label>
+              <select id="inquiry_type" name="inquiry_type" required>
+                {% for option in inquiry_options %}
+                  <option value="{{ option }}" {% if form_data.inquiry_type == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+              {% if errors.get("inquiry_type") %}<div class="field-error">{{ errors["inquiry_type"] }}</div>{% endif %}
+            </div>
 
-    <!-- FAQ Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="field full">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" placeholder="Tell us what’s going on, what you expected, and what would help most." required>{{ form_data.message }}</textarea>
+              {% if errors.get("message") %}<div class="field-error">{{ errors["message"] }}</div>{% endif %}
+              <div class="form-note">For account help, include the email on the account and the page or feature where the problem happened.</div>
+            </div>
+          </div>
 
-      <!-- Item -->
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium text-gray-900">
-          How does TaskFlow work?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600 leading-relaxed">
-          TaskFlow gives you a single Today page that shows your plan, priorities,
-          and next actions. The AI learns your patterns and helps you focus on what
-          matters most each day.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Can I customize my workspace?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          Absolutely. You can organize tasks, habits, and reflections in a way that
-          fits your workflow. TaskFlow adapts to how you think.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Can I import my existing tasks?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          Yes. TaskFlow supports imports from most productivity tools so you don’t
-          lose momentum when switching.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          How does the AI help?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          The AI watches what you complete and what you skip, then suggests realistic
-          priorities so you build momentum without burnout.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Is my data secure?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          Your data is encrypted and stored securely. We take privacy seriously and
-          never sell your information.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Does TaskFlow work offline?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          Yes. TaskFlow works offline and syncs automatically once you’re back online.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Is there a free plan?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          Yes. You can start free and upgrade anytime when you want deeper insights
-          and smarter AI guidance.
-        </p>
-      </details>
-
-      <details class="group border border-gray-300 rounded-md p-6">
-        <summary class="flex items-center justify-between cursor-pointer font-medium">
-          Can teams use TaskFlow?
-          <span class="text-gray-400 group-open:rotate-45 transition">+</span>
-        </summary>
-        <p class="mt-4 text-sm text-gray-600">
-          TaskFlow is built for individuals today. Team features are coming based on
-          user feedback.
-        </p>
-      </details>
-
-    </div>
-
-<!-- Footer CTA -->
-<div class="mt-20 flex flex-col items-center gap-4 text-center">
-
-  <h3 class="text-[32px] md:text-[40px] font-bold tracking-tight text-gray-900 mb-3">
-    Didn’t find what you need?
-  </h3>
-
-  <p class="text-base md:text-lg text-gray-600 mb-8">
-    Reach out directly and we’ll help
-  </p>
-
-  <a
-    href="#contact-form"
-    class="inline-flex items-center justify-center
-           border border-gray-900
-           px-8 py-3
-           rounded-md
-           font-medium
-           text-gray-900
-           hover:bg-gray-900 hover:text-white
-           transition"
-  >
-    Contact
-  </a>
-
-</div>
-
-
-  </div>
-
-</section>
-
-<!-- FOOTER -->
-<footer class="w-full bg-white text-gray-900 px-6 md:px-[64px] pt-[120px] pb-12">
-
-  <div class="max-w-[1200px] mx-auto">
-
-    <!-- Top Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-
-      <!-- Brand -->
-      <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-2 font-semibold text-lg">
-          <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full" />
-          TaskFlow
-        </div>
-
-        <div class="text-sm text-gray-600">
-          <p class="font-medium text-gray-900 mb-1">Address</p>
-          <p>San Francisco, California 94105</p>
-        </div>
-
-        <div class="text-sm text-gray-600">
-          <p class="font-medium text-gray-900 mb-1">Contact</p>
-          <p>1 (844) 827-5435</p>
-          <p>hello@taskflow.io</p>
-        </div>
-
-        <!-- Socials -->
-        <div class="flex items-center gap-4 mt-2 text-gray-600">
-           <!-- Facebook -->
-  <a href="#" aria-label="Facebook" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H8v-3h2.4V9.5c0-2.4 1.4-3.7 3.6-3.7
-               1 0 2 .2 2 .2v2.3h-1.1c-1.1 0-1.4.7-1.4 1.4V12H16l-.4 3h-2.5v7A10
-               10 0 0 0 22 12z"/>
-    </svg>
-  </a>
-
-  <!-- Instagram -->
-  <a href="#" aria-label="Instagram" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2
-               5-5V7c0-2.8-2.2-5-5-5H7zm10 2c1.7 0 3 1.3 3 3v10c0 1.7-1.3
-               3-3 3H7c-1.7 0-3-1.3-3-3V7c0-1.7 1.3-3 3-3h10zm-5
-               3a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0
-               2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm4.5-.9a1.1
-               1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/>
-    </svg>
-  </a>
-
-  <!-- X / Twitter -->
-  <a href="#" aria-label="X" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.3 2H21l-6.6 7.6L22 22h-6.6l-5.2-6.8L4.6 22H2l7.1-8.2
-               L2 2h6.8l4.7 6.2L18.3 2zm-2.3 18h1.5L8.2
-               4H6.6l9.4 16z"/>
-    </svg>
-  </a>
-
-  <!-- LinkedIn -->
-  <a href="#" aria-label="LinkedIn" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4.98 3.5A2.5 2.5 0 1 0 5 8a2.5 2.5
-               0 0 0-.02-4.5zM3 9h4v12H3V9zm7
-               0h3.8v1.6h.1c.5-.9 1.7-1.8
-               3.6-1.8 3.9 0 4.6 2.5
-               4.6 5.8V21h-4v-5.3c0-1.3
-               0-3-1.9-3s-2.2 1.4-2.2
-               2.9V21h-4V9z"/>
-    </svg>
-  </a>
-        </div>
-      </div>
-
-      <!-- Column 1 -->
-      <div class="text-sm">
-        <p class="font-medium mb-4">Home</p>
-        <ul class="space-y-3 text-gray-600">
-          <li><a href="/" class="hover:text-black">Home</a></li>
-          <li><a href="/features" class="hover:text-black">Features</a></li>
-          <li><a href="/pricing" class="hover:text-black">Pricing</a></li>
-          <li><a href="/blog" class="hover:text-black">Blog</a></li>
-          <li><a href="/contact" class="hover:text-black">Contact</a></li>
-        </ul>
-      </div>
-
-      <!-- Column 2 -->
-      <div class="text-sm">
-        <p class="font-medium mb-4">Features</p>
-        <ul class="space-y-3 text-gray-600">
-          <li><a href="/features" class="hover:text-black">Features</a></li>
-          <li><a href="/how-it-works" class="hover:text-black">How it works</a></li>
-          <li><a href="/testimonials" class="hover:text-black">Testimonials</a></li>
-          <li><a href="/faq" class="hover:text-black">FAQ</a></li>
-          <li><a href="/pricing" class="hover:text-black">Pricing</a></li>
-        </ul>
-      </div>
-
-      <!-- Column 3 -->
-      <div class="text-sm">
-        <p class="font-medium mb-4">Company</p>
-        <ul class="space-y-3 text-gray-600">
-          <li><a href="/about" class="hover:text-black">About</a></li>
-          <li><a href="/blog" class="hover:text-black">Blog</a></li>
-          <li><a href="/contact" class="hover:text-black">Contact</a></li>
-        </ul>
-      </div>
-
-    </div>
-
-    <!-- Divider -->
-    <div class="border-t border-gray-300 mb-6"></div>
-
-    <!-- Bottom Bar -->
-    <div class="flex flex-col md:flex-row items-center justify-between text-sm text-gray-600 gap-4">
-      <p>© 2025 TaskFlow. All rights reserved.</p>
-
-      <div class="flex items-center gap-6">
-        <a href="/privacy" class="hover:text-black">Privacy Policy</a>
-        <a href="/terms" class="hover:text-black">Terms of Service</a>
-        <a href="/cookies" class="hover:text-black">Cookies Settings</a>
+          <div class="submit-row">
+            <div class="submit-note">Friendly human support. No black hole inbox.</div>
+            <button type="submit" class="btn-p">Send message</button>
+          </div>
+        </form>
       </div>
     </div>
+  </section>
 
-  </div>
+  <section class="c-section">
+    <div class="c-section-inner">
+      <div class="c-label">Support guidance</div>
+      <h2 class="c-heading" style="margin-bottom: 20px;">A few things worth knowing before you reach out.</h2>
+      <div class="c-guidance-grid">
+        <div class="c-card">
+          <div class="c-mini-title">Account and sign-in help</div>
+          <div class="c-mini-copy">If you signed up with Google, say that in your message. If it is a password or verification issue, include the email address tied to the account.</div>
+        </div>
+        <div class="c-card">
+          <div class="c-mini-title">Billing and plan questions</div>
+          <div class="c-mini-copy">Choose “Plans & pricing” so we know you are asking about plan differences, future billing, or what is included.</div>
+        </div>
+        <div class="c-card">
+          <div class="c-mini-title">Product feedback</div>
+          <div class="c-mini-copy">The best feedback is specific: what felt confusing, what slowed you down, or what would make the product feel more useful day to day.</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-</footer>
+  <section class="c-section">
+    <div class="c-section-inner">
+      <div class="c-label">FAQ</div>
+      <h2 class="c-heading" style="margin-bottom: 20px;">Common questions, answered clearly.</h2>
+      <div class="faq-grid">
+        <details class="faq-item">
+          <summary>How fast do you usually reply?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">Most messages get a response within 24 to 48 hours. If you include clear context up front, we can usually help faster.</div>
+        </details>
+        <details class="faq-item">
+          <summary>What should I include for support issues?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">Include your account email, the page or feature involved, what you expected to happen, and what actually happened. Screenshots help when the issue is visual.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Can I ask about plans or pricing here?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">Yes. Choose “Plans & pricing” in the form and tell us what you are comparing or trying to understand.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Do you offer phone support?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">Not as a standard support channel right now. The fastest way to get help is the form on this page or direct email at {{ contact_email }}.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Can I send product feedback even if nothing is broken?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">Absolutely. Feedback is one of the most useful things you can send, especially if it explains where the product felt confusing or where momentum broke.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Is this page only for current users?<span class="faq-plus">+</span></summary>
+          <div class="faq-answer">No. You can reach out before signing up if you have questions about TaskFlow, the product direction, or whether it fits what you need.</div>
+        </details>
+      </div>
+    </div>
+  </section>
 
-    <!-- ================= SCRIPTS ================= -->
-    <script>
-      const menuBtn = document.getElementById("menuBtn");
-      const overlay = document.getElementById("mobileOverlay");
-      const backdrop = document.getElementById("backdrop");
-      const body = document.body;
-    
-      menuBtn.addEventListener("click", () => {
-        overlay.classList.remove("hidden");
-        body.classList.add("overflow-hidden");
-      });
-    
-      backdrop.addEventListener("click", () => {
-        overlay.classList.add("hidden");
-        body.classList.remove("overflow-hidden");
-      });
-    </script>
+  <section class="c-cta">
+    <div class="c-cta-card">
+      <div>
+        <h2 class="c-cta-title">Still deciding whether TaskFlow is for you?</h2>
+        <p class="c-cta-copy">If you are trying to replace scattered productivity tools with one system that actually helps you stay consistent, start with the features page or create a free account and see how it feels.</p>
+      </div>
+      <div class="c-hero-actions" style="margin-bottom: 0; justify-content: flex-end;">
+        <a href="/register" class="btn-p">Start for free</a>
+        <a href="/features" class="btn-s">Explore features</a>
+      </div>
+    </div>
+  </section>
 
+  <footer class="c-footer">
+    <div class="c-footer-inner">
+      <div class="c-footer-copy">© 2026 TaskFlow. Built for people serious about growth.</div>
+      <div class="c-footer-links">
+        <a href="/">Home</a>
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/cookie">Cookies</a>
+      </div>
+    </div>
+  </footer>
 
+  <script>
+    const menuOpen = document.getElementById("menuOpen");
+    const menuClose = document.getElementById("menuClose");
+    const mobileMenu = document.getElementById("mobileMenu");
 
+    menuOpen.addEventListener("click", () => mobileMenu.classList.remove("translate-x-full"));
+    menuClose.addEventListener("click", () => mobileMenu.classList.add("translate-x-full"));
+  </script>
 </body>
 </html>
-

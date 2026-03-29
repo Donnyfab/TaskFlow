@@ -39,6 +39,7 @@
     .signup-right { display: flex; align-items: center; justify-content: center; padding: 40px 56px; background: #0D0D0D; }
  
     .s-form-wrap { width: 100%; max-width: 400px; }
+    .mobile-logo { display: none; margin-bottom: 28px; width: fit-content; }
     .s-form-title { font-size: 24px; font-weight: 800; letter-spacing: -0.8px; margin-bottom: 6px; color: rgba(255,255,255,0.9); }
     .s-form-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 28px; }
  
@@ -49,9 +50,13 @@
     .s-input:focus { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); }
     .s-input::placeholder { color: rgba(255,255,255,0.2); }
     .s-hint { font-size: 10px; color: rgba(255,255,255,0.2); }
+    .s-suggestions { margin-top: 8px; border: 1px solid rgba(255,255,255,0.09); border-radius: 9px; background: rgba(255,255,255,0.03); padding: 10px; }
+    .s-suggestions.hidden { display: none; }
  
     .s-btn { background: #fff; color: #0A0A0A; font-size: 14px; font-weight: 600; border: none; border-radius: 9px; padding: 13px; width: 100%; cursor: pointer; font-family: inherit; margin-top: 6px; transition: all 0.2s; letter-spacing: -0.2px; }
     .s-btn:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+
+    .form-alert { background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: rgba(255,120,120,0.8); margin-bottom: 12px; }
  
     .s-terms { font-size: 11px; color: rgba(255,255,255,0.22); text-align: center; margin-top: 12px; line-height: 1.6; }
     .s-terms a { color: rgba(255,255,255,0.4); text-decoration: underline; text-underline-offset: 2px; }
@@ -71,6 +76,7 @@
       .signup-wrap { grid-template-columns: 1fr; }
       .signup-left { display: none; }
       .signup-right { padding: 40px 24px; }
+      .mobile-logo { display: inline-flex; }
     }
   </style>
 
@@ -115,6 +121,14 @@
   <!-- RIGHT -->
   <div class="signup-right">
     <div class="s-form-wrap">
+      <a href="/" class="s-logo mobile-logo">
+        <div class="s-logo-icon">
+          <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        TaskFlow
+      </a>
       <div class="s-form-title">Create your account</div>
       <div class="s-form-sub">Start becoming who you're supposed to be.</div>
  
@@ -122,31 +136,36 @@
         <div class="s-row">
           <div class="s-field">
             <div class="s-label">First name</div>
-            <input class="s-input" type="text" name="first_name" placeholder="Donny" required>
+            <input class="s-input" type="text" id="f_name" name="first_name" placeholder="Jane" value="{{ request.form.get('first_name', '') }}" required>
           </div>
           <div class="s-field">
             <div class="s-label">Last name</div>
-            <input class="s-input" type="text" name="last_name" placeholder="Fabuluje" required>
+            <input class="s-input" type="text" id="l_name" name="last_name" placeholder="Doe" value="{{ request.form.get('last_name', '') }}" required>
           </div>
         </div>
         <div class="s-field">
           <div class="s-label">Email</div>
-          <input class="s-input" type="email" name="email" placeholder="donny@tflow.live" required>
+          <input class="s-input" type="email" id="email" name="email" placeholder="jane@example.com" value="{{ request.form.get('email') or request.form.get('identifier') or '' }}" required>
         </div>
         <div class="s-field">
           <div class="s-label">Username</div>
-          <input class="s-input" type="text" name="username" placeholder="donnyfab" required>
+          <input class="s-input" type="text" id="identifier" name="username" placeholder="janedoe" value="{{ request.form.get('username', '') }}" required>
+          <div id="username_suggestions" class="s-suggestions hidden"></div>
         </div>
         <div class="s-field">
           <div class="s-label">Password</div>
           <input class="s-input" type="password" name="password" placeholder="••••••••" required>
           <div class="s-hint">At least 8 characters</div>
         </div>
+
+        {% if error_identifier %}
+          <div class="form-alert">{{ error_identifier }}</div>
+        {% endif %}
  
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div style="background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:rgba(255,120,120,0.8);margin-bottom:12px;">{{ message }}</div>
+              <div class="form-alert">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -183,69 +202,77 @@
         const lNameInput = document.getElementById("l_name");
         const identifierInput = document.getElementById("identifier");
         const suggestionsDiv = document.getElementById("username_suggestions");
-        
-        let identifierTimeout = null;
-        let suggestionTimeout = null;
-        let activeIndex = -1;
-        
-        // ---------- availability check ----------
-        const errorEl = document.createElement("p");
-        errorEl.className = "text-red-500 text-sm mt-2";
-        identifierInput.parentNode.appendChild(errorEl);
-        
-        identifierInput.addEventListener("input", () => {
-            suggestionsDiv.classList.add("hidden");
-            activeIndex = -1;
-        
-            clearTimeout(identifierTimeout);
-            identifierTimeout = setTimeout(() => {
-                const value = identifierInput.value.trim();
-                if (!value) {
-                    errorEl.textContent = "";
+
+        if (fNameInput && lNameInput && identifierInput && suggestionsDiv) {
+            let identifierTimeout = null;
+            let suggestionTimeout = null;
+            let activeIndex = -1;
+
+            const errorEl = document.createElement("p");
+            errorEl.className = "text-red-500 text-sm mt-2";
+            identifierInput.parentNode.appendChild(errorEl);
+
+            identifierInput.addEventListener("input", () => {
+                suggestionsDiv.classList.add("hidden");
+                activeIndex = -1;
+
+                clearTimeout(identifierTimeout);
+                identifierTimeout = setTimeout(async () => {
+                    const value = identifierInput.value.trim();
+                    if (!value) {
+                        errorEl.textContent = "";
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append("identifier", value);
+
+                    const res = await fetch("/check-identifier", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    if (!res.ok) {
+                        errorEl.textContent = "";
+                        return;
+                    }
+
+                    const data = await res.json();
+                    errorEl.textContent = data.exists
+                        ? "Username already exists"
+                        : "";
+                }, 400);
+            });
+
+            async function fetchUsernameSuggestions() {
+                const first = fNameInput.value.trim();
+                const last = lNameInput.value.trim();
+
+                if (!first || !last) {
+                    suggestionsDiv.classList.add("hidden");
                     return;
                 }
-        
+
                 const formData = new FormData();
-                formData.append("identifier", value);
-        
-                fetch("/check-identifier", {
+                formData.append("first_name", first);
+                formData.append("last_name", last);
+
+                const res = await fetch("/username_suggestions", {
                     method: "POST",
                     body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    errorEl.textContent = data.exists
-                        ? "Username or email already exists"
-                        : "";
                 });
-            }, 400);
-        });
-        
-        // ---------- username suggestions ----------
-        function fetchUsernameSuggestions() {
-            const first = fNameInput.value.trim();
-            const last = lNameInput.value.trim();
-        
-            if (!first || !last) {
-                suggestionsDiv.classList.add("hidden");
-                return;
-            }
-        
-            const formData = new FormData();
-            formData.append("first_name", first);
-            formData.append("last_name", last);
-        
-            fetch("/username_suggestions", {
-                method: "POST",
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
+
+                if (!res.ok) {
+                    suggestionsDiv.classList.add("hidden");
+                    return;
+                }
+
+                const data = await res.json();
                 if (!data.suggestions.length) {
                     suggestionsDiv.classList.add("hidden");
                     return;
                 }
-        
+
                 suggestionsDiv.innerHTML = `
                     <p class="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                         Suggestions
@@ -259,52 +286,50 @@
                         >${s}</div>`
                     ).join("")}
                 `;
-        
+
                 suggestionsDiv.classList.remove("hidden");
-        
+
                 suggestionsDiv.querySelectorAll(".suggestion-item").forEach(el => {
                     el.addEventListener("click", () => {
                         selectSuggestion(el.dataset.value);
                     });
                 });
-            });
-        }
-        
-        // ---------- keyboard navigation ----------
-        identifierInput.addEventListener("keydown", (e) => {
-            const items = suggestionsDiv.querySelectorAll(".suggestion-item");
-            if (!items.length) return;
-        
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                activeIndex = (activeIndex + 1) % items.length;
-            } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                activeIndex = (activeIndex - 1 + items.length) % items.length;
-            } else if (e.key === "Enter" && activeIndex >= 0) {
-                e.preventDefault();
-                selectSuggestion(items[activeIndex].dataset.value);
-                return;
             }
-        
-            items.forEach((el, i) => {
-                el.classList.toggle("bg-gray-100", i === activeIndex);
+
+            identifierInput.addEventListener("keydown", (e) => {
+                const items = suggestionsDiv.querySelectorAll(".suggestion-item");
+                if (!items.length) return;
+
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    activeIndex = (activeIndex + 1) % items.length;
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    activeIndex = (activeIndex - 1 + items.length) % items.length;
+                } else if (e.key === "Enter" && activeIndex >= 0) {
+                    e.preventDefault();
+                    selectSuggestion(items[activeIndex].dataset.value);
+                    return;
+                }
+
+                items.forEach((el, i) => {
+                    el.classList.toggle("bg-gray-100", i === activeIndex);
+                });
             });
-        });
-        
-        function selectSuggestion(value) {
-            identifierInput.value = value;
-            identifierInput.dispatchEvent(new Event("input"));
-            suggestionsDiv.classList.add("hidden");
+
+            function selectSuggestion(value) {
+                identifierInput.value = value;
+                identifierInput.dispatchEvent(new Event("input"));
+                suggestionsDiv.classList.add("hidden");
+            }
+
+            [fNameInput, lNameInput].forEach(input => {
+                input.addEventListener("input", () => {
+                    clearTimeout(suggestionTimeout);
+                    suggestionTimeout = setTimeout(fetchUsernameSuggestions, 300);
+                });
+            });
         }
-        
-        // ---------- debounce name input ----------
-        [fNameInput, lNameInput].forEach(input => {
-            input.addEventListener("input", () => {
-                clearTimeout(suggestionTimeout);
-                suggestionTimeout = setTimeout(fetchUsernameSuggestions, 300);
-            });
-        });
         </script>
         
         

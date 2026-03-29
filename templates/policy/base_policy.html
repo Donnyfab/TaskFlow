@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block meta_title %}TaskFlow{% endblock %}</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0A0A0A;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    a { text-decoration: none; }
+
+    .policy-hero {
+      padding: 140px 56px 44px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .policy-hero-inner,
+    .policy-main-inner,
+    .policy-footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .policy-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      font-size: 11px;
+      color: rgba(255,255,255,0.48);
+      margin-bottom: 22px;
+      letter-spacing: 0.3px;
+    }
+
+    .policy-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.58);
+    }
+
+    .policy-title {
+      font-size: clamp(34px, 5vw, 62px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.03;
+      max-width: 860px;
+      margin-bottom: 18px;
+    }
+
+    .policy-title .dim { color: rgba(255,255,255,0.28); }
+
+    .policy-sub {
+      max-width: 720px;
+      font-size: 16px;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.42);
+      margin-bottom: 28px;
+    }
+
+    .policy-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: stretch;
+      margin-bottom: 26px;
+    }
+
+    .policy-meta-card,
+    .policy-meta-note {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 16px 18px;
+    }
+
+    .policy-meta-card {
+      min-width: 200px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.25);
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      margin-bottom: 8px;
+    }
+
+    .meta-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.88);
+      letter-spacing: -0.3px;
+    }
+
+    .policy-meta-note {
+      flex: 1;
+      min-width: 260px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.38);
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .quick-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .quick-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.24);
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      margin-bottom: 10px;
+    }
+
+    .quick-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.88);
+      letter-spacing: -0.4px;
+      margin-bottom: 8px;
+    }
+
+    .quick-copy {
+      font-size: 13px;
+      color: rgba(255,255,255,0.38);
+      line-height: 1.7;
+    }
+
+    .policy-main-wrap {
+      padding: 34px 56px 100px;
+    }
+
+    .policy-mobile-toc {
+      display: none;
+      margin-bottom: 18px;
+    }
+
+    .policy-grid {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .policy-aside {
+      position: sticky;
+      top: 104px;
+    }
+
+    .toc-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .toc-heading {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.24);
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      margin-bottom: 14px;
+    }
+
+    .toc-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toc-link {
+      color: rgba(255,255,255,0.48);
+      font-size: 13px;
+      line-height: 1.4;
+      transition: color 0.18s ease, transform 0.18s ease;
+    }
+
+    .toc-link:hover {
+      color: rgba(255,255,255,0.88);
+      transform: translateX(2px);
+    }
+
+    .policy-main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .section-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 30px;
+    }
+
+    .section-card[id] {
+      scroll-margin-top: 96px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.24);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(22px, 2.6vw, 34px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.12;
+      color: rgba(255,255,255,0.92);
+      margin-bottom: 14px;
+    }
+
+    .section-copy {
+      font-size: 14px;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.42);
+    }
+
+    .section-copy + .section-copy {
+      margin-top: 14px;
+    }
+
+    .policy-list {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .policy-list li {
+      position: relative;
+      padding-left: 18px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.42);
+    }
+
+    .policy-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.45);
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .callout-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.84);
+      margin-bottom: 8px;
+      letter-spacing: -0.2px;
+    }
+
+    .callout-copy {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.40);
+    }
+
+    .detail-grid,
+    .related-grid,
+    .table-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .mini-card,
+    .related-link {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .mini-card h3,
+    .related-link h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.84);
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+
+    .mini-card p,
+    .related-link p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.38);
+    }
+
+    .related-link {
+      transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    }
+
+    .related-link:hover {
+      border-color: rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.05);
+      transform: translateY(-1px);
+    }
+
+    .table-wrap {
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.02);
+    }
+
+    th,
+    td {
+      padding: 16px 18px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    th {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.26);
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    td {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.42);
+    }
+
+    .cookie-tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      font-size: 11px;
+      color: rgba(255,255,255,0.52);
+      margin-bottom: 10px;
+    }
+
+    .inline-link {
+      color: rgba(255,255,255,0.86);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .inline-link:hover {
+      color: #fff;
+    }
+
+    .policy-footer {
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding: 22px 56px 36px;
+    }
+
+    .policy-footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .policy-footer-copy {
+      font-size: 12px;
+      color: rgba(255,255,255,0.24);
+    }
+
+    .policy-footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    .policy-footer-links a {
+      font-size: 12px;
+      color: rgba(255,255,255,0.24);
+      transition: color 0.18s ease;
+    }
+
+    .policy-footer-links a:hover { color: rgba(255,255,255,0.56); }
+
+    @media (max-width: 1100px) {
+      .quick-grid { grid-template-columns: 1fr; }
+      .policy-grid { grid-template-columns: 1fr; }
+      .policy-aside { display: none; }
+      .policy-mobile-toc { display: block; }
+      .toc-card { padding: 18px; }
+      .policy-mobile-toc .toc-links {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 2px;
+      }
+      .policy-mobile-toc .toc-link {
+        white-space: nowrap;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+      }
+      .policy-mobile-toc .toc-link:hover { transform: none; }
+    }
+
+    @media (max-width: 900px) {
+      .policy-hero,
+      .policy-main-wrap,
+      .policy-footer {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .policy-hero {
+        padding-top: 124px;
+      }
+
+      .detail-grid,
+      .related-grid,
+      .table-summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-card {
+        padding: 24px 20px;
+      }
+
+      th,
+      td {
+        padding: 14px 14px;
+      }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
+    <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
+      <div class="flex items-center gap-10">
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+              <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          TaskFlow
+        </a>
+        <nav class="hidden md:flex gap-10 text-sm">
+          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
+          <a href="/pricing" class="text-white/70 hover:text-white transition">Pricing</a>
+          <a href="/about" class="text-white/70 hover:text-white transition">About</a>
+          <a href="/contact" class="text-white/70 hover:text-white transition">Contact</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="hidden md:block h-6 w-px bg-white/20"></div>
+        <div class="hidden md:flex gap-4">
+          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
+          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
+        </div>
+      </div>
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
+    </div>
+  </header>
+
+  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+      <a href="/" class="flex items-center gap-2 text-white font-bold">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
+          <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        TaskFlow
+      </a>
+      <button id="menuClose" class="text-2xl">✕</button>
+    </div>
+    <div class="px-6 py-8 flex flex-col gap-6 text-base">
+      <a href="/features" class="text-white/80 hover:text-white">Features</a>
+      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
+      <a href="/about" class="text-white/80 hover:text-white">About</a>
+      <a href="/contact" class="text-white/80 hover:text-white">Contact</a>
+      <div class="mt-8 flex flex-col gap-4">
+        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
+        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="policy-hero">
+    <div class="policy-hero-inner">
+      <div class="policy-eyebrow">
+        <span class="policy-eyebrow-dot"></span>
+        {% block hero_eyebrow %}Legal{% endblock %}
+      </div>
+      <h1 class="policy-title">{% block hero_title %}{% endblock %}</h1>
+      <p class="policy-sub">{% block hero_subtitle %}{% endblock %}</p>
+      <div class="policy-meta-row">
+        <div class="policy-meta-card">
+          <div class="meta-label">Last updated</div>
+          <div class="meta-value">{% block last_updated %}March 29, 2026{% endblock %}</div>
+        </div>
+        <div class="policy-meta-note">
+          This page is written to be readable on purpose. It covers how TaskFlow handles this part of the product today, based on the features described across the site and app.
+        </div>
+      </div>
+      <div class="quick-grid">
+        {{ self.quick_cards() }}
+      </div>
+    </div>
+  </section>
+
+  <main class="policy-main-wrap">
+    <div class="policy-main-inner">
+      <div class="policy-mobile-toc">
+        <div class="toc-card">
+          {{ self.toc() }}
+        </div>
+      </div>
+
+      <div class="policy-grid">
+        <aside class="policy-aside">
+          <div class="toc-card">
+            {{ self.toc() }}
+          </div>
+        </aside>
+
+        <section class="policy-main">
+          {% block intro_callout %}{% endblock %}
+          {% block policy_content %}{% endblock %}
+
+          <div class="section-card">
+            <div class="section-label">More legal</div>
+            <h2 class="section-title">Related pages</h2>
+            <p class="section-copy">If you are looking for the rest of the legal and trust information, start here.</p>
+            <div class="related-grid">
+              {{ self.related_links() }}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="policy-footer">
+    <div class="policy-footer-inner">
+      <div class="policy-footer-copy">© 2026 TaskFlow. Built for people serious about growth.</div>
+      <div class="policy-footer-links">
+        <a href="/">Home</a>
+        <a href="/features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/cookie">Cookies</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const menuOpen = document.getElementById("menuOpen");
+    const menuClose = document.getElementById("menuClose");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    menuOpen.addEventListener("click", () => mobileMenu.classList.remove("translate-x-full"));
+    menuClose.addEventListener("click", () => mobileMenu.classList.add("translate-x-full"));
+  </script>
+</body>
+</html>
