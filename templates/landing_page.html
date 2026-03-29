@@ -776,9 +776,13 @@
   
       <!-- Left -->
       <div class="flex items-center gap-2">
-        <a href="/" class="flex items-center gap-2 text-white">
-          <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-          <span class="font-semibold tracking-tight">TaskFlow</span>
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+              <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          TaskFlow
         </a>
   
         <nav class="hidden md:flex gap-10 text-sm">
@@ -825,9 +829,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 
 <!-- Top Bar -->
 <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-  <a href="/" class="flex items-center gap-2 text-white">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-    <span class="font-semibold tracking-tight">TaskFlow</span>
+  <a href="/" class="flex items-center gap-2 text-white font-bold">
+    <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+      <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+        <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    TaskFlow
   </a>
 
 <button id="menuClose" class="text-2xl">✕</button>

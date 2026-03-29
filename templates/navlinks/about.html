@@ -1,412 +1,298 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="scrollbar-hide">
 <head>
   <meta charset="UTF-8">
-  <title>TaskFlow | Productivity</title>
+  <title>About | TaskFlow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!- Fonts>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&display=swap" rel="stylesheet">
-
-
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; }
 
-<!--<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">--> 
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    /* HERO */
+    .about-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; padding: 140px 56px 100px; border-bottom: 1px solid rgba(255,255,255,0.06); max-width: 1280px; margin: 0 auto; }
+    .about-hero-left { display: flex; flex-direction: column; gap: 20px; }
+    .a-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .a-title { font-size: clamp(30px, 4vw, 50px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.08; }
+    .a-dim { color: rgba(255,255,255,0.28); }
+    .a-desc { font-size: 15px; color: rgba(255,255,255,0.4); line-height: 1.75; max-width: 440px; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .stat-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 24px; }
+    .stat-num { font-size: 30px; font-weight: 800; letter-spacing: -1.5px; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
+    .stat-lbl { font-size: 12px; color: rgba(255,255,255,0.35); }
 
+    /* SECTIONS */
+    .a-section { padding: 100px 56px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .a-section:last-child { border-bottom: none; }
+    .a-inner { max-width: 1280px; margin: 0 auto; }
 
-  
-  
-  
+    .a-split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+
+    /* Cards */
+    .point-card { display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; margin-bottom: 12px; }
+    .point-card:last-child { margin-bottom: 0; }
+    .p-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .p-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 3px; }
+    .p-desc { font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.6; }
+
+    /* Timeline */
+    .timeline { display: flex; flex-direction: column; }
+    .tl-item { display: grid; grid-template-columns: 120px 24px 1fr; gap: 24px; align-items: start; padding-bottom: 36px; }
+    .tl-item:last-child { padding-bottom: 0; }
+    .tl-date { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); text-align: right; padding-top: 3px; }
+    .tl-mid { display: flex; flex-direction: column; align-items: center; }
+    .tl-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.1); flex-shrink: 0; margin-top: 3px; }
+    .tl-line { width: 1px; flex: 1; background: rgba(255,255,255,0.07); margin-top: 8px; min-height: 32px; }
+    .tl-item:last-child .tl-line { display: none; }
+    .tl-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 6px; letter-spacing: -0.3px; }
+    .tl-desc { font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.7; }
+
+    /* Who grid */
+    .who-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 48px; }
+    .who-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 24px; }
+    .who-icon { font-size: 24px; margin-bottom: 14px; }
+    .who-card-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 8px; letter-spacing: -0.3px; }
+    .who-card-desc { font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.7; }
+
+    /* Values grid */
+    .values-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 48px; }
+    .value-card { padding: 24px; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; }
+    .value-num { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.2); letter-spacing: 1px; margin-bottom: 10px; }
+    .value-title { font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 8px; letter-spacing: -0.3px; }
+    .value-desc { font-size: 13px; color: rgba(255,255,255,0.38); line-height: 1.7; }
+
+    /* CTA */
+    .cta-card { background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    .cta-title { font-size: clamp(24px, 3vw, 38px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 14px; }
+    .cta-desc { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.7; }
+    .cta-btns { display: flex; gap: 10px; margin-bottom: 12px; }
+    .cta-btn { background: #fff; color: #0A0A0A; font-size: 14px; font-weight: 600; border: none; border-radius: 9px; padding: 13px 24px; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; transition: all 0.2s; }
+    .cta-btn:hover { background: rgba(255,255,255,0.88); }
+    .cta-btn-sec { background: transparent; color: rgba(255,255,255,0.5); font-size: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 24px; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; transition: all 0.2s; }
+    .cta-note { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    @media (max-width: 900px) {
+      .about-hero { grid-template-columns: 1fr; padding: 120px 24px 80px; }
+      .a-split { grid-template-columns: 1fr; gap: 40px; }
+      .a-section { padding: 72px 24px; }
+      .who-grid { grid-template-columns: 1fr; }
+      .values-grid { grid-template-columns: 1fr; }
+      .cta-card { grid-template-columns: 1fr; padding: 36px 24px; }
+      .tl-item { grid-template-columns: 80px 20px 1fr; gap: 16px; }
+    }
+  </style>
 </head>
+<body class="scrollbar-hide">
 
-<body class="bg-[#0B0F14] scrollbar-hide">
-
-  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0B0F14]/70 backdrop-blur-md border-b border-white/10">
-
+  <!-- NAVBAR -->
+  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
     <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
-  
-      <!-- Left -->
       <div class="flex items-center gap-10">
-        <a href="/" class="flex items-center gap-2 text-white">
-          <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-          <span class="font-semibold tracking-tight">TaskFlow</span>
+        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          TaskFlow
         </a>
-  
         <nav class="hidden md:flex gap-10 text-sm">
-          <a href="/features" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/features' else 'text-white/70' }}">
-            Features
-          </a>
-          <a href="/premium" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/premium' else 'text-white/70' }}">
-            Premium
-          </a>
-          <a href="/pricing" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/pricing' else 'text-white/70' }}">
-            Pricing
-          </a>
-          <a href="/about" class="nav-link transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/about' else 'text-white/70' }}">
-            About
-          </a>
+          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
+          <a href="/pricing" class="text-white/70 hover:text-white transition">Pricing</a>
+          <a href="/about" class="text-white transition">About</a>
         </nav>
       </div>
-  
-      <!-- Right -->
       <div class="flex items-center gap-6">
         <div class="hidden md:block h-6 w-px bg-white/20"></div>
-  
         <div class="hidden md:flex gap-4">
-          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">
-            Log in
-          </a>
-          <a href="/register"
-             class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">
-            Sign up
-          </a>
+          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
+          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
         </div>
-  
       </div>
-
-      <!-- Mobile Menu Button -->
-    <button id="menuOpen" class="md:hidden text-white text-2xl">
-      ☰
-    </button>
-
-  
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
     </div>
   </header>
 
-  <!-- Mobile Menu Overlay -->
-<div id="mobileMenu"
-class="fixed inset-0 z-[60] bg-[#0B0F14] text-white translate-x-full transition-transform duration-300 ease-out">
-
-<!-- Top Bar -->
-<div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-  <a href="/" class="flex items-center gap-2 text-white">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-    <span class="font-semibold tracking-tight">TaskFlow</span>
-  </a>
-
-<button id="menuClose" class="text-2xl">✕</button>
-</div>
-
-<!-- Menu Content -->
-<div class="px-6 py-8 flex flex-col gap-6 text-base">
-
-<a href="/features" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/features' else 'text-white/80' }}">Features</a>
-<a href="/pricing" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/pricing' else 'text-white/80' }}">Pricing</a>
-<a href="/blog" class="text-white/80 hover:text-white">Blog</a>
-
-<details class="group">
- <summary class="cursor-pointer text-white/80 hover:text-white">
-   More
- </summary>
- <div class="mt-4 ml-4 flex flex-col gap-3 text-white/60">
-   <a href="/contact">Contact</a>
-   <a href="/about" class="transition hover:text-white {{ 'active text-white drop-shadow-[0_0_12px_rgba(96,165,250,0.35)]' if request.path == '/about' else '' }}">About</a>
- </div>
-</details>
-
-<div class="mt-8 flex flex-col gap-4">
- <a href="/register"
-    class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">
-   Sign up
- </a>
- <a href="/login"
-    class="w-full text-center border border-white/20 py-3 rounded-md">
-   Log in
- </a>
-</div>
-</div>
-</div>
-
-<!-- ================= ABOUT PAGE ================= -->
-
-<!-- HERO -->
-<section class="pt-[160px] pb-[120px] px-6 md:px-[64px] bg-[#0B0F14] text-white">
-  <div class="max-w-[900px] mx-auto text-center flex flex-col gap-6">
-    <p class="text-sm uppercase tracking-wider text-white/50">
-      About TaskFlow
-    </p>
-
-    <h1 class="text-[44px] md:text-[56px] font-bold tracking-tight leading-[1.05]">
-      Productivity shouldn’t feel overwhelming
-    </h1>
-
-    <p class="text-lg text-white/70 max-w-[720px] mx-auto">
-      TaskFlow was built to help people focus on what actually matters today —
-      without juggling apps, systems, or motivation hacks.
-    </p>
-  </div>
-</section>
-
-<!-- PROBLEM -->
-<section class="py-[120px] px-6 md:px-[64px] bg-[#0B0F14] text-white">
-  <div class="max-w-[1100px] mx-auto grid md:grid-cols-2 gap-16 items-start">
-
-    <div class="flex flex-col gap-4">
-      <h2 class="text-[32px] font-bold tracking-tight">
-        The problem with productivity tools
-      </h2>
-
-      <p class="text-white/70 leading-relaxed">
-        Most productivity apps are either too simple to help you improve,
-        or so complex that staying consistent becomes the hardest part.
-      </p>
-
-      <p class="text-white/70 leading-relaxed">
-        Tasks live in one app. Habits live in another.
-        Planning your day feels like work before the work even begins.
-      </p>
-    </div>
-
-    <div class="flex flex-col gap-4 border border-white/10 rounded-xl p-8 bg-white/5">
-      <p class="text-white/80">
-        People don’t fail because they lack motivation.
-      </p>
-      <p class="text-white/80">
-        They fail because they don’t have a clear, repeatable daily system.
-      </p>
-    </div>
-
-  </div>
-</section>
-
-<!-- PHILOSOPHY -->
-<section class="py-[120px] px-6 md:px-[64px] bg-[#0E131A] text-white">
-  <div class="max-w-[900px] mx-auto flex flex-col gap-6">
-
-    <h2 class="text-[36px] font-bold tracking-tight">
-      TaskFlow is built around one simple idea
-    </h2>
-
-    <p class="text-lg text-white/70">
-      You should open one page each day and immediately know what to do next.
-    </p>
-
-    <ul class="mt-6 space-y-4 text-white/70">
-      <li>• One Today page — no clutter, no guessing</li>
-      <li>• Tasks and habits in a single daily flow</li>
-      <li>• AI that guides behavior instead of dumping information</li>
-      <li>• Progress that builds consistency, not pressure</li>
-    </ul>
-
-  </div>
-</section>
-
-<!-- WHO IT'S FOR -->
-<section class="py-[120px] px-6 md:px-[64px] bg-[#0B0F14] text-white">
-  <div class="max-w-[1100px] mx-auto grid md:grid-cols-3 gap-10">
-
-    <div>
-      <h3 class="text-xl font-semibold mb-3">Students</h3>
-      <p class="text-white/70">
-        Who want structure without rigid systems.
-      </p>
-    </div>
-
-    <div>
-      <h3 class="text-xl font-semibold mb-3">Builders & creators</h3>
-      <p class="text-white/70">
-        Who care about momentum more than perfect plans.
-      </p>
-    </div>
-
-    <div>
-      <h3 class="text-xl font-semibold mb-3">Anyone struggling with consistency</h3>
-      <p class="text-white/70">
-        Who knows what to do — but needs help doing it daily.
-      </p>
-    </div>
-
-  </div>
-</section>
-
-<!-- WHAT WE'RE BUILDING -->
-<section class="py-[120px] px-6 md:px-[64px] bg-[#0E131A] text-white">
-  <div class="max-w-[900px] mx-auto flex flex-col gap-6">
-
-    <h2 class="text-[36px] font-bold tracking-tight">
-      What we’re building
-    </h2>
-
-    <p class="text-white/70 leading-relaxed">
-      TaskFlow is intentionally focused.
-      We’re starting with a simple, powerful daily system before expanding.
-    </p>
-
-    <p class="text-white/70 leading-relaxed">
-      No team dashboards. No social feeds. No noise.
-      Just a tool that helps you plan today, follow through, and improve tomorrow.
-    </p>
-
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="py-[120px] px-6 md:px-[64px] bg-[#0B0F14] text-white text-center">
-  <div class="max-w-[720px] mx-auto flex flex-col gap-6">
-
-    <h2 class="text-[36px] font-bold tracking-tight">
-      Ready to build better days?
-    </h2>
-
-    <p class="text-white/70">
-      Start free. Upgrade only if it actually helps you stay consistent.
-    </p>
-
-    <div class="flex justify-center gap-4 mt-4">
-      <a href="/register"
-         class="bg-white text-gray-900 px-6 py-3 rounded-md font-semibold hover:bg-white/90 transition">
-        Get started
+  <!-- MOBILE MENU -->
+  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+      <a href="/" class="flex items-center gap-2 text-white font-bold">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        TaskFlow
       </a>
-
-      <a href="/features"
-         class="border border-white/20 px-6 py-3 rounded-md font-semibold hover:border-white/40 transition">
-        Explore features
-      </a>
+      <button id="menuClose" class="text-2xl">✕</button>
     </div>
-
-  </div>
-</section>
-
-
-<footer class="bg-[#0B0F14] border-t border-white/10 px-6 md:px-[64px] py-20 text-white">
-  <div class="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
-
-    <!-- Brand / Contact -->
-    <div class="flex flex-col gap-4">
-      <div class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-8 h-8 rounded-full">
-        <span class="font-semibold">TaskFlow</span>
+    <div class="px-6 py-8 flex flex-col gap-6 text-base">
+      <a href="/features" class="text-white/80 hover:text-white">Features</a>
+      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
+      <a href="/about" class="text-white">About</a>
+      <div class="mt-8 flex flex-col gap-4">
+        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
+        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
       </div>
+    </div>
+  </div>
 
-      <p class="text-white/60 text-sm max-w-xs">
-        One workspace for clarity, focus, and momentum.
-      </p>
+  <!-- HERO -->
+  <div style="padding: 0 56px;">
+    <div class="about-hero">
+      <div class="about-hero-left">
+        <div class="a-label">About TaskFlow</div>
+        <h1 class="a-title">Built for people who want to actually <span class="a-dim">change their lives.</span></h1>
+        <p class="a-desc">TaskFlow started as a personal problem — too many apps, too much friction, zero accountability. So we built one place that handles everything, powered by AI that actually knows you.</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">2,000+</div><div class="stat-lbl">People signed up</div></div>
+        <div class="stat-card"><div class="stat-num">$0</div><div class="stat-lbl">Cost to start</div></div>
+        <div class="stat-card"><div class="stat-num">6-in-1</div><div class="stat-lbl">Apps replaced</div></div>
+        <div class="stat-card"><div class="stat-num">2026</div><div class="stat-lbl">Founded</div></div>
+      </div>
+    </div>
+  </div>
 
-      <div class="text-white/50 text-sm space-y-2 mt-4">
-        <p>500 N Akard St<br>Dallas, TX 75201</p>
-        <p>1 (844) 827-5435</p>
-        <p>
-          <a href="mailto:hello@taskflowhq.com" class="hover:text-white transition">
-            hello@taskflowhq.com
+  <!-- MISSION -->
+  <div class="a-section">
+    <div class="a-inner a-split">
+      <div>
+        <div class="a-label">Our mission</div>
+        <h2 class="a-title" style="font-size:clamp(24px,3vw,38px); margin-bottom:20px;">Make self-improvement <span class="a-dim">accessible to everyone.</span></h2>
+        <p style="font-size:14px; color:rgba(255,255,255,0.4); line-height:1.8; margin-bottom:16px;">Most self-improvement tools are either too expensive, too complicated, or too scattered. People who want to build better habits, track their goals, and hold themselves accountable shouldn't need to pay $54/month across 5 different apps.</p>
+        <p style="font-size:14px; color:rgba(255,255,255,0.4); line-height:1.8;">TaskFlow gives everyone — students, builders, creators, anyone — a free, powerful, AI-driven personal growth OS in one place.</p>
+      </div>
+      <div>
+        <div class="point-card"><div class="p-icon">🎯</div><div><div class="p-title">One place for everything</div><div class="p-desc">Tasks, habits, journal, calendar, and accountability — no more juggling apps.</div></div></div>
+        <div class="point-card"><div class="p-icon">🤖</div><div><div class="p-title">AI that knows you</div><div class="p-desc">Not just a chatbot — an AI that studies your patterns and actively coaches you forward.</div></div></div>
+        <div class="point-card"><div class="p-icon">🔒</div><div><div class="p-title">Private and secure</div><div class="p-desc">Your data stays yours. We never sell it, never share it, never exploit it.</div></div></div>
+        <div class="point-card"><div class="p-icon">💸</div><div><div class="p-title">Free forever</div><div class="p-desc">The core app will always be free. Self-improvement shouldn't be a luxury.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORY -->
+  <div class="a-section">
+    <div class="a-inner">
+      <div class="a-label">The story</div>
+      <h2 class="a-title" style="font-size:clamp(24px,3vw,38px); margin-bottom:48px;">How TaskFlow <span class="a-dim">came to be.</span></h2>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-date">Early 2025</div>
+          <div class="tl-mid"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div><div class="tl-title">The problem became personal</div><div class="tl-desc">Paying for Todoist, Habitica, Day One, and Covenant Eyes separately — and none of them talked to each other. Something had to change.</div></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">Mid 2025</div>
+          <div class="tl-mid"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div><div class="tl-title">First version built</div><div class="tl-desc">A simple Flask app with tasks and habits. No design, no AI — just the foundation to prove the concept worked.</div></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">Late 2025</div>
+          <div class="tl-mid"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div><div class="tl-title">AI brain added</div><div class="tl-desc">The Anthropic API got integrated. The AI started reading task completion rates, habit streaks, and journal entries — and the insights it generated were genuinely useful.</div></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">March 2026</div>
+          <div class="tl-mid"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div><div class="tl-title">TaskFlow goes live</div><div class="tl-desc">tflow.live launched. 2,000+ people signed up in the first weeks. The accountability tracker — which nobody else offers for free — became the most used feature.</div></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">Now</div>
+          <div class="tl-mid"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div><div class="tl-title">Building Phase 2</div><div class="tl-desc">AI memory system, deeper journal analysis, proactive nudges, and eventually — a mobile app. The best is still ahead.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHO IT'S FOR -->
+  <div class="a-section">
+    <div class="a-inner">
+      <div class="a-label">Who it's for</div>
+      <h2 class="a-title" style="font-size:clamp(24px,3vw,38px);">Built for people <span class="a-dim">serious about growth.</span></h2>
+      <div class="who-grid">
+        <div class="who-card"><div class="who-icon">🎓</div><div class="who-card-title">Students</div><div class="who-card-desc">Trying to stay on top of classes, build habits, and actually become the person they want to be — without spending money on 5 different apps.</div></div>
+        <div class="who-card"><div class="who-icon">🔨</div><div class="who-card-title">Builders & creators</div><div class="who-card-desc">Shipping products, making content, building businesses — and needing a system that keeps up with their momentum without adding friction.</div></div>
+        <div class="who-card"><div class="who-icon">💪</div><div class="who-card-title">People fighting bad habits</div><div class="who-card-desc">Whether it's NoFap, screen time, junk food, or anything else — TaskFlow's accountability tracker is the only free tool built specifically for this.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VALUES -->
+  <div class="a-section">
+    <div class="a-inner">
+      <div class="a-label">What we believe</div>
+      <h2 class="a-title" style="font-size:clamp(24px,3vw,38px);">The principles <span class="a-dim">we build by.</span></h2>
+      <div class="values-grid">
+        <div class="value-card"><div class="value-num">01</div><div class="value-title">Simplicity over features</div><div class="value-desc">One tool that does everything well beats five tools that each do one thing okay. We cut ruthlessly — if it doesn't help you grow, it doesn't ship.</div></div>
+        <div class="value-card"><div class="value-num">02</div><div class="value-title">AI should coach, not just respond</div><div class="value-desc">Most AI tools just answer questions. Taskflow's AI studies your patterns and proactively guides you — like a coach who actually pays attention.</div></div>
+        <div class="value-card"><div class="value-num">03</div><div class="value-title">Free means free</div><div class="value-desc">We don't believe self-improvement should be locked behind a paywall. The core app — all 6 features — will always be free.</div></div>
+        <div class="value-card"><div class="value-num">04</div><div class="value-title">Privacy is non-negotiable</div><div class="value-desc">You're sharing your most personal struggles — habits, journal entries, accountability resets. That data stays yours. Always.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="a-section">
+    <div class="a-inner">
+      <div class="cta-card">
+        <div>
+          <h2 class="cta-title">Ready to start <span class="a-dim">building better days?</span></h2>
+          <p class="cta-desc">Join 2,000+ people using TaskFlow to replace 5 apps with one — and actually make progress on becoming who they want to be.</p>
+        </div>
+        <div>
+          <div class="cta-btns">
+            <a href="/register" class="cta-btn">Start for free →</a>
+            <a href="/features" class="cta-btn-sec">See features</a>
+          </div>
+          <div class="cta-note">No credit card. No catch. Free forever.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="w-full border-t border-white/[0.07] px-6 md:px-[56px] pt-16 pb-10 bg-[#0A0A0A] text-white">
+    <div class="max-w-[1280px] mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-14">
+        <div class="flex flex-col gap-4 md:col-span-2">
+          <a href="/" class="flex items-center gap-2 text-white/90 font-bold text-base w-fit">
+            <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            TaskFlow
           </a>
-        </p>
+          <p class="text-sm text-white/35 leading-relaxed max-w-[280px]">Your personal growth OS. Tasks, habits, journal, accountability, and AI — all in one place. Free forever.</p>
+          <a href="/register" class="inline-flex items-center gap-1.5 bg-white text-gray-900 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-white/88 transition w-fit">Start for free →</a>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Product</div>
+          <a href="/features" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Features</a>
+          <a href="/pricing" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Pricing</a>
+          <a href="/premium" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Premium</a>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Company</div>
+          <a href="/about" class="text-sm text-white/35 hover:text-white/70 transition w-fit">About</a>
+          <a href="/blog" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Blog</a>
+          <a href="/contact" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Contact</a>
+          <a href="/privacy" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Privacy Policy</a>
+          <a href="/terms" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Terms of Service</a>
+        </div>
       </div>
-
-      <!-- Socials -->
-      <div class="flex items-center gap-4 mt-4 text-white/50">
-        <!-- Facebook -->
-  <a href="#" aria-label="Facebook" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H8v-3h2.4V9.5c0-2.4 1.4-3.7 3.6-3.7
-               1 0 2 .2 2 .2v2.3h-1.1c-1.1 0-1.4.7-1.4 1.4V12H16l-.4 3h-2.5v7A10
-               10 0 0 0 22 12z"/>
-    </svg>
-  </a>
-
-  <!-- Instagram -->
-  <a href="#" aria-label="Instagram" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2
-               5-5V7c0-2.8-2.2-5-5-5H7zm10 2c1.7 0 3 1.3 3 3v10c0 1.7-1.3
-               3-3 3H7c-1.7 0-3-1.3-3-3V7c0-1.7 1.3-3 3-3h10zm-5
-               3a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0
-               2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm4.5-.9a1.1
-               1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/>
-    </svg>
-  </a>
-
-  <!-- X / Twitter -->
-  <a href="#" aria-label="X" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.3 2H21l-6.6 7.6L22 22h-6.6l-5.2-6.8L4.6 22H2l7.1-8.2
-               L2 2h6.8l4.7 6.2L18.3 2zm-2.3 18h1.5L8.2
-               4H6.6l9.4 16z"/>
-    </svg>
-  </a>
-
-  <!-- LinkedIn -->
-  <a href="#" aria-label="LinkedIn" class="hover:text-white transition">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4.98 3.5A2.5 2.5 0 1 0 5 8a2.5 2.5
-               0 0 0-.02-4.5zM3 9h4v12H3V9zm7
-               0h3.8v1.6h.1c.5-.9 1.7-1.8
-               3.6-1.8 3.9 0 4.6 2.5
-               4.6 5.8V21h-4v-5.3c0-1.3
-               0-3-1.9-3s-2.2 1.4-2.2
-               2.9V21h-4V9z"/>
-    </svg>
-  </a>
+      <div class="flex items-center justify-between flex-wrap gap-4 pt-7 border-t border-white/[0.06]">
+        <div class="text-xs text-white/22">© 2026 <span class="text-white/40">TaskFlow</span>. All rights reserved. Built by <span class="text-white/40">Donny Fabuluje</span>.</div>
+        <div class="flex gap-5">
+          <a href="/privacy" class="text-xs text-white/22 hover:text-white/50 transition">Privacy</a>
+          <a href="/terms" class="text-xs text-white/22 hover:text-white/50 transition">Terms</a>
+          <a href="/contact" class="text-xs text-white/22 hover:text-white/50 transition">Contact</a>
+        </div>
       </div>
     </div>
+  </footer>
 
-    <!-- Product -->
-    <div>
-      <p class="font-semibold mb-4">Product</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/features" class="hover:text-white transition">Features</a></li>
-        <li><a href="/pricing" class="hover:text-white transition">Pricing</a></li>
-        <li><a href="/premium" class="hover:text-white transition">Premium</a></li>
-      </ul>
-    </div>
-
-    <!-- Company -->
-    <div>
-      <p class="font-semibold mb-4">Company</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/about" class="hover:text-white transition">About</a></li>
-        <li><a href="/blog" class="hover:text-white transition">Blog</a></li>
-        <li><a href="/contact" class="hover:text-white transition">Contact</a></li>
-      </ul>
-    </div>
-
-    <!-- Legal -->
-    <div>
-      <p class="font-semibold mb-4">Legal</p>
-      <ul class="space-y-3 text-white/60 text-sm">
-        <li><a href="/privacy" class="hover:text-white transition">Privacy Policy</a></li>
-        <li><a href="/terms" class="hover:text-white transition">Terms of Service</a></li>
-        <li><a href="/cookie" class="hover:text-white transition">Cookies Settings</a></li>
-      </ul>
-    </div>
-
-  </div>
-
-  <!-- Bottom Bar -->
-  <div class="max-w-[1280px] mx-auto mt-16 pt-8 border-t border-white/10
-              flex flex-col md:flex-row justify-between items-center
-              text-white/40 text-sm gap-4">
-    <span>© 2025 TaskFlow. All rights reserved.</span>
-
-    <div class="flex items-center gap-6">
-      <a href="/privacy" class="hover:text-white">Privacy Policy</a>
-      <a href="/terms" class="hover:text-white">Terms of Service</a>
-      <a href="/cookie" class="hover:text-white">Cookies Settings</a>
-    </div>
-  </div>
-</footer>
-
-    
-    <!-- ================= SCRIPTS ================= -->
-    <script>
-      const menuBtn = document.getElementById("menuBtn");
-      const overlay = document.getElementById("mobileOverlay");
-      const backdrop = document.getElementById("backdrop");
-      const body = document.body;
-    
-      menuBtn.addEventListener("click", () => {
-        overlay.classList.remove("hidden");
-        body.classList.add("overflow-hidden");
-      });
-    
-      backdrop.addEventListener("click", () => {
-        overlay.classList.add("hidden");
-        body.classList.remove("overflow-hidden");
-      });
-    </script>
-
-
+  <script>
+    const menuOpen = document.getElementById('menuOpen');
+    const menuClose = document.getElementById('menuClose');
+    const mobileMenu = document.getElementById('mobileMenu');
+    menuOpen.addEventListener('click', () => mobileMenu.classList.remove('translate-x-full'));
+    menuClose.addEventListener('click', () => mobileMenu.classList.add('translate-x-full'));
+  </script>
 
 </body>
 </html>
