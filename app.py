@@ -17,6 +17,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from datetime import datetime
@@ -38,6 +39,7 @@ load_dotenv()
 # ============================================================
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # ============================================================
 # EMAIL (Gmail SMTP)
@@ -196,6 +198,7 @@ def get_google_oauth_value(name):
 
 GOOGLE_CLIENT_ID = get_google_oauth_value("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = get_google_oauth_value("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = (os.environ.get("GOOGLE_REDIRECT_URI") or "").strip() or None
 
 google = None
 
@@ -2150,7 +2153,8 @@ def login_google():
             500,
         )
     try:
-        return google.authorize_redirect(url_for("google_callback", _external=True))
+        redirect_uri = GOOGLE_REDIRECT_URI or url_for("google_callback", _external=True)
+        return google.authorize_redirect(redirect_uri)
     except requests.RequestException:
         app.logger.exception("Google OAuth redirect failed because Google could not be reached.")
         flash("Google sign-in is unavailable right now. Check your internet connection and try again.")
