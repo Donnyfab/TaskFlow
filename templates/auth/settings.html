@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/sidebar_mobile_nav.js') }}" defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
@@ -33,6 +34,9 @@
     .settings-content { padding: 40px 48px; overflow-y: auto; max-height: 100vh; min-width: 0; width: 100%; }
     .section { display: none; width: min(100%, 600px); }
     .section.active { display: block; }
+    .mobile-settings-nav { display: none; }
+    .mobile-settings-link { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+    .mobile-settings-back { display: none; }
 
     .s-title { font-size: 20px; font-weight: 800; letter-spacing: -0.6px; color: rgba(255,255,255,0.92); margin-bottom: 4px; }
     .s-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 32px; line-height: 1.6; }
@@ -121,6 +125,165 @@
       .main { grid-template-columns: 1fr; }
       .settings-sidebar { display: none; }
       .settings-content { padding: 24px; }
+      .mobile-settings-nav { display: block; position: sticky; top: 0; z-index: 45; margin: -4px 0 20px; }
+      .mobile-settings-nav .mobile-page-trigger {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #111;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+        color: rgba(255,255,255,0.82);
+        font: inherit;
+        cursor: pointer;
+      }
+      .mobile-settings-nav .mobile-page-trigger-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .mobile-settings-nav .mobile-page-trigger-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.07);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: rgba(255,255,255,0.72);
+        flex-shrink: 0;
+      }
+      .mobile-settings-nav .mobile-page-trigger-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+      .mobile-settings-nav .mobile-page-trigger-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.28);
+      }
+      .mobile-settings-nav .mobile-page-trigger-current {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.84);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mobile-settings-nav .mobile-page-trigger-caret {
+        color: rgba(255,255,255,0.34);
+        transition: transform 0.18s ease, color 0.15s ease;
+        flex-shrink: 0;
+      }
+      .mobile-settings-nav.is-open .mobile-page-trigger-caret { transform: rotate(180deg); color: rgba(255,255,255,0.56); }
+      .mobile-settings-nav .mobile-page-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+        z-index: 59;
+      }
+      .mobile-settings-nav .mobile-page-sheet {
+        position: fixed;
+        top: 24px;
+        left: 16px;
+        right: 16px;
+        background: #111;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.38);
+        padding: 12px;
+        opacity: 0;
+        transform: translateY(-10px);
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        z-index: 60;
+      }
+      .mobile-settings-nav.is-open .mobile-page-overlay { opacity: 1; pointer-events: auto; }
+      .mobile-settings-nav.is-open .mobile-page-sheet { opacity: 1; transform: translateY(0); pointer-events: auto; }
+      .mobile-settings-nav .mobile-page-sheet-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 4px 10px;
+      }
+      .mobile-settings-nav .mobile-page-sheet-eyebrow {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.24);
+        margin-bottom: 4px;
+      }
+      .mobile-settings-nav .mobile-page-sheet-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.88);
+      }
+      .mobile-settings-nav .mobile-page-close {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: rgba(255,255,255,0.4);
+        font: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .mobile-settings-nav .mobile-page-links { display: grid; gap: 6px; }
+      .mobile-settings-nav .mobile-page-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 12px;
+        border-radius: 10px;
+        text-decoration: none;
+        color: rgba(255,255,255,0.58);
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .mobile-settings-nav .mobile-page-link:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); }
+      .mobile-settings-nav .mobile-page-link.active { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.88); }
+      .mobile-settings-nav .mobile-page-link-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+      .mobile-settings-nav .mobile-page-link.active .mobile-page-link-icon { background: rgba(255,255,255,0.14); }
+      .mobile-settings-nav .mobile-page-link-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .mobile-settings-nav .mobile-page-link-title { font-size: 13px; font-weight: 600; color: inherit; }
+      .mobile-settings-nav .mobile-page-link-sub { font-size: 11px; color: rgba(255,255,255,0.26); }
+      .mobile-settings-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 9px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: rgba(255,255,255,0.56);
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .mobile-settings-back:hover {
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.84);
+      }
     }
   </style>
 </head>
@@ -147,7 +310,7 @@
     <a href="/focus" class="sb-item"><div class="sb-icon">◎</div>Focus Mode</a>
     <div class="nav-label">Insights</div>
     <a href="/score" class="sb-item"><div class="sb-icon">↑</div>Growth Score</a>
-    {% with sidebar_user_name = name if name else username %}
+    {% with sidebar_user_name = username if username else 'Guest' %}
       {% include 'includes/sidebar_profile_dropdown.html' %}
     {% endwith %}
   </div>
@@ -161,11 +324,11 @@
         <div style="font-size:17px;font-weight:800;letter-spacing:-0.4px;color:rgba(255,255,255,0.9);">Settings</div>
         <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px;">Manage your preferences</div>
       </div>
-      <div class="s-nav-item active" onclick="showSection('account',this)"><span class="s-nav-icon">◉</span>Account</div>
-      <div class="s-nav-item" onclick="showSection('notifications',this)"><span class="s-nav-icon">◎</span>Notifications</div>
-      <div class="s-nav-item" onclick="showSection('ai',this)"><span class="s-nav-icon">✦</span>AI Preferences</div>
-      <div class="s-nav-item" onclick="showSection('appearance',this)"><span class="s-nav-icon">◐</span>Appearance</div>
-      <div class="s-nav-item" onclick="showSection('privacy',this)"><span class="s-nav-icon">⊘</span>Privacy & Data</div>
+      <div class="s-nav-item active" data-section-id="account" onclick="showSection('account',this)"><span class="s-nav-icon">◉</span>Account</div>
+      <div class="s-nav-item" data-section-id="notifications" onclick="showSection('notifications',this)"><span class="s-nav-icon">◎</span>Notifications</div>
+      <div class="s-nav-item" data-section-id="ai" onclick="showSection('ai',this)"><span class="s-nav-icon">✦</span>AI Preferences</div>
+      <div class="s-nav-item" data-section-id="appearance" onclick="showSection('appearance',this)"><span class="s-nav-icon">◐</span>Appearance</div>
+      <div class="s-nav-item" data-section-id="privacy" onclick="showSection('privacy',this)"><span class="s-nav-icon">⊘</span>Privacy & Data</div>
       <div style="margin-top:auto;padding:14px 20px;border-top:1px solid rgba(255,255,255,0.05);">
         <a href="/home" style="font-size:12px;color:rgba(255,255,255,0.3);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color 0.15s;">← Dashboard</a>
       </div>
@@ -173,6 +336,85 @@
 
     <!-- CONTENT -->
     <div class="settings-content">
+
+      <div class="mobile-settings-nav" data-mobile-nav-root>
+        <button
+          type="button"
+          class="mobile-page-trigger"
+          data-mobile-nav-toggle
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <span class="mobile-page-trigger-left">
+            <span class="mobile-page-trigger-icon">⚙</span>
+            <span class="mobile-page-trigger-copy">
+              <span class="mobile-page-trigger-label">Settings section</span>
+              <span class="mobile-page-trigger-current" id="mobile-settings-current">Account</span>
+            </span>
+          </span>
+          <span class="mobile-page-trigger-caret" aria-hidden="true">
+            <svg viewBox="0 0 10 6" fill="none" width="10" height="6">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </button>
+
+        <a href="/home" class="mobile-settings-back">← Back to dashboard</a>
+
+        <div class="mobile-page-overlay" data-mobile-nav-overlay></div>
+
+        <div class="mobile-page-sheet" data-mobile-nav-menu role="dialog" aria-modal="true">
+          <div class="mobile-page-sheet-header">
+            <div>
+              <div class="mobile-page-sheet-eyebrow">Settings</div>
+              <div class="mobile-page-sheet-title">Choose a section</div>
+            </div>
+            <button type="button" class="mobile-page-close" data-mobile-nav-close>✕</button>
+          </div>
+
+          <div class="mobile-page-links">
+            <button type="button" class="mobile-page-link mobile-settings-link active" data-mobile-nav-link data-settings-mobile-link data-section-id="account" onclick="showSection('account', document.querySelector('.s-nav-item[data-section-id=&quot;account&quot;]'))">
+              <span class="mobile-page-link-icon">◉</span>
+              <span class="mobile-page-link-copy">
+                <span class="mobile-page-link-title">Account</span>
+                <span class="mobile-page-link-sub">Profile and password</span>
+              </span>
+            </button>
+
+            <button type="button" class="mobile-page-link mobile-settings-link" data-mobile-nav-link data-settings-mobile-link data-section-id="notifications" onclick="showSection('notifications', document.querySelector('.s-nav-item[data-section-id=&quot;notifications&quot;]'))">
+              <span class="mobile-page-link-icon">◎</span>
+              <span class="mobile-page-link-copy">
+                <span class="mobile-page-link-title">Notifications</span>
+                <span class="mobile-page-link-sub">Reminders and alerts</span>
+              </span>
+            </button>
+
+            <button type="button" class="mobile-page-link mobile-settings-link" data-mobile-nav-link data-settings-mobile-link data-section-id="ai" onclick="showSection('ai', document.querySelector('.s-nav-item[data-section-id=&quot;ai&quot;]'))">
+              <span class="mobile-page-link-icon">✦</span>
+              <span class="mobile-page-link-copy">
+                <span class="mobile-page-link-title">AI Preferences</span>
+                <span class="mobile-page-link-sub">Coaching and data access</span>
+              </span>
+            </button>
+
+            <button type="button" class="mobile-page-link mobile-settings-link" data-mobile-nav-link data-settings-mobile-link data-section-id="appearance" onclick="showSection('appearance', document.querySelector('.s-nav-item[data-section-id=&quot;appearance&quot;]'))">
+              <span class="mobile-page-link-icon">◐</span>
+              <span class="mobile-page-link-copy">
+                <span class="mobile-page-link-title">Appearance</span>
+                <span class="mobile-page-link-sub">Theme and accent color</span>
+              </span>
+            </button>
+
+            <button type="button" class="mobile-page-link mobile-settings-link" data-mobile-nav-link data-settings-mobile-link data-section-id="privacy" onclick="showSection('privacy', document.querySelector('.s-nav-item[data-section-id=&quot;privacy&quot;]'))">
+              <span class="mobile-page-link-icon">⊘</span>
+              <span class="mobile-page-link-copy">
+                <span class="mobile-page-link-title">Privacy & Data</span>
+                <span class="mobile-page-link-sub">Export and deletion tools</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -386,11 +628,27 @@
   </div>
 
   <script>
+    function syncSettingsMobileNav(id) {
+      const current = document.getElementById('mobile-settings-current');
+      const mobileLinks = document.querySelectorAll('[data-settings-mobile-link]');
+
+      mobileLinks.forEach(link => {
+        link.classList.toggle('active', link.dataset.sectionId === id);
+      });
+
+      const activeLink = document.querySelector('[data-settings-mobile-link].active');
+      if (current && activeLink) {
+        const title = activeLink.querySelector('.mobile-page-link-title');
+        current.textContent = title ? title.textContent : 'Settings';
+      }
+    }
+
     function showSection(id, el) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.s-nav-item').forEach(s => s.classList.remove('active'));
       document.getElementById('section-' + id).classList.add('active');
-      el.classList.add('active');
+      if (el) el.classList.add('active');
+      syncSettingsMobileNav(id);
     }
 
     function toggleSwitch(el, key) {
@@ -470,6 +728,7 @@
 
     document.getElementById('modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
     document.getElementById('memory-modal').addEventListener('click', function(e) { if(e.target===this) closeMemoryModal(); });
+    syncSettingsMobileNav('account');
   </script>
 
 </body>

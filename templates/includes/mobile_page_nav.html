@@ -1,0 +1,81 @@
+{% set current_path = request.path %}
+{% if current_path == '/home' %}
+  {% set mobile_page_current = 'Home' %}
+{% elif current_path == '/tasks' %}
+  {% set mobile_page_current = 'Tasks' %}
+{% elif current_path == '/habits' %}
+  {% set mobile_page_current = 'Habits' %}
+{% elif current_path.startswith('/journal') %}
+  {% set mobile_page_current = 'Journal' %}
+{% else %}
+  {% set mobile_page_current = 'Pages' %}
+{% endif %}
+
+<div class="mobile-page-nav" data-mobile-nav-root>
+  <button
+    type="button"
+    class="mobile-page-trigger"
+    data-mobile-nav-toggle
+    aria-haspopup="dialog"
+    aria-expanded="false"
+  >
+    <span class="mobile-page-trigger-left">
+      <span class="mobile-page-trigger-icon">☰</span>
+      <span class="mobile-page-trigger-copy">
+        <span class="mobile-page-trigger-label">Switch pages</span>
+        <span class="mobile-page-trigger-current">{{ mobile_page_current }}</span>
+      </span>
+    </span>
+    <span class="mobile-page-trigger-caret" aria-hidden="true">
+      <svg viewBox="0 0 10 6" fill="none" width="10" height="6">
+        <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </button>
+
+  <div class="mobile-page-overlay" data-mobile-nav-overlay></div>
+
+  <div class="mobile-page-sheet" data-mobile-nav-menu role="dialog" aria-modal="true">
+    <div class="mobile-page-sheet-header">
+      <div>
+        <div class="mobile-page-sheet-eyebrow">TaskFlow</div>
+        <div class="mobile-page-sheet-title">Jump to a page</div>
+      </div>
+      <button type="button" class="mobile-page-close" data-mobile-nav-close>✕</button>
+    </div>
+
+    <div class="mobile-page-links">
+      <a href="/home" class="mobile-page-link {{ 'active' if current_path == '/home' else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">⌂</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Home</span>
+          <span class="mobile-page-link-sub">Dashboard and progress</span>
+        </span>
+      </a>
+
+      <a href="/tasks" class="mobile-page-link {{ 'active' if current_path == '/tasks' else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">✓</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Tasks</span>
+          <span class="mobile-page-link-sub">Lists and priorities</span>
+        </span>
+      </a>
+
+      <a href="/habits" class="mobile-page-link {{ 'active' if current_path == '/habits' else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">↺</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Habits</span>
+          <span class="mobile-page-link-sub">Streaks and consistency</span>
+        </span>
+      </a>
+
+      <a href="/journal" class="mobile-page-link {{ 'active' if current_path.startswith('/journal') else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">✎</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Journal</span>
+          <span class="mobile-page-link-sub">Entries and reflections</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</div>

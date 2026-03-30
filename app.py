@@ -257,6 +257,22 @@ def logged_in() -> bool:
     return "user_id" in session
 
 
+def get_user_initials(full_name: str | None, username: str | None = None) -> str:
+    source = (full_name or "").strip()
+    if source:
+        parts = [part for part in source.replace("-", " ").split() if part]
+        if len(parts) >= 2:
+            return f"{parts[0][0]}{parts[-1][0]}".upper()
+        if len(parts) == 1:
+            return parts[0][:2].upper()
+
+    fallback = (username or "").strip()
+    if fallback:
+        return fallback[:2].upper()
+
+    return "TF"
+
+
 def login_required(route_func):
     """
     A decorator: it protects pages that require login.
@@ -290,7 +306,9 @@ def inject_user_globals():
     return {
         "profile_image": user["profile_image"] or "default.png",
         "username": user["username"],
+        "full_name": user["name"],
         "name": user["name"].split()[0],
+        "user_initials": get_user_initials(user["name"], user["username"]),
     }
 
 

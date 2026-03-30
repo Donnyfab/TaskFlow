@@ -8,7 +8,17 @@
     aria-haspopup="true"
     aria-expanded="false"
   >
-    <div class="sb-avatar">{{ username[:2].upper() if username else 'TF' }}</div>
+    <div class="sb-avatar">
+      {% if profile_image and profile_image != 'default.png' %}
+        <img
+          src="{{ url_for('static', filename='uploads/' + profile_image) }}"
+          alt="{{ full_name if full_name else (sidebar_user_name if sidebar_user_name is defined else (username if username else 'User')) }}"
+          class="sb-avatar-img"
+        >
+      {% else %}
+        {{ sidebar_user_initials if sidebar_user_initials is defined else (user_initials if user_initials else 'TF') }}
+      {% endif %}
+    </div>
     <div class="sb-user-meta">
       <div class="sb-user-name">{{ sidebar_user_name if sidebar_user_name is defined else (username if username else 'Guest') }}</div>
       <div class="sb-user-plan">{{ sidebar_user_plan if sidebar_user_plan is defined else 'Free plan' }}</div>
