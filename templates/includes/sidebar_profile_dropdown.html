@@ -1,0 +1,28 @@
+<div class="sb-spacer"></div>
+
+<div class="sb-profile" data-profile-root>
+  <button
+    type="button"
+    class="sb-user"
+    data-profile-toggle
+    aria-haspopup="true"
+    aria-expanded="false"
+  >
+    <div class="sb-avatar">{{ username[:2].upper() if username else 'TF' }}</div>
+    <div class="sb-user-meta">
+      <div class="sb-user-name">{{ sidebar_user_name if sidebar_user_name is defined else (username if username else 'Guest') }}</div>
+      <div class="sb-user-plan">{{ sidebar_user_plan if sidebar_user_plan is defined else 'Free plan' }}</div>
+    </div>
+    <div class="sb-user-caret" aria-hidden="true">
+      <svg viewBox="0 0 10 6" fill="none" width="10" height="6">
+        <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </button>
+
+  <div class="sb-user-menu" data-profile-menu>
+    <a href="{{ url_for('account_page') }}" class="sb-user-menu-item">Account</a>
+    <a href="{{ url_for('settings_page') }}" class="sb-user-menu-item">Settings</a>
+    <a href="{{ url_for('logout') }}" class="sb-user-menu-item danger">Log out</a>
+  </div>
+</div>

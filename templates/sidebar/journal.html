@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Journal | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── APP SIDEBAR ── */
+    .app-sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; }
+    .sb-logo { display: flex; align-items: center; gap: 8px; padding: 0 18px 24px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; text-decoration: none; }
+    .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .nav-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .sb-item:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.03); }
+    .sb-item.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.5); }
+    .sb-icon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+    .sb-item.active .sb-icon { background: rgba(255,255,255,0.15); }
+    .sb-spacer { flex: 1; }
+    .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+    /* ── MAIN ── */
+    .main { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
+
+    /* ── ENTRIES LIST ── */
+    .entries-list { border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .el-header { padding: 22px 20px 0; flex-shrink: 0; }
+    .el-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 14px; color: rgba(255,255,255,0.9); }
+    .el-search { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 12px; font-size: 12px; color: #fff; font-family: inherit; outline: none; margin-bottom: 12px; transition: border-color 0.15s; }
+    .el-search:focus { border-color: rgba(255,255,255,0.18); }
+    .el-search::placeholder { color: rgba(255,255,255,0.2); }
+    .el-new-btn { display: flex; align-items: center; justify-content: center; gap: 6px; background: #fff; color: #0A0A0A; border: none; border-radius: 8px; padding: 9px 14px; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 16px; font-family: inherit; transition: all 0.15s; text-decoration: none; }
+    .el-new-btn:hover { background: rgba(255,255,255,0.88); }
+
+    .el-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 20px 4px; }
+    .entry-item { padding: 11px 20px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; text-decoration: none; display: block; }
+    .entry-item:hover { background: rgba(255,255,255,0.03); }
+    .entry-item.active { background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.4); }
+    .entry-date { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.72); margin-bottom: 3px; }
+    .entry-preview { font-size: 11px; color: rgba(255,255,255,0.28); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+    .entry-time { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 3px; }
+
+    .el-empty { padding: 32px 20px; text-align: center; }
+    .el-empty-title { font-size: 13px; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
+    .el-empty-sub { font-size: 11px; color: rgba(255,255,255,0.18); line-height: 1.6; }
+
+    /* ── EDITOR ── */
+    .editor-wrap { display: flex; flex-direction: column; min-height: 100vh; }
+    .editor-topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+    .et-date { font-size: 16px; font-weight: 800; letter-spacing: -0.4px; color: rgba(255,255,255,0.9); }
+    .et-meta { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: 2px; }
+    .et-actions { display: flex; gap: 8px; align-items: center; }
+    .et-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 7px 13px; font-size: 12px; color: rgba(255,255,255,0.5); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .et-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.75); }
+    .et-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .et-save { background: #fff; color: #0A0A0A; border: none; border-radius: 7px; padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .et-save:hover { background: rgba(255,255,255,0.88); }
+
+    /* AI PROMPT */
+    .ai-prompt-bar { margin: 18px 32px 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+    .ai-pip { font-size: 10px; color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.07); border-radius: 6px; padding: 3px 7px; flex-shrink: 0; margin-top: 1px; }
+    .ai-prompt-text { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.6; flex: 1; font-style: italic; }
+    .ai-refresh { font-size: 12px; color: rgba(255,255,255,0.22); cursor: pointer; flex-shrink: 0; padding-top: 1px; transition: color 0.15s; }
+    .ai-refresh:hover { color: rgba(255,255,255,0.5); }
+
+    /* WRITING */
+    .writing-area { flex: 1; padding: 24px 32px 16px; display: flex; flex-direction: column; }
+    .entry-textarea { flex: 1; width: 100%; background: transparent; border: none; outline: none; font-size: 15px; color: rgba(255,255,255,0.78); font-family: inherit; resize: none; line-height: 1.85; min-height: 360px; }
+    .entry-textarea::placeholder { color: rgba(255,255,255,0.14); }
+
+    /* FOOTER */
+    .editor-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 32px 24px; border-top: 1px solid rgba(255,255,255,0.04); flex-shrink: 0; }
+    .wc-txt { font-size: 11px; color: rgba(255,255,255,0.22); }
+    .mood-row { display: flex; align-items: center; gap: 6px; }
+    .mood-label { font-size: 11px; color: rgba(255,255,255,0.25); margin-right: 2px; }
+    .mood-btn { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+    .mood-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.18); }
+    .mood-btn.selected { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
+
+    /* EMPTY EDITOR STATE */
+    .empty-editor { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; text-align: center; }
+    .ee-icon { font-size: 28px; opacity: 0.22; margin-bottom: 4px; }
+    .ee-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.38); }
+    .ee-sub { font-size: 12px; color: rgba(255,255,255,0.2); line-height: 1.65; max-width: 260px; }
+    .ee-btn { background: #fff; color: #0A0A0A; border: none; border-radius: 9px; padding: 10px 22px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 8px; font-family: inherit; transition: all 0.2s; text-decoration: none; display: inline-block; }
+    .ee-btn:hover { background: rgba(255,255,255,0.88); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 16px; font-size: 12px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 999; pointer-events: none; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(100,220,130,0.9); flex-shrink: 0; }
+
+    @keyframes tdot { 0%,80%,100%{opacity:0.3;transform:translateY(0)} 40%{opacity:0.9;transform:translateY(-2px)} }
+    .tdot { width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.5); animation: tdot 1.2s infinite; display: inline-block; }
+    .tdot:nth-child(2) { animation-delay: 0.2s; }
+    .tdot:nth-child(3) { animation-delay: 0.4s; }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      .app-sidebar { display: none; }
+      .main { grid-template-columns: 1fr; }
+      .entries-list { display: none; }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <!-- APP SIDEBAR -->
+  <div class="app-sidebar">
+    <a href="{{ url_for('home_page') }}" class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+          <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      TaskFlow
+    </a>
+    <div class="nav-label">Main</div>
+    <a href="/home" class="sb-item"><div class="sb-icon">⌂</div>Home</a>
+    <a href="/tasks" class="sb-item"><div class="sb-icon">✓</div>Tasks</a>
+    <a href="/habits" class="sb-item"><div class="sb-icon">↺</div>Habits</a>
+    <a href="/ai" class="sb-item"><div class="sb-icon">✦</div>AI Coach</a>
+    <div class="nav-label">Tools</div>
+    <a href="/journal" class="sb-item active"><div class="sb-icon">✎</div>Journal</a>
+    <a href="/calendar" class="sb-item"><div class="sb-icon">▦</div>Calendar</a>
+    <a href="/focus" class="sb-item"><div class="sb-icon">◎</div>Focus Mode</a>
+    <div class="nav-label">Insights</div>
+    <a href="/score" class="sb-item"><div class="sb-icon">↑</div>Growth Score</a>
+    {% with sidebar_user_name = name if name else username %}
+      {% include 'includes/sidebar_profile_dropdown.html' %}
+    {% endwith %}
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ENTRIES LIST -->
+    <div class="entries-list">
+      <div class="el-header">
+        <div class="el-title">Journal</div>
+        <input class="el-search" placeholder="Search entries..." oninput="filterEntries(this.value)">
+        <a href="/journal/new" class="el-new-btn">+ New entry</a>
+      </div>
+
+      {% if grouped_entries %}
+        {% for group in grouped_entries %}
+        <div class="el-section">{{ group.label }}</div>
+        {% for entry in group.entries %}
+        <a href="/journal/{{ entry.id }}"
+           class="entry-item {{ 'active' if active_entry and active_entry.id == entry.id else '' }}"
+           data-search="{{ (entry.title or '') ~ ' ' ~ (entry.content or '') }}">
+          <div class="entry-date">{{ entry.title if entry.title else entry.created_at.strftime('%A, %B %d') if entry.created_at else 'Untitled' }}</div>
+          <div class="entry-preview">{{ (entry.content or '')[: 80] }}</div>
+          <div class="entry-time">
+            {{ entry.created_at.strftime('%-I:%M %p') if entry.created_at else '' }}
+            {% if entry.word_count %} · {{ entry.word_count }} words{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+        {% endfor %}
+      {% else %}
+        <div class="el-empty">
+          <div class="el-empty-title">No entries yet</div>
+          <div class="el-empty-sub">Start writing. Every entry builds a record of who you're becoming.</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- EDITOR -->
+    <div class="editor-wrap">
+      {% if active_entry %}
+
+        <div class="editor-topbar">
+          <div>
+            <div class="et-date">{{ active_entry.title if active_entry.title else active_entry.created_at.strftime('%A, %B %d') if active_entry.created_at else 'Journal entry' }}</div>
+            <div class="et-meta" id="et-meta">Journal entry · <span id="wc-display">0</span> words</div>
+          </div>
+          <div class="et-actions">
+            <button class="et-btn" id="ai-btn" onclick="getAIInsight()">✦ AI insight</button>
+            <button class="et-save" onclick="saveEntry()">Save entry</button>
+          </div>
+        </div>
+
+        <div class="ai-prompt-bar">
+          <div class="ai-pip">✦</div>
+          <div class="ai-prompt-text" id="prompt-text">{{ journal_prompt }}</div>
+          <div class="ai-refresh" onclick="rotatePrompt()" title="New prompt">↺</div>
+        </div>
+
+        <div class="writing-area">
+          <textarea
+            class="entry-textarea"
+            id="entry-content"
+            placeholder="Start writing your thoughts..."
+            oninput="updateWC()">{{ active_entry.content or '' }}</textarea>
+        </div>
+
+        <div class="editor-footer">
+          <div class="wc-txt" id="wc-footer">{{ active_entry.word_count or 0 }} words</div>
+          <div class="mood-row">
+            <div class="mood-label">Mood:</div>
+            <div class="mood-btn {{ 'selected' if active_entry.mood == 'great' else '' }}" onclick="setMood(this,'great')" title="Great">😊</div>
+            <div class="mood-btn {{ 'selected' if active_entry.mood == 'okay' else '' }}" onclick="setMood(this,'okay')" title="Okay">😐</div>
+            <div class="mood-btn {{ 'selected' if active_entry.mood == 'tired' else '' }}" onclick="setMood(this,'tired')" title="Tired">😴</div>
+            <div class="mood-btn {{ 'selected' if active_entry.mood == 'stressed' else '' }}" onclick="setMood(this,'stressed')" title="Stressed">😤</div>
+            <div class="mood-btn {{ 'selected' if active_entry.mood == 'motivated' else '' }}" onclick="setMood(this,'motivated')" title="Motivated">🔥</div>
+          </div>
+        </div>
+
+        <!-- Hidden form for save -->
+        <form id="save-form" method="POST" action="/journal/{{ active_entry.id }}/save" style="display:none;">
+          <input type="hidden" name="content" id="save-content">
+          <input type="hidden" name="mood" id="save-mood" value="{{ active_entry.mood or '' }}">
+        </form>
+
+      {% else %}
+
+        <!-- NO ENTRY SELECTED -->
+        <div class="editor-topbar" style="border-bottom:none;"></div>
+        <div class="empty-editor">
+          <div class="ee-icon">✎</div>
+          <div class="ee-title">Select an entry or start fresh</div>
+          <div class="ee-sub">Pick an entry from the list, or write a new one. Every word is a step toward clarity.</div>
+          <a href="/journal/new" class="ee-btn">+ Write today's entry</a>
+        </div>
+
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"><div class="toast-dot"></div><span id="toast-msg">Saved</span></div>
+
+  <script>
+    // ── WORD COUNT
+    function countWords(text) {
+      return text.trim().split(/\s+/).filter(w => w).length;
+    }
+    function updateWC() {
+      const ta = document.getElementById('entry-content');
+      if (!ta) return;
+      const wc = countWords(ta.value);
+      const el = document.getElementById('wc-display');
+      const ft = document.getElementById('wc-footer');
+      if (el) el.textContent = wc;
+      if (ft) ft.textContent = wc + ' word' + (wc === 1 ? '' : 's');
+    }
+    // Init word count on load
+    updateWC();
+
+    // ── SAVE ENTRY
+    function saveEntry() {
+      const content = document.getElementById('entry-content')?.value || '';
+      document.getElementById('save-content').value = content;
+      document.getElementById('save-form').submit();
+    }
+
+    // Auto-save every 30 seconds
+    let autoSaveTimer = setInterval(() => {
+      const content = document.getElementById('entry-content');
+      if (!content || !content.value.trim()) return;
+      document.getElementById('save-content').value = content.value;
+      fetch(document.getElementById('save-form').action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          content: content.value,
+          mood: document.getElementById('save-mood')?.value || '',
+          autosave: '1'
+        })
+      }).then(() => showToast('Auto-saved'));
+    }, 30000);
+
+    // ── MOOD
+    function setMood(el, mood) {
+      document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      const inp = document.getElementById('save-mood');
+      if (inp) inp.value = mood;
+    }
+
+    // ── AI PROMPTS
+    const prompts = [
+      "What's one thing you want to accomplish today — and why does it matter?",
+      "What made today different? How do you replicate it tomorrow?",
+      "What's one thing you avoided today that you know you need to face?",
+      "Describe your energy level today from 1–10 and what influenced it most.",
+      "What would the best version of you say about how you spent today?",
+      "You've been showing up consistently. What's changed about how you see yourself?",
+      "What small win happened today that you almost didn't notice?",
+      "If you could redo one decision from today, what would it be and why?",
+    ];
+    let promptIndex = 0;
+    function rotatePrompt() {
+      promptIndex = (promptIndex + 1) % prompts.length;
+      document.getElementById('prompt-text').textContent = prompts[promptIndex];
+    }
+
+    // ── AI INSIGHT (live Anthropic API call via Flask proxy)
+    async function getAIInsight() {
+      const content = document.getElementById('entry-content')?.value?.trim();
+      if (!content || content.length < 20) {
+        showToast('Write a bit more first');
+        return;
+      }
+      const btn = document.getElementById('ai-btn');
+      const promptEl = document.getElementById('prompt-text');
+      btn.innerHTML = '<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/ai/journal-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (data.insight) {
+          promptEl.textContent = '✦ ' + data.insight;
+        }
+      } catch(e) {
+        promptEl.textContent = '✦ Keep writing — your consistency is building something real.';
+      }
+      btn.textContent = '✦ AI insight';
+      btn.disabled = false;
+    }
+
+    // ── SEARCH FILTER
+    function filterEntries(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.entry-item').forEach(item => {
+        const searchable = (item.dataset.search || '').toLowerCase();
+        item.style.display = (!q || searchable.includes(q)) ? '' : 'none';
+      });
+    }
+
+    // ── TOAST
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg || 'Saved';
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    // Ctrl+S / Cmd+S shortcut
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveEntry();
+      }
+    });
+  </script>
+
+</body>
+</html>

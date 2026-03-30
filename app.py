@@ -13,17 +13,19 @@
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, g, abort, flash
+    url_for, session, g, abort, flash, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
-from datetime import datetime
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 import mysql.connector
 import os
 import json
+import calendar
 import requests
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -511,6 +513,81 @@ def fetch_task_for_user(task_id: int, user_id: int):
     task = cursor.fetchone()
     cursor.close()
     return task
+
+
+def habits_schema_available() -> bool:
+    cached = getattr(g, "_habits_schema_available", None)
+    if cached is not None:
+        return cached
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute("SHOW TABLES LIKE 'habits'")
+        has_habits = cursor.fetchone() is not None
+
+        cursor.execute("SHOW TABLES LIKE 'habit_completions'")
+        has_completions = cursor.fetchone() is not None
+
+        g._habits_schema_available = bool(has_habits and has_completions)
+    except mysql.connector.Error:
+        app.logger.exception("Failed to verify habits schema availability.")
+        g._habits_schema_available = False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    return g._habits_schema_available
+
+
+def notes_mood_column_available() -> bool:
+    cached = getattr(g, "_notes_mood_column_available", None)
+    if cached is not None:
+        return cached
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SHOW COLUMNS FROM notes LIKE 'mood'")
+        g._notes_mood_column_available = cursor.fetchone() is not None
+    except mysql.connector.Error:
+        app.logger.exception("Failed to verify notes mood column availability.")
+        g._notes_mood_column_available = False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    return g._notes_mood_column_available
+
+
+def fetch_habit_for_user(habit_id: int, user_id: int):
+    if not habits_schema_available():
+        return None
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            id,
+            name,
+            COALESCE(icon, '↺') AS icon,
+            COALESCE(frequency, 'Daily') AS frequency,
+            COALESCE(streak, 0) AS streak,
+            created_at
+        FROM habits
+        WHERE id = %s
+          AND user_id = %s
+          AND deleted_at IS NULL
+        """,
+        (habit_id, user_id),
+    )
+    habit = cursor.fetchone()
+    cursor.close()
+    return habit
 
 
 # ============================================================
@@ -1007,61 +1084,659 @@ def account_reset():
 # 14) DASHBOARD / HOME (login required)
 # ============================================================
 
+def fetch_dashboard_tasks(user_id: int, limit: int = 7):
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            t.id,
+            t.title,
+            t.completed,
+            t.created_at,
+            t.list_id,
+            tl.name AS list_name
+        FROM tasks t
+        LEFT JOIN task_lists tl ON tl.id = t.list_id
+        WHERE t.user_id = %s
+        ORDER BY t.completed ASC, t.created_at DESC
+        LIMIT %s
+        """,
+        (user_id, limit),
+    )
+    tasks = cursor.fetchall()
+    cursor.close()
+
+    for index, task in enumerate(tasks):
+        if task["completed"]:
+            task["priority"] = "low"
+        elif index == 0:
+            task["priority"] = "high"
+        else:
+            task["priority"] = "medium"
+
+        task["category"] = task.get("list_name") or "Task"
+
+    return tasks
+
+
+def fetch_dashboard_task_counts(user_id: int):
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            COUNT(*) AS total,
+            COALESCE(SUM(completed), 0) AS completed_count
+        FROM tasks
+        WHERE user_id = %s
+        """,
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    return {
+        "total": row["total"] or 0,
+        "completed": row["completed_count"] or 0,
+    }
+
+
+def fetch_today_journal_entry(user_id: int):
+    journal_folder_id = get_journal_folder_id(user_id)
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, title, content, created_at, updated_at
+        FROM notes
+        WHERE user_id = %s
+          AND folder_id = %s
+          AND deleted_at IS NULL
+          AND DATE(created_at) = CURDATE()
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1
+        """,
+        (user_id, journal_folder_id),
+    )
+    note = cursor.fetchone()
+    cursor.close()
+    return note
+
+
+def fetch_user_habits(user_id: int):
+    if not habits_schema_available():
+        return []
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            h.id,
+            h.name,
+            COALESCE(h.icon, '↺') AS icon,
+            COALESCE(h.frequency, 'Daily') AS frequency,
+            COALESCE(h.streak, 0) AS streak,
+            h.created_at,
+            MAX(CASE WHEN DATE(hc.completed_date) = CURDATE() THEN 1 ELSE 0 END) AS completed_today
+        FROM habits h
+        LEFT JOIN habit_completions hc
+          ON hc.habit_id = h.id
+         AND hc.user_id = h.user_id
+        WHERE h.user_id = %s
+          AND h.deleted_at IS NULL
+        GROUP BY h.id, h.name, h.icon, h.frequency, h.streak, h.created_at
+        ORDER BY h.created_at ASC
+        """,
+        (user_id,),
+    )
+    habits = cursor.fetchall()
+    cursor.close()
+
+    for habit in habits:
+        habit["completed_today"] = bool(habit.get("completed_today"))
+
+    return habits
+
+
+def calculate_habit_week_completion_pct(user_id: int, habits_total: int):
+    if habits_total <= 0 or not habits_schema_available():
+        return 0
+
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS completion_count
+        FROM habit_completions
+        WHERE user_id = %s
+          AND DATE(completed_date) BETWEEN %s AND %s
+        """,
+        (user_id, week_start, today),
+    )
+    row = cursor.fetchone() or {}
+    cursor.close()
+
+    completion_count = row.get("completion_count") or 0
+    possible_completions = habits_total * ((today - week_start).days + 1)
+    return min(100, int((completion_count / max(possible_completions, 1)) * 100))
+
+
+def build_habit_activity_map(user_id: int, habits_total: int, days: int = 91):
+    if habits_total <= 0 or not habits_schema_available():
+        return [0] * days
+
+    start_date = datetime.now().date() - timedelta(days=days - 1)
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT DATE(completed_date) AS completed_day, COUNT(*) AS completion_count
+        FROM habit_completions
+        WHERE user_id = %s
+          AND DATE(completed_date) >= %s
+        GROUP BY DATE(completed_date)
+        ORDER BY completed_day ASC
+        """,
+        (user_id, start_date),
+    )
+    counts_by_day = {
+        row["completed_day"]: row["completion_count"]
+        for row in cursor.fetchall()
+        if row.get("completed_day") is not None
+    }
+    cursor.close()
+
+    return [
+        min((counts_by_day.get(start_date + timedelta(days=index), 0) / habits_total), 1)
+        for index in range(days)
+    ]
+
+
+def build_habit_ai_insight(habits):
+    if not habits:
+        return "Start with one small daily habit. Consistency beats intensity over time."
+
+    next_due = next((habit for habit in habits if not habit["completed_today"]), None)
+    best = max(habits, key=lambda habit: habit["streak"], default=None)
+
+    if next_due and next_due["streak"] >= 3:
+        return f"{next_due['name']} is on a {next_due['streak']}-day streak. Mark it done today to keep momentum."
+
+    if next_due:
+        return f"You haven't completed {next_due['name']} yet today. A quick win now makes the rest of the day easier."
+
+    if best:
+        return f"All habits are complete today. {best['name']} leads with a {best['streak']}-day streak."
+
+    return "You complete more habits on days you start early. Keep the streak alive."
+
+
+def fetch_dashboard_active_days(user_id: int, now: datetime):
+    journal_folder_id = get_journal_folder_id(user_id)
+    include_habits = habits_schema_available()
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT activity_date
+        FROM (
+            SELECT DATE(created_at) AS activity_date
+            FROM tasks
+            WHERE user_id = %s
+              AND YEAR(created_at) = %s
+              AND MONTH(created_at) = %s
+            UNION
+            SELECT DATE(COALESCE(updated_at, created_at)) AS activity_date
+            FROM notes
+            WHERE user_id = %s
+              AND folder_id = %s
+              AND deleted_at IS NULL
+              AND YEAR(COALESCE(updated_at, created_at)) = %s
+              AND MONTH(COALESCE(updated_at, created_at)) = %s
+    """
+    params = [
+        user_id,
+        now.year,
+        now.month,
+        user_id,
+        journal_folder_id,
+        now.year,
+        now.month,
+    ]
+
+    if include_habits:
+        query += """
+            UNION
+            SELECT DATE(completed_date) AS activity_date
+            FROM habit_completions
+            WHERE user_id = %s
+              AND YEAR(completed_date) = %s
+              AND MONTH(completed_date) = %s
+        """
+        params.extend([user_id, now.year, now.month])
+
+    query += """
+        ) dashboard_activity
+        ORDER BY activity_date
+    """
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall()
+    cursor.close()
+    return sorted({row["activity_date"].day for row in rows if row["activity_date"]})
+
+
+def calculate_dashboard_streak(user_id: int, now: datetime):
+    journal_folder_id = get_journal_folder_id(user_id)
+    cutoff = (now.date() - timedelta(days=90)).isoformat()
+    include_habits = habits_schema_available()
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT activity_date
+        FROM (
+            SELECT DATE(created_at) AS activity_date
+            FROM tasks
+            WHERE user_id = %s
+              AND DATE(created_at) >= %s
+            UNION
+            SELECT DATE(COALESCE(updated_at, created_at)) AS activity_date
+            FROM notes
+            WHERE user_id = %s
+              AND folder_id = %s
+              AND deleted_at IS NULL
+              AND DATE(COALESCE(updated_at, created_at)) >= %s
+    """
+    params = [user_id, cutoff, user_id, journal_folder_id, cutoff]
+
+    if include_habits:
+        query += """
+            UNION
+            SELECT DATE(completed_date) AS activity_date
+            FROM habit_completions
+            WHERE user_id = %s
+              AND DATE(completed_date) >= %s
+        """
+        params.extend([user_id, cutoff])
+
+    query += """
+        ) dashboard_activity
+        ORDER BY activity_date DESC
+    """
+    cursor.execute(query, tuple(params))
+    active_dates = {
+        row["activity_date"]
+        for row in cursor.fetchall()
+        if row["activity_date"] is not None
+    }
+    cursor.close()
+
+    streak = 0
+    current_day = now.date()
+    while current_day in active_dates:
+        streak += 1
+        current_day -= timedelta(days=1)
+    return streak
+
+
+def build_dashboard_ai_insight(tasks, tasks_done, tasks_total, journaled_today, streak):
+    if tasks_total == 0:
+        return "Add your first task so TaskFlow can start organizing your day."
+
+    remaining = max(tasks_total - tasks_done, 0)
+    next_task = next((task for task in tasks if not task["completed"]), None)
+
+    if remaining and next_task:
+        return f"You have {remaining} task{'s' if remaining != 1 else ''} left. Start with {next_task['title']} to build momentum."
+
+    if not journaled_today:
+        return "You cleared your tasks. Take two minutes to journal what worked so you can repeat it tomorrow."
+
+    if streak >= 3:
+        return f"You're on a {streak}-day streak. Protect it with one meaningful action before you log off."
+
+    return "Focus on your most important task first. Small wins compound into big results."
+
+
+def build_home_dashboard_context(user_id: int):
+    now = datetime.now()
+    hour = now.hour
+    greeting = "morning" if hour < 12 else "afternoon" if hour < 17 else "evening"
+
+    user = fetch_user_by_id(user_id) or {
+        "username": "there",
+        "name": "TaskFlow User",
+        "profile_image": "default.png",
+    }
+
+    tasks = fetch_dashboard_tasks(user_id)
+    task_counts = fetch_dashboard_task_counts(user_id)
+    today_journal_entry = fetch_today_journal_entry(user_id)
+    journaled_today = bool(today_journal_entry and (today_journal_entry.get("content") or "").strip())
+
+    habits = fetch_user_habits(user_id)
+    habits_done = sum(1 for habit in habits if habit["completed_today"])
+    habits_total = len(habits)
+    habits_due = max(habits_total - habits_done, 0)
+
+    growth_slots_total = task_counts["total"] + habits_total + 1
+    growth_slots_done = task_counts["completed"] + habits_done + (1 if journaled_today else 0)
+    growth_score = min(100, int((growth_slots_done / max(growth_slots_total, 1)) * 100))
+
+    first_weekday, days_in_month = calendar.monthrange(now.year, now.month)
+    first_day_of_month = (first_weekday + 1) % 7
+    active_days = fetch_dashboard_active_days(user_id, now)
+    streak = calculate_dashboard_streak(user_id, now)
+
+    return {
+        "current_user": SimpleNamespace(
+            is_authenticated=True,
+            username=user.get("username") or "there",
+            streak=streak,
+        ),
+        "user": user,
+        "username": user.get("username") or "there",
+        "name": (user.get("name") or "TaskFlow User").split()[0],
+        "greeting": greeting,
+        "today_date": now.strftime("%A, %B %d"),
+        "current_month": now.strftime("%B %Y"),
+        "today_day": now.day,
+        "first_day_of_month": first_day_of_month,
+        "days_in_month": days_in_month,
+        "active_days": active_days,
+        "streak": streak,
+        "tasks": tasks,
+        "habits": habits,
+        "tasks_done": task_counts["completed"],
+        "tasks_total": task_counts["total"],
+        "habits_done": habits_done,
+        "habits_total": habits_total,
+        "habits_due": habits_due,
+        "growth_score": growth_score,
+        "journaled_today": journaled_today,
+        "today_journal_entry": today_journal_entry,
+        "journal_prompt": "What's one thing you want to accomplish today — and why does it matter?",
+        "ai_insight": build_dashboard_ai_insight(
+            tasks,
+            task_counts["completed"],
+            task_counts["total"],
+            journaled_today,
+            streak,
+        ),
+    }
+
+
+def build_dashboard_day_plan(context):
+    open_tasks = [task for task in context["tasks"] if not task["completed"]]
+    lines = [f"Good {context['greeting']}. Here's your plan for today:"]
+
+    if open_tasks:
+        lines.append(f"1. Start with {open_tasks[0]['title']}. Finish that before switching contexts.")
+        if len(open_tasks) > 1:
+            lines.append(f"2. Then move to {open_tasks[1]['title']} while your momentum is still high.")
+        else:
+            lines.append("2. After that, review your list and capture the next most important task.")
+    else:
+        lines.append("1. Capture one meaningful task so your day has a clear target.")
+        lines.append("2. Use the extra space today to review your week and clean up loose ends.")
+
+    if not context["journaled_today"]:
+        lines.append("3. Spend two minutes journaling what matters today and what could get in the way.")
+    else:
+        lines.append("3. Re-read your journal entry and use it as your checkpoint before the day ends.")
+
+    if context["streak"] > 0:
+        lines.append(f"4. Protect your {context['streak']}-day streak by closing out one intentional action before you log off.")
+    else:
+        lines.append("4. Build momentum with one small win you can finish today.")
+
+    return "\n".join(lines)
+
+
 @app.route("/home")
 @login_required
 def home_page():
-    """
-    Main logged-in app page: shows lists + tasks.
-    """
+    ctx = build_home_dashboard_context(session["user_id"])
+    return render_template("sidebar/home.html", **ctx)
+
+
+@app.route("/settings")
+@login_required
+def settings_page():
+    user = fetch_user_by_id(session["user_id"])
+    return render_template(
+        "auth/settings.html",
+        name=user["name"].split()[0],
+        full_name=user["name"],
+        username=user["username"],
+        email=user["email"],
+        profile_image=user["profile_image"] or "default.png",
+        auth_provider=user["auth_provider"],
+        is_verified=bool(user["is_verified"]),
+    )
+
+
+@app.route("/journal")
+@app.route("/journal/<int:entry_id>")
+@login_required
+def journal_page(entry_id=None):
     user_id = session["user_id"]
-    active_list_id = request.args.get("list_id", type=int)
+    journal_folder_id = get_journal_folder_id(user_id)
+    mood_enabled = notes_mood_column_available()
+    mood_select = "mood" if mood_enabled else "'' AS mood"
+    word_count_expr = """
+        CASE
+            WHEN TRIM(COALESCE(content, '')) = '' THEN 0
+            ELSE LENGTH(TRIM(content)) - LENGTH(REPLACE(TRIM(content), ' ', '')) + 1
+        END
+    """
 
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
     cursor.execute(
-        "SELECT name, username, profile_image FROM users WHERE id=%s",
-        (user_id,),
+        f"""
+        SELECT
+            id,
+            title,
+            content,
+            created_at,
+            updated_at,
+            {word_count_expr} AS word_count,
+            {mood_select}
+        FROM notes
+        WHERE user_id = %s
+          AND folder_id = %s
+          AND deleted_at IS NULL
+          AND NOT ((title IS NULL OR title = '') AND (content IS NULL OR content = ''))
+        ORDER BY COALESCE(updated_at, created_at) DESC
+        """,
+        (user_id, journal_folder_id),
     )
-    user = cursor.fetchone()
+    entries = cursor.fetchall()
 
-    cursor.execute(
-        "SELECT id, name, created_at FROM task_lists WHERE user_id=%s ORDER BY created_at DESC",
-        (user_id,)
-    )
-    lists = cursor.fetchall()
-
-    inbox_id = get_inbox_list_id(user_id)
-
-    if not any(l["id"] == inbox_id for l in lists):
+    active_entry = None
+    if entry_id:
         cursor.execute(
-            "SELECT id, name, created_at FROM task_lists WHERE user_id=%s ORDER BY created_at DESC",
-            (user_id,)
+            f"""
+            SELECT
+                id,
+                title,
+                content,
+                created_at,
+                updated_at,
+                {mood_select},
+                {word_count_expr} AS word_count
+            FROM notes
+            WHERE id = %s
+              AND user_id = %s
+              AND folder_id = %s
+              AND deleted_at IS NULL
+            """,
+            (entry_id, user_id, journal_folder_id),
         )
-        lists = cursor.fetchall()
+        active_entry = cursor.fetchone()
 
-    # Choose active list safely
-    if not active_list_id or not any(l["id"] == active_list_id for l in lists):
-        active_list_id = inbox_id
+    if active_entry is None and entries:
+        active_entry = entries[0]
 
-    active_list = next((l for l in lists if l["id"] == active_list_id), None)
-
-    cursor.execute(
-        "SELECT * FROM tasks WHERE user_id=%s AND list_id=%s ORDER BY created_at DESC",
-        (user_id, active_list_id)
-    )
-    tasks = cursor.fetchall()
     cursor.close()
-    
+
+    grouped_entries = [
+        {"label": group["label"], "entries": group["notes"]}
+        for group in group_notes_by_date(entries)
+    ]
+
     return render_template(
-    "sidebar/home.html",
-    active_page="home",
-    page_title="Home",
-    lists=lists,
-    active_list=active_list,
-    active_list_id=active_list_id,
-    tasks=tasks,
-)
+        "sidebar/journal.html",
+        active_page="journal",
+        grouped_entries=grouped_entries,
+        active_entry=active_entry,
+        journal_prompt="What's one thing you want to accomplish today — and why does it matter?",
+        today_date=datetime.now().strftime("%A, %B %d"),
+    )
+
+
+@app.route("/journal/new")
+@login_required
+def new_journal_entry():
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    title = datetime.now().strftime("%A, %B %d")
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at)
+        VALUES (%s, %s, %s, '', NOW(), NOW())
+        """,
+        (user_id, journal_folder_id, title),
+    )
+    entry_id = cursor.lastrowid
+    cursor.close()
+    return redirect(url_for("journal_page", entry_id=entry_id))
+
+
+@app.route("/journal/<int:entry_id>/save", methods=["POST"])
+@login_required
+def save_journal_entry(entry_id):
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    content = (request.form.get("content") or "").strip()
+    mood = (request.form.get("mood") or "").strip()
+    autosave = request.form.get("autosave") == "1"
+    title = datetime.now().strftime("%A, %B %d")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    if notes_mood_column_available():
+        cursor.execute(
+            """
+            UPDATE notes
+            SET content = %s, mood = %s, title = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s AND folder_id = %s AND deleted_at IS NULL
+            """,
+            (content, mood, title, entry_id, user_id, journal_folder_id),
+        )
+    else:
+        cursor.execute(
+            """
+            UPDATE notes
+            SET content = %s, title = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s AND folder_id = %s AND deleted_at IS NULL
+            """,
+            (content, title, entry_id, user_id, journal_folder_id),
+        )
+
+    cursor.close()
+
+    if autosave:
+        return jsonify({"ok": True})
+    return redirect(url_for("journal_page", entry_id=entry_id))
+
+
+@app.route("/ai/journal-insight", methods=["POST"])
+@login_required
+def ai_journal_insight():
+    data = request.get_json(silent=True) or {}
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"insight": "Write a bit more and I'll find the pattern."})
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        return jsonify({"insight": "Keep writing — consistency compounds over time."})
+
+    try:
+        res = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": anthropic_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 150,
+                "system": "You are a journal coach. Read this entry and give one short, specific, warm insight in 1–2 sentences. Be direct. No fluff.",
+                "messages": [{"role": "user", "content": content}],
+            },
+            timeout=10,
+        )
+        result = res.json()
+        insight = result.get("content", [{}])[0].get("text", "")
+        return jsonify({"insight": insight or "Keep going — patterns reveal themselves over time."})
+    except Exception:
+        return jsonify({"insight": "Keep writing — your consistency is building something real."})
+
+
+@app.route("/journal/quick", methods=["POST"])
+@login_required
+def save_quick_journal_entry():
+    user_id = session["user_id"]
+    content = (request.form.get("content") or "").strip()
+    journal_folder_id = get_journal_folder_id(user_id)
+    today_entry = fetch_today_journal_entry(user_id)
+    title = datetime.now().strftime("%A, %B %d")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    if today_entry:
+        cursor.execute(
+            """
+            UPDATE notes
+            SET title=%s, content=%s, updated_at=%s
+            WHERE id=%s AND user_id=%s
+            """,
+            (title, content, datetime.utcnow(), today_entry["id"], user_id),
+        )
+    else:
+        cursor.execute(
+            """
+            INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (user_id, journal_folder_id, title, content, datetime.utcnow(), datetime.utcnow()),
+        )
+
+    cursor.close()
+    return redirect(url_for("home_page"))
+
+
+@app.route("/ai/plan", methods=["POST"])
+@login_required
+def ai_plan_for_day():
+    context = build_home_dashboard_context(session["user_id"])
+    return jsonify({"plan": build_dashboard_day_plan(context)})
 
 
 
@@ -1187,6 +1862,39 @@ def create_task():
     return redirect(url_for("tasks_page", list_id=list_id))
 
 
+@app.route("/tasks/quick", methods=["POST"])
+@login_required
+def create_quick_task():
+    payload = request.get_json(silent=True) or {}
+    title = (payload.get("title") or "").strip()
+
+    if not title:
+        return jsonify({"error": "Title is required."}), 400
+
+    raw_list_id = payload.get("list_id")
+    try:
+        list_id = int(raw_list_id) if raw_list_id is not None else None
+    except (TypeError, ValueError):
+        list_id = None
+
+    if not list_id or not user_owns_list(session["user_id"], list_id):
+        list_id = get_inbox_list_id(session["user_id"])
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO tasks (user_id, list_id, title, description)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (session["user_id"], list_id, title, ""),
+    )
+    task_id = cursor.lastrowid
+    cursor.close()
+
+    return jsonify({"id": task_id, "title": title, "completed": False, "list_id": list_id})
+
+
 
 @app.route("/tasks/<int:task_id>")
 @login_required
@@ -1225,19 +1933,28 @@ def edit_task(task_id):
 
 
 @app.route("/tasks/toggle/<int:task_id>", methods=["POST"])
+@app.route("/tasks/<int:task_id>/toggle", methods=["POST"])
 @login_required
 def toggle_task(task_id):
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     task = fetch_task_for_user(task_id, session["user_id"])
     if not task:
+        if wants_json:
+            return jsonify({"error": "Task not found."}), 404
         return redirect(url_for("home_page"))
+
+    new_completed = 0 if task["completed"] else 1
 
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "UPDATE tasks SET completed = NOT completed WHERE id=%s AND user_id=%s",
-        (task_id, session["user_id"])
+        "UPDATE tasks SET completed=%s WHERE id=%s AND user_id=%s",
+        (new_completed, task_id, session["user_id"])
     )
     cursor.close()
+
+    if wants_json:
+        return jsonify({"ok": True, "completed": bool(new_completed)})
 
     return redirect(url_for("home_page", list_id=task["list_id"]))
 
@@ -1272,7 +1989,143 @@ def search_page():
 @app.route("/habits")
 @login_required
 def habits_page():
-    return render_template("sidebar/habits.html", active_page="habits", page_title="Habits")
+    user_id = session["user_id"]
+    habits = fetch_user_habits(user_id)
+    habits_done = sum(1 for habit in habits if habit["completed_today"])
+    habits_total = len(habits)
+    best = max(habits, key=lambda habit: habit["streak"], default=None)
+
+    return render_template(
+        "sidebar/habits.html",
+        active_page="habits",
+        page_title="Habits",
+        habits=habits,
+        habits_done=habits_done,
+        habits_total=habits_total,
+        best_streak=best["streak"] if best else 0,
+        best_streak_name=best["name"] if best else "No habits yet",
+        week_completion_pct=calculate_habit_week_completion_pct(user_id, habits_total),
+        today_date=datetime.now().strftime("%A, %B %d"),
+        ai_insight=build_habit_ai_insight(habits),
+        activity_map=build_habit_activity_map(user_id, habits_total),
+    )
+
+
+@app.route("/habits/create", methods=["POST"])
+@login_required
+def create_habit():
+    if not habits_schema_available():
+        flash("Habits are not configured in the database yet.")
+        return redirect(url_for("habits_page"))
+
+    name = (request.form.get("name") or "").strip()
+    icon = (request.form.get("icon") or "↺").strip() or "↺"
+    frequency = (request.form.get("frequency") or "Daily").strip() or "Daily"
+
+    if not name:
+        return redirect(url_for("habits_page"))
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO habits (user_id, name, icon, frequency, streak, created_at)
+        VALUES (%s, %s, %s, %s, 0, NOW())
+        """,
+        (session["user_id"], name, icon, frequency),
+    )
+    cursor.close()
+    return redirect(url_for("habits_page"))
+
+
+@app.route("/habits/<int:habit_id>/toggle", methods=["POST"])
+@login_required
+def toggle_habit(habit_id):
+    user_id = session["user_id"]
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    if not habits_schema_available():
+        if wants_json:
+            return jsonify({"error": "Habits are not configured in the database yet."}), 503
+        return redirect(url_for("habits_page"))
+
+    habit = fetch_habit_for_user(habit_id, user_id)
+
+    if not habit:
+        if wants_json:
+            return jsonify({"error": "Habit not found."}), 404
+        return redirect(url_for("habits_page"))
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id
+        FROM habit_completions
+        WHERE habit_id = %s
+          AND user_id = %s
+          AND DATE(completed_date) = CURDATE()
+        """,
+        (habit_id, user_id),
+    )
+    existing = cursor.fetchone()
+
+    if existing:
+        cursor2 = db.cursor()
+        cursor2.execute("DELETE FROM habit_completions WHERE id = %s", (existing["id"],))
+        cursor2.execute(
+            "UPDATE habits SET streak = GREATEST(streak - 1, 0) WHERE id = %s AND user_id = %s",
+            (habit_id, user_id),
+        )
+        cursor2.close()
+        completed = False
+    else:
+        cursor2 = db.cursor()
+        cursor2.execute(
+            """
+            INSERT INTO habit_completions (habit_id, user_id, completed_date)
+            VALUES (%s, %s, CURDATE())
+            """,
+            (habit_id, user_id),
+        )
+        cursor2.execute(
+            "UPDATE habits SET streak = streak + 1 WHERE id = %s AND user_id = %s",
+            (habit_id, user_id),
+        )
+        cursor2.close()
+        completed = True
+
+    cursor.execute(
+        "SELECT COALESCE(streak, 0) AS streak FROM habits WHERE id = %s AND user_id = %s",
+        (habit_id, user_id),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    return jsonify({"ok": True, "completed": completed, "streak": row["streak"] if row else 0})
+
+
+@app.route("/habits/<int:habit_id>/delete", methods=["POST"])
+@login_required
+def delete_habit(habit_id):
+    user_id = session["user_id"]
+
+    if not habits_schema_available():
+        return jsonify({"error": "Habits are not configured in the database yet."}), 503
+
+    habit = fetch_habit_for_user(habit_id, user_id)
+
+    if not habit:
+        return jsonify({"error": "Habit not found."}), 404
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE habits SET deleted_at = NOW() WHERE id = %s AND user_id = %s",
+        (habit_id, user_id),
+    )
+    cursor.close()
+    return jsonify({"ok": True})
 
 
 # ---------------- NOTES ----------------
@@ -1512,7 +2365,7 @@ def new_note_root():
     return redirect(url_for("view_note", note_id=note_id)) 
 
 
-def get_notes_folder_id(user_id):
+def get_or_create_note_folder_id(user_id, folder_name):
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -1520,10 +2373,10 @@ def get_notes_folder_id(user_id):
         SELECT id
         FROM note_folders
         WHERE user_id = %s
-          AND name = 'Notes'
+          AND name = %s
           AND deleted_at IS NULL
         LIMIT 1
-    """, (user_id,))
+    """, (user_id, folder_name))
 
     row = cursor.fetchone()
 
@@ -1531,17 +2384,24 @@ def get_notes_folder_id(user_id):
         cursor.close()
         return row["id"]
 
-    # Create it if missing (first-time user)
     cursor2 = db.cursor()
     cursor2.execute("""
         INSERT INTO note_folders (user_id, name)
-        VALUES (%s, 'Notes')
-    """, (user_id,))
+        VALUES (%s, %s)
+    """, (user_id, folder_name))
     folder_id = cursor2.lastrowid
 
     cursor2.close()
     cursor.close()
     return folder_id
+
+
+def get_notes_folder_id(user_id):
+    return get_or_create_note_folder_id(user_id, "Notes")
+
+
+def get_journal_folder_id(user_id):
+    return get_or_create_note_folder_id(user_id, "Journal")
 
 @app.route("/notes/last-opened", methods=["POST"])
 @login_required
@@ -2253,31 +3113,65 @@ def google_callback():
 @login_required
 def tasks_page():
     user_id = session["user_id"]
-    active_list_id = request.args.get("list_id", type=int)
+    requested_list_id = request.args.get("list_id", type=int)
 
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
-    # Get all lists
-    cursor.execute(
-        "SELECT id, name, created_at FROM task_lists WHERE user_id=%s ORDER BY created_at DESC",
-        (user_id,)
-    )
-    lists = cursor.fetchall()
-
-    # Ensure Inbox exists
     inbox_id = get_inbox_list_id(user_id)
 
-    if not active_list_id or not any(l["id"] == active_list_id for l in lists):
-        active_list_id = inbox_id
+    cursor.execute(
+        """
+        SELECT
+            tl.id,
+            tl.name,
+            tl.created_at,
+            COUNT(t.id) AS task_count
+        FROM task_lists tl
+        LEFT JOIN tasks t
+          ON t.list_id = tl.id
+         AND t.user_id = tl.user_id
+        WHERE tl.user_id = %s
+        GROUP BY tl.id, tl.name, tl.created_at
+        ORDER BY CASE WHEN tl.id = %s THEN 0 ELSE 1 END, tl.created_at DESC
+        """,
+        (user_id, inbox_id),
+    )
+    lists = cursor.fetchall()
+    valid_list_ids = {row["id"] for row in lists}
+    active_list_id = requested_list_id if requested_list_id in valid_list_ids else None
 
     active_list = next((l for l in lists if l["id"] == active_list_id), None)
 
-    # 🔥 THIS IS THE IMPORTANT PART
-    cursor.execute(
-        "SELECT * FROM tasks WHERE user_id=%s ORDER BY created_at DESC",
-        (user_id,)
-    )
+    if active_list_id is None:
+        cursor.execute(
+            """
+            SELECT
+                t.*,
+                tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl
+              ON tl.id = t.list_id
+            WHERE t.user_id = %s
+            ORDER BY t.completed ASC, t.created_at DESC
+            """,
+            (user_id,),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT
+                t.*,
+                tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl
+              ON tl.id = t.list_id
+            WHERE t.user_id = %s
+              AND t.list_id = %s
+            ORDER BY t.completed ASC, t.created_at DESC
+            """,
+            (user_id, active_list_id),
+        )
     tasks = cursor.fetchall()
 
     cursor.close()
@@ -2289,6 +3183,7 @@ def tasks_page():
         lists=lists,
         active_list=active_list,
         active_list_id=active_list_id,
+        all_tasks_count=sum(int(lst.get("task_count") or 0) for lst in lists),
         tasks=tasks,
     )
 

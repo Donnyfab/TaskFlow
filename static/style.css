@@ -33,3 +33,113 @@ body.scrollbar-hide::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
+
+[data-profile-root] {
+  position: relative;
+  flex-shrink: 0;
+}
+
+[data-profile-root] .sb-user {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[data-profile-root] .sb-user:hover,
+[data-profile-root].is-open .sb-user {
+  background: rgba(255,255,255,0.03);
+}
+
+[data-profile-root] .sb-user-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-profile-root] .sb-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-profile-root] .sb-user-plan {
+  font-size: 10px;
+  color: rgba(255,255,255,0.28);
+}
+
+[data-profile-root] .sb-user-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: rgba(255,255,255,0.28);
+  transition: transform 0.18s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+[data-profile-root]:hover .sb-user-caret,
+[data-profile-root].is-open .sb-user-caret {
+  color: rgba(255,255,255,0.48);
+}
+
+[data-profile-root].is-open .sb-user-caret {
+  transform: rotate(180deg);
+}
+
+[data-profile-root] .sb-user-menu {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 8px);
+  padding: 6px;
+  border-radius: 10px;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.38);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 70;
+}
+
+[data-profile-root].is-open .sb-user-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+[data-profile-root] .sb-user-menu-item {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 7px;
+  color: rgba(255,255,255,0.58);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[data-profile-root] .sb-user-menu-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.82);
+}
+
+[data-profile-root] .sb-user-menu-item.danger {
+  color: rgba(255,110,110,0.74);
+}
+
+[data-profile-root] .sb-user-menu-item.danger:hover {
+  background: rgba(255,50,50,0.07);
+  color: rgba(255,125,125,0.9);
+}

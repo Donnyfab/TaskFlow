@@ -1,12 +1,445 @@
-{% extends "base.html" %}
-{% block title %}Tasks • TaskFlow{% endblock %}
-{% block content %}
-<div class="h-full flex items-center justify-center">
-  <div class="text-center">
-    <h1 class="text-4xl font-bold">Dashboard</h1>
-    <p class="text-zinc-400 mt-2">Overview coming soon.</p>
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Home | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; }
+    .sb-logo { display: flex; align-items: center; gap: 8px; padding: 0 18px 24px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; text-decoration: none; }
+    .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sb-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; font-size: 13px; color: rgba(255,255,255,0.45); cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .sb-item:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.03); }
+    .sb-item.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.5); }
+    .sb-icon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+    .sb-item.active .sb-icon { background: rgba(255,255,255,0.15); }
+    .sb-spacer { flex: 1; }
+    .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+    /* ── MAIN ── */
+    .main { overflow-y: auto; min-height: 100vh; min-width: 0; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .topbar-left { display: flex; flex-direction: column; gap: 2px; }
+    .topbar-title { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; color: rgba(255,255,255,0.9); }
+    .topbar-sub { font-size: 12px; color: rgba(255,255,255,0.3); }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .ai-btn { display: flex; align-items: center; gap: 6px; background: #fff; color: #0A0A0A; border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .ai-btn:hover { background: rgba(255,255,255,0.88); }
+    .icon-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all 0.15s; color: rgba(255,255,255,0.5); text-decoration: none; }
+    .icon-btn:hover { background: rgba(255,255,255,0.09); }
+
+    /* ── CONTENT ── */
+    .content { padding: 28px 32px; }
+
+    /* AI BANNER */
+    .ai-banner { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; }
+    .ai-pip { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+    .ai-banner-txt { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; flex: 1; }
+    .ai-banner-txt strong { color: rgba(255,255,255,0.82); font-weight: 500; }
+    .ai-banner-dismiss { font-size: 10px; color: rgba(255,255,255,0.25); cursor: pointer; flex-shrink: 0; padding-top: 2px; }
+
+    /* STATS */
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; }
+    .stat-label { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+    .stat-value { font-size: 26px; font-weight: 800; letter-spacing: -1px; color: rgba(255,255,255,0.9); line-height: 1; margin-bottom: 4px; }
+    .stat-value span { font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.3); }
+    .stat-sub { font-size: 10px; color: rgba(255,255,255,0.28); }
+    .stat-up { color: rgba(100,220,130,0.7); }
+    .stat-down { color: rgba(220,100,100,0.6); }
+
+    /* MAIN GRID */
+    .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 24px; }
+
+    /* PANELS */
+    .panel { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .panel-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8); }
+    .panel-action { font-size: 11px; color: rgba(255,255,255,0.35); cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 4px 10px; text-decoration: none; transition: all 0.15s; }
+    .panel-action:hover { color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.08); }
+    .panel-body { padding: 8px 0; }
+
+    /* TASKS */
+    .task-row { display: flex; align-items: center; gap: 10px; padding: 9px 20px; cursor: pointer; transition: background 0.15s; }
+    .task-row:hover { background: rgba(255,255,255,0.02); }
+    .t-priority { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .t-chk { width: 15px; height: 15px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; transition: all 0.15s; }
+    .t-chk.done { background: rgba(255,255,255,0.15); border-color: transparent; }
+    .t-name { font-size: 12px; color: rgba(255,255,255,0.65); flex: 1; }
+    .t-name.done { text-decoration: line-through; color: rgba(255,255,255,0.22); }
+    .t-tag { font-size: 9px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.28); }
+    .task-input-row { display: flex; gap: 6px; padding: 10px 20px; border-top: 1px solid rgba(255,255,255,0.04); }
+    .task-inp { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 7px 10px; font-size: 11px; color: #fff; font-family: inherit; outline: none; }
+    .task-inp:focus { border-color: rgba(255,255,255,0.18); }
+    .task-inp::placeholder { color: rgba(255,255,255,0.2); }
+    .task-add-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; padding: 7px 12px; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.6); cursor: pointer; font-family: inherit; }
+    .task-add-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+    .empty-state { padding: 24px 20px; font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; }
+
+    /* HABITS */
+    .habit-row { display: flex; align-items: center; gap: 10px; padding: 9px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .habit-row:last-child { border-bottom: none; }
+    .h-name { font-size: 12px; color: rgba(255,255,255,0.65); flex: 1; }
+    .h-streak { font-size: 10px; color: rgba(255,255,255,0.3); margin-right: 4px; }
+    .h-btn { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: transparent; color: rgba(255,255,255,0.3); font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .h-btn.done { background: rgba(255,255,255,0.12); border-color: transparent; color: rgba(255,255,255,0.7); }
+
+    /* BOTTOM GRID */
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    /* SCORE */
+    .score-wrap { display: flex; align-items: center; gap: 16px; padding: 20px; }
+    .score-ring { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .score-num { font-size: 20px; font-weight: 800; letter-spacing: -1px; color: rgba(255,255,255,0.9); line-height: 1; }
+    .score-lbl { font-size: 8px; color: rgba(255,255,255,0.3); }
+    .score-bars { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .sbar-row { display: flex; align-items: center; gap: 6px; }
+    .sbar-n { font-size: 9px; color: rgba(255,255,255,0.35); min-width: 52px; }
+    .sbar-track { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .sbar-fill { height: 100%; border-radius: 2px; background: rgba(255,255,255,0.4); }
+
+    /* JOURNAL */
+    .j-prompt { font-size: 10px; color: rgba(255,255,255,0.28); font-style: italic; margin: 16px 20px 8px; padding-left: 8px; border-left: 2px solid rgba(255,255,255,0.1); line-height: 1.5; }
+    .j-area { width: calc(100% - 40px); margin: 0 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 7px; padding: 9px 11px; font-size: 11px; color: rgba(255,255,255,0.7); font-family: inherit; resize: none; outline: none; line-height: 1.6; min-height: 70px; display: block; }
+    .j-area::placeholder { color: rgba(255,255,255,0.18); }
+    .j-area:focus { border-color: rgba(255,255,255,0.15); }
+    .j-footer { display: flex; justify-content: flex-end; padding: 8px 20px 16px; }
+    .j-save { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.45); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 5px 12px; font-size: 10px; cursor: pointer; font-family: inherit; }
+
+    /* CALENDAR */
+    .cal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 0; }
+    .cal-month { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); }
+    .cal-nav { background: none; border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); border-radius: 4px; padding: 2px 7px; font-size: 10px; cursor: pointer; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; padding: 12px 20px 16px; }
+    .cal-dn { font-size: 8px; color: rgba(255,255,255,0.2); text-align: center; padding: 2px 0; }
+    .cal-d { font-size: 9px; color: rgba(255,255,255,0.35); text-align: center; padding: 4px 2px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .cal-d:hover { background: rgba(255,255,255,0.06); }
+    .cal-d.today { background: #fff; color: #0A0A0A; font-weight: 700; }
+    .cal-d.has { color: rgba(255,255,255,0.6); }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .topbar { padding: 18px 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+      .topbar-right { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+      .content { padding: 24px 20px; }
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .main-grid { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <a href="{{ url_for('home_page') }}" class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+          <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      TaskFlow
+    </a>
+
+    <div class="sb-section">Main</div>
+    <a href="/home" class="sb-item {{ 'active' if request.path == '/home' else '' }}">
+      <div class="sb-icon">⌂</div>Home
+    </a>
+    <a href="/tasks" class="sb-item {{ 'active' if request.path == '/tasks' else '' }}">
+      <div class="sb-icon">✓</div>Tasks
+    </a>
+    <a href="/habits" class="sb-item {{ 'active' if request.path == '/habits' else '' }}">
+      <div class="sb-icon">↺</div>Habits
+    </a>
+    <a href="/ai" class="sb-item {{ 'active' if request.path == '/ai' else '' }}">
+      <div class="sb-icon">✦</div>AI Coach
+    </a>
+
+    <div class="sb-section">Tools</div>
+    <a href="/journal" class="sb-item {{ 'active' if request.path == '/journal' else '' }}">
+      <div class="sb-icon">✎</div>Journal
+    </a>
+    <a href="/calendar" class="sb-item {{ 'active' if request.path == '/calendar' else '' }}">
+      <div class="sb-icon">▦</div>Calendar
+    </a>
+    <a href="/focus" class="sb-item {{ 'active' if request.path == '/focus' else '' }}">
+      <div class="sb-icon">◎</div>Focus Mode
+    </a>
+
+    <div class="sb-section">Insights</div>
+    <a href="/score" class="sb-item {{ 'active' if request.path == '/score' else '' }}">
+      <div class="sb-icon">↑</div>Growth Score
+    </a>
+
+    {% with sidebar_user_name = username if username else 'Guest' %}
+      {% include 'includes/sidebar_profile_dropdown.html' %}
+    {% endwith %}
   </div>
-</div>
-{% endblock %}
 
+  <!-- MAIN -->
+  <div class="main">
 
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">Good {{ greeting }}, {{ name }}</div>
+        <div class="topbar-sub">{{ today_date }} · {{ streak }} day streak · {{ habits_due }} habits due today</div>
+      </div>
+      <div class="topbar-right">
+        <button class="ai-btn" id="plan-btn" onclick="planMyDay()">✦ Plan my day</button>
+        <a href="/tasks" class="icon-btn" title="Add task">+</a>
+        <a href="{{ url_for('settings_page') }}" class="icon-btn" title="Settings">⚙</a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- AI BANNER -->
+      {% if ai_insight %}
+      <div class="ai-banner" id="ai-banner">
+        <div class="ai-pip">✦</div>
+        <div class="ai-banner-txt"><strong>AI insight —</strong> {{ ai_insight }}</div>
+        <div class="ai-banner-dismiss" onclick="document.getElementById('ai-banner').style.display='none'">✕</div>
+      </div>
+      {% endif %}
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Current streak</div>
+          <div class="stat-value">{{ streak }}</div>
+          <div class="stat-sub">days in a row</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tasks today</div>
+          <div class="stat-value">{{ tasks_done }}<span>/{{ tasks_total }}</span></div>
+          <div class="stat-sub">{{ tasks_total - tasks_done }} remaining</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Habits done</div>
+          <div class="stat-value">{{ habits_done }}<span>/{{ habits_total }}</span></div>
+          <div class="stat-sub">{{ habits_total - habits_done }} still pending</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Growth score</div>
+          <div class="stat-value">{{ growth_score }}</div>
+          <div class="stat-sub">out of 100</div>
+        </div>
+      </div>
+
+      <!-- MAIN GRID -->
+      <div class="main-grid">
+
+        <!-- TASKS -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Today's priorities</div>
+            <a href="/tasks" class="panel-action">View all →</a>
+          </div>
+          <div class="panel-body" id="task-list">
+            {% if tasks %}
+              {% for task in tasks %}
+              <div class="task-row" onclick="toggleTask(this, {{ task.id }})" id="task-{{ task.id }}">
+                <div class="t-priority" style="background:{{ 'rgba(220,100,100,0.5)' if task.priority == 'high' else 'rgba(255,180,50,0.5)' if task.priority == 'medium' else 'rgba(100,180,100,0.5)' }}"></div>
+                <div class="t-chk {{ 'done' if task.completed else '' }}">{{ '✓' if task.completed else '' }}</div>
+                <div class="t-name {{ 'done' if task.completed else '' }}">{{ task.title }}</div>
+                <div class="t-tag">{{ task.category if task.category else 'Task' }}</div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-state">No tasks yet — add your first one below</div>
+            {% endif %}
+          </div>
+          <div class="task-input-row">
+            <input class="task-inp" id="task-inp" placeholder="Add a new task..." onkeydown="if(event.key==='Enter')addQuickTask()">
+            <button class="task-add-btn" onclick="addQuickTask()">Add</button>
+          </div>
+        </div>
+
+        <!-- HABITS -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Today's habits</div>
+            <a href="/habits" class="panel-action">View all →</a>
+          </div>
+          <div class="panel-body">
+            {% if habits %}
+              {% for habit in habits %}
+              <div class="habit-row">
+                <div class="h-name">{{ habit.name }}</div>
+                <div class="h-streak">{{ '🔥' if habit.streak >= 3 else '' }} {{ habit.streak }}d</div>
+                <button class="h-btn {{ 'done' if habit.completed_today else '' }}" onclick="toggleHabit(this, {{ habit.id }})">{{ '✓' if habit.completed_today else '' }}</button>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-state">No habits yet — <a href="/habits" style="color:rgba(255,255,255,0.5);">add your first</a></div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTTOM GRID -->
+      <div class="bottom-grid">
+
+        <!-- GROWTH SCORE -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Growth score</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.25);">Today</div>
+          </div>
+          <div class="score-wrap">
+            <div class="score-ring">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="6"
+                  stroke-dasharray="201"
+                  stroke-dashoffset="{{ 201 - (201 * growth_score / 100) }}"
+                  stroke-linecap="round"/>
+              </svg>
+              <div class="score-center">
+                <div class="score-num">{{ growth_score }}</div>
+                <div class="score-lbl">/100</div>
+              </div>
+            </div>
+            <div class="score-bars">
+              <div class="sbar-row"><div class="sbar-n">Tasks</div><div class="sbar-track"><div class="sbar-fill" style="width:{{ (tasks_done / tasks_total * 100)|int if tasks_total > 0 else 0 }}%"></div></div></div>
+              <div class="sbar-row"><div class="sbar-n">Habits</div><div class="sbar-track"><div class="sbar-fill" style="width:{{ (habits_done / habits_total * 100)|int if habits_total > 0 else 0 }}%"></div></div></div>
+              <div class="sbar-row"><div class="sbar-n">Journal</div><div class="sbar-track"><div class="sbar-fill" style="width:{{ 100 if journaled_today else 0 }}%"></div></div></div>
+              <div class="sbar-row"><div class="sbar-n">Streak</div><div class="sbar-track"><div class="sbar-fill" style="width:{{ [streak * 5, 100]|min }}%"></div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOURNAL -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Journal</div>
+            <a href="/journal" class="panel-action">Open →</a>
+          </div>
+          <div class="j-prompt">✦ {{ journal_prompt }}</div>
+          <form method="POST" action="/journal/quick">
+            <textarea class="j-area" name="content" placeholder="Write your thoughts here...">{{ today_journal_entry.content if today_journal_entry else '' }}</textarea>
+            <div class="j-footer"><button type="submit" class="j-save">Save entry</button></div>
+          </form>
+        </div>
+
+        <!-- CALENDAR -->
+        <div class="panel">
+          <div class="cal-header">
+            <div class="cal-month">{{ current_month }}</div>
+            <div style="display:flex;gap:4px;">
+              <button class="cal-nav">‹</button>
+              <button class="cal-nav">›</button>
+            </div>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-dn">S</div><div class="cal-dn">M</div><div class="cal-dn">T</div><div class="cal-dn">W</div><div class="cal-dn">T</div><div class="cal-dn">F</div><div class="cal-dn">S</div>
+            {% for _ in range(first_day_of_month) %}<div class="cal-d"></div>{% endfor %}
+            {% for day in range(1, days_in_month + 1) %}
+            <div class="cal-d {{ 'today' if day == today_day else 'has' if day in active_days else '' }}">{{ day }}</div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- AI PLAN MODAL -->
+  <div id="plan-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;">
+    <div style="background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:28px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-size:15px;font-weight:700;color:rgba(255,255,255,0.9);">✦ Your plan for today</div>
+        <div onclick="closePlanModal()" style="cursor:pointer;color:rgba(255,255,255,0.35);font-size:16px;">✕</div>
+      </div>
+      <div id="plan-content" style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.75;">Generating your personalized plan...</div>
+    </div>
+  </div>
+
+  <script>
+    function toggleTask(row, taskId) {
+      const chk = row.querySelector('.t-chk');
+      const name = row.querySelector('.t-name');
+      const isDone = !chk.classList.contains('done');
+      chk.classList.toggle('done');
+      chk.textContent = isDone ? '✓' : '';
+      name.classList.toggle('done');
+      fetch(`/tasks/toggle/${taskId}`, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+      });
+    }
+
+    function toggleHabit(btn, habitId) {
+      const isDone = !btn.classList.contains('done');
+      btn.classList.toggle('done');
+      btn.textContent = isDone ? '✓' : '';
+      fetch(`/habits/${habitId}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    }
+
+    function addQuickTask() {
+      const inp = document.getElementById('task-inp');
+      const val = inp.value.trim();
+      if (!val) return;
+      fetch('/tasks/quick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: val })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.id) {
+          const list = document.getElementById('task-list');
+          const emptyState = list.querySelector('.empty-state');
+          if (emptyState) emptyState.remove();
+          const d = document.createElement('div');
+          d.className = 'task-row';
+          d.id = `task-${data.id}`;
+          d.onclick = function() { toggleTask(this, data.id); };
+          d.innerHTML = `<div class="t-priority" style="background:rgba(100,180,100,0.5)"></div><div class="t-chk"></div><div class="t-name">${val}</div><div class="t-tag">Task</div>`;
+          list.appendChild(d);
+          inp.value = '';
+        }
+      });
+    }
+
+    async function planMyDay() {
+      const btn = document.getElementById('plan-btn');
+      btn.textContent = '✦ Generating...';
+      btn.disabled = true;
+      document.getElementById('plan-modal').style.display = 'flex';
+      try {
+        const res = await fetch('/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        document.getElementById('plan-content').innerHTML = data.plan.replace(/\n/g, '<br>');
+      } catch(e) {
+        document.getElementById('plan-content').textContent = 'Could not generate plan right now. Try again shortly.';
+      }
+      btn.textContent = '✦ Plan my day';
+      btn.disabled = false;
+    }
+
+    function closePlanModal() {
+      document.getElementById('plan-modal').style.display = 'none';
+    }
+
+    document.getElementById('plan-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePlanModal();
+    });
+  </script>
+
+</body>
+</html>

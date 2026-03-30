@@ -1,205 +1,464 @@
-{% extends "base.html" %}
-{% block title %}Tasks • TaskFlow{% endblock %}
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Tasks | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
-{% block content %}
+    /* ── APP SIDEBAR ── */
+    .app-sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; }
+    .sb-logo { display: flex; align-items: center; gap: 8px; padding: 0 18px 24px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; text-decoration: none; }
+    .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .nav-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .sb-item:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.03); }
+    .sb-item.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.5); }
+    .sb-icon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+    .sb-item.active .sb-icon { background: rgba(255,255,255,0.15); }
+    .sb-spacer { flex: 1; }
+    .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
 
-{# ================= NO LIST STATE ================= #}
-{% if lists|length == 0 %}
-<div class="h-full flex items-center justify-center">
-  <div class="text-center w-[90%] max-w-[650px] h-[300px] md:h-[450px]
-              flex flex-col items-center justify-center">
+    /* ── MAIN ── */
+    .main { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; min-width: 0; }
 
-    <h1 class="text-4xl font-bold">No list yet</h1>
-    <p class="text-zinc-400 mt-2">Create your first list to get started</p>
+    /* ── LISTS SIDEBAR ── */
+    .lists-sidebar { border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; min-width: 0; }
+    .ls-header { padding: 24px 20px 0; }
+    .ls-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 16px; }
+    .ls-add-form { display: flex; gap: 6px; margin-bottom: 20px; }
+    .ls-add-inp { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #fff; font-family: inherit; outline: none; }
+    .ls-add-inp::placeholder { color: rgba(255,255,255,0.2); }
+    .ls-add-inp:focus { border-color: rgba(255,255,255,0.18); }
+    .ls-add-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 7px 11px; font-size: 12px; color: rgba(255,255,255,0.6); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; }
+    .ls-add-btn:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.85); }
+    .ls-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 20px; margin-bottom: 4px; margin-top: 12px; }
+    .list-item { display: flex; align-items: center; gap: 8px; padding: 7px 20px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .list-item:hover { color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.03); }
+    .list-item.active { color: rgba(255,255,255,0.88); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.45); }
+    .list-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .list-count { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); border-radius: 4px; padding: 1px 6px; }
 
-    <form action="{{ url_for('create_list') }}" method="post" class="mt-6 flex gap-2">
-      <input
-        type="text"
-        name="name"
-        placeholder="My first list"
-        required
-        class="px-4 py-2 rounded-md bg-zinc-900 border border-zinc-700
-               text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20" />
+    /* ── TASK CONTENT ── */
+    .task-content { display: flex; flex-direction: column; min-height: 100vh; min-width: 0; }
+    .tc-header { padding: 20px 32px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .tc-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+    .tc-list-name { font-size: 20px; font-weight: 800; letter-spacing: -0.6px; color: rgba(255,255,255,0.92); }
+    .tc-meta { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+    .tc-actions { display: flex; align-items: center; gap: 8px; }
+    .tc-btn { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 6px 12px; font-size: 12px; color: rgba(255,255,255,0.5); cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; }
+    .tc-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.75); }
+    .tc-btn.primary { background: #fff; color: #0A0A0A; border: none; font-weight: 600; }
+    .tc-btn.primary:hover { background: rgba(255,255,255,0.88); }
 
-      <button
-        type="submit"
-        class="px-4 py-2 rounded-md bg-white text-black text-sm font-medium">
-        Create
-      </button>
-    </form>
-  </div>
-</div>
-{% endif %}
+    /* FILTER TABS */
+    .filter-tabs { display: flex; gap: 0; padding: 0 32px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .ftab { padding: 10px 14px; font-size: 12px; color: rgba(255,255,255,0.35); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .ftab:hover { color: rgba(255,255,255,0.6); }
+    .ftab.active { color: rgba(255,255,255,0.85); border-bottom-color: rgba(255,255,255,0.6); }
 
-{# ================= GOOGLE TASKS BOARD VIEW ================= #}
-{% if lists|length > 0 %}
-<div class="h-full w-full px-6 py-6 overflow-x-auto overflow-y-hidden">
-  <div id="listsContainer" class="flex gap-6 min-w-max items-start">
+    /* ADD TASK BAR */
+    .add-task-bar { padding: 16px 32px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .add-task-form { display: flex; gap: 10px; }
+    .add-task-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 9px; padding: 10px 14px; font-size: 13px; color: #fff; font-family: inherit; outline: none; transition: all 0.15s; }
+    .add-task-input:focus { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
+    .add-task-input::placeholder { color: rgba(255,255,255,0.2); }
+    .add-task-submit { background: #fff; color: #0A0A0A; border: none; border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; white-space: nowrap; }
+    .add-task-submit:hover { background: rgba(255,255,255,0.88); }
 
-    {% for list in lists %}
-    <div
-      class="list-card w-[280px] sm:w-[300px] lg:w-[320px]
-             flex-shrink-0 rounded-2xl bg-[#0f0f10]
-             border border-white/5 shadow-xl
-             flex flex-col
-             max-h-[calc(100vh-8rem)]"
-      draggable="true"
-      data-id="{{ list.id }}">
+    /* TASK LIST */
+    .task-list { flex: 1; overflow-y: auto; padding: 8px 32px 40px; min-width: 0; }
+    .task-group-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.7px; padding: 14px 0 6px; }
 
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 pt-5">
-        <h2 class="text-lg font-medium truncate">
-          {{ list.name }}
-        </h2>
+    .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: background 0.15s; margin-bottom: 1px; position: relative; }
+    .task-item:hover { background: rgba(255,255,255,0.03); }
+    .task-item:hover .task-actions { opacity: 1; }
 
-        <div class="relative list-menu-wrapper">
-          <button
-            onclick="toggleListMenu('{{ list.id }}')"
-            class="p-1.5 rounded-full hover:bg-white/10">
-            ⋮
-          </button>
+    .t-chk { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.18); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; transition: all 0.15s; margin-top: 1px; cursor: pointer; }
+    .t-chk.done { background: rgba(255,255,255,0.18); border-color: transparent; }
 
-          <div
-            id="listMenu-{{ list.id }}"
-            class="absolute right-0 mt-2 w-40 rounded-lg bg-[#1f1f1f]
-                   shadow-xl border border-white/10 hidden z-50">
+    .t-body { flex: 1; min-width: 0; }
+    .t-title { font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.4; }
+    .t-title.done { text-decoration: line-through; color: rgba(255,255,255,0.25); }
+    .t-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+    .t-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); }
+    .t-priority { font-size: 9px; padding: 2px 7px; border-radius: 4px; }
+    .t-priority.high { background: rgba(255,80,80,0.08); color: rgba(255,120,120,0.65); }
+    .t-priority.medium { background: rgba(255,180,50,0.08); color: rgba(255,200,80,0.6); }
+    .t-priority.low { background: rgba(100,200,100,0.08); color: rgba(120,200,120,0.6); }
 
-            <button
-              onclick="openRenameListModal('{{ list.id }}', '{{ list.name }}')"
-              class="block w-full px-4 py-2 text-sm text-left hover:bg-white/5">
-              Rename list
-            </button>
+    .task-actions { opacity: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.15s; flex-shrink: 0; }
+    .ta-btn { width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: all 0.15s; }
+    .ta-btn:hover { background: rgba(255,255,255,0.1); }
+    .ta-btn.del:hover { background: rgba(255,60,60,0.1); border-color: rgba(255,60,60,0.15); color: rgba(255,100,100,0.7); }
 
-            {% if list.name != "Inbox" %}
-            <button
-              onclick="openDeleteListModal('{{ list.id }}')"
-              class="block w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-white/5">
-              Delete list
-            </button>
-            {% endif %}
-          </div>
-        </div>
+    /* EMPTY STATE */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 32px; gap: 10px; text-align: center; }
+    .es-icon { font-size: 28px; opacity: 0.25; margin-bottom: 4px; }
+    .es-title { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.4); }
+    .es-sub { font-size: 12px; color: rgba(255,255,255,0.22); line-height: 1.6; max-width: 240px; }
+
+    /* DETAIL PANEL */
+    .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 340px; background: #0F0F0F; border-left: 1px solid rgba(255,255,255,0.08); z-index: 50; transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; }
+    .detail-panel.open { transform: translateX(0); }
+    .dp-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .dp-header-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); }
+    .dp-close { width: 28px; height: 28px; border-radius: 7px; background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .dp-body { flex: 1; padding: 20px; overflow-y: auto; }
+    .dp-field { margin-bottom: 18px; }
+    .dp-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .dp-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #fff; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    .dp-input:focus { border-color: rgba(255,255,255,0.2); }
+    .dp-input::placeholder { color: rgba(255,255,255,0.2); }
+    .dp-textarea { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px; font-size: 12px; color: rgba(255,255,255,0.6); font-family: inherit; outline: none; resize: none; min-height: 80px; line-height: 1.6; }
+    .dp-select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px; font-size: 12px; color: rgba(255,255,255,0.6); font-family: inherit; outline: none; cursor: pointer; }
+    .dp-select option { background: #1a1a1a; }
+    .dp-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 8px; }
+    .dp-save { flex: 1; background: #fff; color: #0A0A0A; border: none; border-radius: 8px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .dp-save:hover { background: rgba(255,255,255,0.88); }
+    .dp-delete { background: rgba(255,50,50,0.07); border: 1px solid rgba(255,50,50,0.14); border-radius: 8px; padding: 9px 14px; font-size: 12px; color: rgba(255,100,100,0.7); cursor: pointer; font-family: inherit; }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      .app-sidebar { display: none; }
+      .main { grid-template-columns: 1fr; }
+      .lists-sidebar { display: none; }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <!-- APP SIDEBAR -->
+  <div class="app-sidebar">
+    <a href="{{ url_for('home_page') }}" class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+          <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
+      TaskFlow
+    </a>
+    <div class="nav-label">Main</div>
+    <a href="/home" class="sb-item"><div class="sb-icon">⌂</div>Home</a>
+    <a href="/tasks" class="sb-item active"><div class="sb-icon">✓</div>Tasks</a>
+    <a href="/habits" class="sb-item"><div class="sb-icon">↺</div>Habits</a>
+    <a href="/ai" class="sb-item"><div class="sb-icon">✦</div>AI Coach</a>
+    <div class="nav-label">Tools</div>
+    <a href="/journal" class="sb-item"><div class="sb-icon">✎</div>Journal</a>
+    <a href="/calendar" class="sb-item"><div class="sb-icon">▦</div>Calendar</a>
+    <a href="/focus" class="sb-item"><div class="sb-icon">◎</div>Focus Mode</a>
+    <div class="nav-label">Insights</div>
+    <a href="/score" class="sb-item"><div class="sb-icon">↑</div>Growth Score</a>
+    {% with sidebar_user_name = name if name else username %}
+      {% include 'includes/sidebar_profile_dropdown.html' %}
+    {% endwith %}
+  </div>
 
-      <!-- Add task -->
-      <div class="px-5 mt-4 shrink-0">
-        <form
-          action="{{ url_for('create_task') }}"
-          method="post"
-          class="flex items-center gap-2">
+  <!-- MAIN -->
+  <div class="main">
 
-          <input type="hidden" name="list_id" value="{{ list.id }}"/>
-
-          <input
-            type="text"
-            name="title"
-            placeholder="+ Add a task"
-            class="w-full bg-transparent border-b border-white/10
-                   text-sm text-white placeholder:text-white/50
-                   focus:outline-none focus:border-blue-400"/>
+    <!-- LISTS SIDEBAR -->
+    <div class="lists-sidebar">
+      <div class="ls-header">
+        <div class="ls-title">Tasks</div>
+        <form method="POST" action="/lists/create" class="ls-add-form">
+          <input class="ls-add-inp" name="name" placeholder="New list..." maxlength="40">
+          <button type="submit" class="ls-add-btn">+ Add</button>
         </form>
       </div>
 
-      <!-- Tasks (SCROLLS ONLY WHEN NEEDED) -->
-<div
-class="px-5 py-4 space-y-3 text-sm
-       flex-1 overflow-y-auto overscroll-contain">
+      <div class="ls-section">My lists</div>
 
-{% set list_tasks = tasks | selectattr("list_id", "equalto", list.id) | list %}
+      <a href="/tasks" class="list-item {{ 'active' if active_list_id is none else '' }}">
+        <div class="list-dot" style="background:rgba(255,255,255,0.3)"></div>
+        All tasks
+        <div class="list-count">{{ all_tasks_count }}</div>
+      </a>
 
-{% if list_tasks|length > 0 %}
-  {% for task in list_tasks %}
-    <div class="px-3 py-2 rounded-md bg-white/5">
-      {{ task.title }}
+      {% for lst in lists %}
+      <a href="/tasks?list_id={{ lst.id }}" class="list-item {{ 'active' if active_list_id == lst.id else '' }}">
+        <div class="list-dot" style="background:rgba(100,160,255,0.5)"></div>
+        {{ lst.name }}
+        <div class="list-count">{{ lst.task_count }}</div>
+      </a>
+      {% endfor %}
     </div>
-  {% endfor %}
-{% else %}
-  <div class="text-center text-white/50 mt-10">
-    No tasks yet
-  </div>
-{% endif %}
 
-</div>
-
-
-    </div>
-    {% endfor %}
-
-  </div>
-</div>
-{% endif %}
-
-{# ================= RENAME LIST MODAL ================= #}
-<div id="renameListOverlay"
-     onclick="closeRenameListModal()"
-     class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm">
-
-  <div class="flex items-center justify-center w-full h-full">
-    <div onclick="event.stopPropagation()"
-         class="w-[420px] rounded-2xl bg-[#1f1f1f] p-6 shadow-2xl">
-
-      <h2 class="text-lg font-semibold mb-4">Rename list</h2>
-
-      <form method="post" class="space-y-4">
-        <input
-          type="text"
-          name="name"
-          required
-          class="w-full px-4 py-2 rounded-md bg-zinc-900 border border-zinc-700
-                 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20"/>
-
-        <div class="flex justify-end gap-3">
-          <button type="button"
-                  onclick="closeRenameListModal()"
-                  class="text-sm text-zinc-400">
-            Cancel
-          </button>
-
-          <button type="submit"
-                  class="px-4 py-2 rounded-md bg-blue-500 text-black text-sm font-medium">
-            Save
-          </button>
+    <!-- TASK CONTENT -->
+    <div class="task-content">
+      <div class="tc-header">
+        <div class="tc-title-row">
+          <div>
+            <div class="tc-list-name">{{ active_list.name if active_list else 'All tasks' }}</div>
+            <div class="tc-meta">
+              {{ tasks|length }} task{{ 's' if tasks|length != 1 else '' }} ·
+              {{ tasks|selectattr('completed')|list|length }} completed
+            </div>
+          </div>
+          <div class="tc-actions">
+            <button class="tc-btn" type="button">⊞ Sort</button>
+            <button class="tc-btn" type="button">⊟ Filter</button>
+            <button class="tc-btn primary" type="button" onclick="document.getElementById('quick-inp').focus()">+ Add task</button>
+          </div>
         </div>
-      </form>
+        <div class="filter-tabs">
+          <div class="ftab active" onclick="setFilter('all',this)">All</div>
+          <div class="ftab" onclick="setFilter('active',this)">Active</div>
+          <div class="ftab" onclick="setFilter('completed',this)">Completed</div>
+        </div>
+      </div>
+
+      <!-- QUICK ADD -->
+      <div class="add-task-bar">
+        <div class="add-task-form">
+          <input class="add-task-input" id="quick-inp" placeholder="Add a new task — press Enter to save..."
+                 onkeydown="if(event.key==='Enter')quickAdd()">
+          <button class="add-task-submit" onclick="quickAdd()">Add task</button>
+        </div>
+      </div>
+
+      <!-- TASK LIST -->
+      <div class="task-list" id="task-list">
+
+        {% set incomplete = tasks|rejectattr('completed')|list %}
+        {% set complete = tasks|selectattr('completed')|list %}
+
+        {% if incomplete %}
+        <div class="task-group-label">Active</div>
+        {% for task in incomplete %}
+        <div class="task-item" id="task-{{ task.id }}" onclick="openDetail({{ task.id }}, '{{ task.title|replace("'","\\'")|replace('"','\\"') }}', '{{ task.description|default('')|replace("'","\\'")|replace('"','\\"') }}')">
+          <div class="t-chk" onclick="event.stopPropagation(); toggleTask(this, {{ task.id }})"></div>
+          <div class="t-body">
+            <div class="t-title">{{ task.title }}</div>
+            <div class="t-meta">
+              <span class="t-priority {{ task.priority|default('medium') }}">{{ (task.priority|default('medium'))|capitalize }}</span>
+              <span class="t-tag">{{ task.category|default(task.list_name)|default('Task') }}</span>
+            </div>
+          </div>
+          <div class="task-actions">
+            <div class="ta-btn" onclick="event.stopPropagation(); toggleTask(this.parentElement.previousElementSibling.previousElementSibling, {{ task.id }})">✓</div>
+            <div class="ta-btn del" onclick="event.stopPropagation(); deleteTask({{ task.id }}, this.closest('.task-item'))">✕</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if complete %}
+        <div class="task-group-label">Completed</div>
+        {% for task in complete %}
+        <div class="task-item completed-task" id="task-{{ task.id }}" onclick="openDetail({{ task.id }}, '{{ task.title|replace("'","\\'")|replace('"','\\"') }}', '{{ task.description|default('')|replace("'","\\'")|replace('"','\\"') }}')">
+          <div class="t-chk done" onclick="event.stopPropagation(); toggleTask(this, {{ task.id }})">✓</div>
+          <div class="t-body">
+            <div class="t-title done">{{ task.title }}</div>
+            <div class="t-meta">
+              <span class="t-tag">{{ task.category|default(task.list_name)|default('Task') }}</span>
+            </div>
+          </div>
+          <div class="task-actions">
+            <div class="ta-btn del" onclick="event.stopPropagation(); deleteTask({{ task.id }}, this.closest('.task-item'))">✕</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if not tasks %}
+        <div class="empty-state">
+          <div class="es-icon">✓</div>
+          <div class="es-title">No tasks yet</div>
+          <div class="es-sub">Add your first task above and start building momentum.</div>
+        </div>
+        {% endif %}
+
+      </div>
     </div>
   </div>
-</div>
 
-{# ================= DELETE LIST MODAL ================= #}
-<div id="deleteListOverlay"
-     onclick="closeDeleteListModal()"
-     class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm">
-
-  <div class="flex items-center justify-center w-full h-full">
-    <div onclick="event.stopPropagation()"
-         class="w-[420px] rounded-2xl bg-[#1f1f1f] p-6 shadow-2xl">
-
-      <h2 class="text-lg font-semibold text-red-400 mb-2">
-        Delete list?
-      </h2>
-
-      <p class="text-sm text-white/70 mb-6">
-        This list and all its tasks will be permanently deleted.
-      </p>
-
-      <form method="post" class="flex justify-end gap-3">
-        <button type="button"
-                onclick="closeDeleteListModal()"
-                class="text-sm text-zinc-400">
-          Cancel
-        </button>
-
-        <button type="submit"
-                class="px-4 py-2 rounded-md bg-red-500 text-black text-sm font-medium">
-          Delete
-        </button>
-      </form>
+  <!-- TASK DETAIL PANEL -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="dp-header">
+      <div class="dp-header-title">Task details</div>
+      <button class="dp-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="dp-body">
+      <input type="hidden" id="dp-task-id">
+      <div class="dp-field">
+        <div class="dp-label">Title</div>
+        <input class="dp-input" id="dp-title" placeholder="Task name">
+      </div>
+      <div class="dp-field">
+        <div class="dp-label">Notes</div>
+        <textarea class="dp-textarea" id="dp-notes" placeholder="Add notes or details..."></textarea>
+      </div>
+      <div class="dp-field">
+        <div class="dp-label">Priority</div>
+        <select class="dp-select" id="dp-priority">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="dp-field">
+        <div class="dp-label">List</div>
+        <select class="dp-select" id="dp-list-select">
+          {% for lst in lists %}
+          <option value="{{ lst.id }}" {{ 'selected' if active_list_id == lst.id else '' }}>{{ lst.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="dp-footer">
+      <button class="dp-save" onclick="saveDetail()">Save changes</button>
+      <button class="dp-delete" onclick="deleteFromDetail()">Delete</button>
     </div>
   </div>
-</div>
-{% block scripts %}
-  <script src="{{ url_for('static', filename='js/tasks/tasks.js') }}"></script>
-{% endblock %}
 
+  <script>
+    const activeListId = {{ active_list_id if active_list_id is not none else 'null' }};
+    const activeListName = {{ (active_list.name if active_list else 'All tasks')|tojson }};
 
-{% endblock %}
+    // ── FILTER TABS
+    let currentFilter = 'all';
+    function setFilter(type, el) {
+      currentFilter = type;
+      document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+      if (el.classList.contains('ftab')) el.classList.add('active');
+      document.querySelectorAll('.task-item').forEach(item => {
+        const isDone = item.querySelector('.t-chk')?.classList.contains('done');
+        if (type === 'all') item.style.display = '';
+        else if (type === 'active') item.style.display = isDone ? 'none' : '';
+        else if (type === 'completed') item.style.display = isDone ? '' : 'none';
+      });
+    }
+
+    // ── QUICK ADD (JS fetch → /tasks/quick)
+    function quickAdd() {
+      const inp = document.getElementById('quick-inp');
+      const val = inp.value.trim();
+      if (!val) return;
+
+      fetch('/tasks/quick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: val, list_id: activeListId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.id) return;
+        const list = document.getElementById('task-list');
+
+        // Remove empty state if present
+        const empty = list.querySelector('.empty-state');
+        if (empty) empty.remove();
+
+        // Ensure Active group label exists
+        let label = list.querySelector('.task-group-label');
+        if (!label) {
+          label = document.createElement('div');
+          label.className = 'task-group-label';
+          label.textContent = 'Active';
+          list.insertBefore(label, list.firstChild);
+        }
+
+        const d = document.createElement('div');
+        d.className = 'task-item';
+        d.id = 'task-' + data.id;
+        d.onclick = function() { openDetail(data.id, val, ''); };
+        d.innerHTML = `
+          <div class="t-chk" onclick="event.stopPropagation();toggleTask(this,${data.id})"></div>
+          <div class="t-body">
+            <div class="t-title">${val}</div>
+            <div class="t-meta">
+              <span class="t-priority medium">Medium</span>
+              <span class="t-tag">${activeListId ? activeListName : 'Inbox'}</span>
+            </div>
+          </div>
+          <div class="task-actions">
+            <div class="ta-btn" onclick="event.stopPropagation();toggleTask(this.parentElement.previousElementSibling.previousElementSibling,${data.id})">✓</div>
+            <div class="ta-btn del" onclick="event.stopPropagation();deleteTask(${data.id},this.closest('.task-item'))">✕</div>
+          </div>`;
+        list.insertBefore(d, label.nextSibling);
+        inp.value = '';
+      });
+    }
+
+    // ── TOGGLE TASK (fetch → /tasks/toggle/<id>)
+    function toggleTask(chkEl, taskId) {
+      const isDone = !chkEl.classList.contains('done');
+      chkEl.classList.toggle('done');
+      chkEl.textContent = isDone ? '✓' : '';
+      const title = chkEl.closest('.task-item').querySelector('.t-title');
+      if (title) title.classList.toggle('done', isDone);
+
+      fetch(`/tasks/toggle/${taskId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+    }
+
+    // ── DELETE TASK (fetch → /tasks/delete/<id>)
+    function deleteTask(taskId, itemEl) {
+      itemEl.style.opacity = '0';
+      itemEl.style.transform = 'translateX(12px)';
+      itemEl.style.transition = 'all 0.18s ease';
+      setTimeout(() => {
+        itemEl.remove();
+        fetch(`/tasks/delete/${taskId}`, { method: 'POST' });
+      }, 180);
+    }
+
+    // ── DETAIL PANEL
+    function openDetail(taskId, title, notes) {
+      document.getElementById('dp-task-id').value = taskId;
+      document.getElementById('dp-title').value = title;
+      document.getElementById('dp-notes').value = notes || '';
+      document.getElementById('detail-panel').classList.add('open');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-panel').classList.remove('open');
+    }
+
+    function saveDetail() {
+      const taskId = document.getElementById('dp-task-id').value;
+      const title = document.getElementById('dp-title').value.trim();
+      const notes = document.getElementById('dp-notes').value.trim();
+      if (!taskId || !title) return;
+
+      // Update title in the list visually
+      const item = document.getElementById('task-' + taskId);
+      if (item) {
+        const t = item.querySelector('.t-title');
+        if (t) t.textContent = title;
+      }
+
+      // Submit edit via form POST
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/tasks/edit/${taskId}`;
+      form.innerHTML = `<input name="title" value="${title}"><input name="description" value="${notes}">`;
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function deleteFromDetail() {
+      const taskId = document.getElementById('dp-task-id').value;
+      if (!taskId) return;
+      const item = document.getElementById('task-' + taskId);
+      closeDetail();
+      if (item) deleteTask(taskId, item);
+    }
+
+    // Close detail panel on backdrop click
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeDetail();
+    });
+  </script>
+
+</body>
+</html>
