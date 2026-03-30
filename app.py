@@ -13,15 +13,17 @@
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, g, abort
+    url_for, session, g, abort, flash
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from authlib.integrations.flask_client import OAuth
+from authlib.integrations.base_client.errors import OAuthError
 from datetime import datetime
 import mysql.connector
 import os
 import json
+import requests
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
@@ -183,8 +185,17 @@ CONTACT_INQUIRY_OPTIONS = [
 
 oauth = OAuth(app)
 
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+def get_google_oauth_value(name):
+    value = (os.environ.get(name) or "").strip()
+    placeholder_values = {
+        "your-google-client-id",
+        "your-google-client-secret",
+    }
+    return value if value and value not in placeholder_values else None
+
+
+GOOGLE_CLIENT_ID = get_google_oauth_value("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = get_google_oauth_value("GOOGLE_CLIENT_SECRET")
 
 google = None
 
@@ -200,6 +211,11 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
     )
 else:
     print("⚠️ Google OAuth disabled (missing env vars)")
+
+
+@app.context_processor
+def inject_auth_flags():
+    return {"google_oauth_enabled": google is not None}
 
 
 # ============================================================
@@ -2128,8 +2144,25 @@ def trash_page():
 @app.route("/login/google")
 def login_google():
     if google is None:
-        return "Google OAuth not configured.", 500
-    return google.authorize_redirect(url_for("google_callback", _external=True))
+        return (
+            "Google OAuth is not configured. Set real GOOGLE_CLIENT_ID and "
+            "GOOGLE_CLIENT_SECRET values in .env.",
+            500,
+        )
+    try:
+        return google.authorize_redirect(url_for("google_callback", _external=True))
+    except requests.RequestException:
+        app.logger.exception("Google OAuth redirect failed because Google could not be reached.")
+        flash("Google sign-in is unavailable right now. Check your internet connection and try again.")
+        return redirect(url_for("login_page"))
+    except OAuthError as exc:
+        app.logger.exception("Google OAuth redirect failed.")
+        description = (getattr(exc, "description", "") or "").strip()
+        flash(
+            "Google sign-in could not start."
+            + (f" {description}" if description else "")
+        )
+        return redirect(url_for("login_page"))
 
 
 @app.route("/auth/google/callback")
@@ -2139,24 +2172,69 @@ def google_callback():
     We exchange the code for an access token, then read their profile.
     """
     if google is None:
-        return "Google OAuth not configured.", 500
+        return (
+            "Google OAuth is not configured. Set real GOOGLE_CLIENT_ID and "
+            "GOOGLE_CLIENT_SECRET values in .env.",
+            500,
+        )
 
-    token = google.authorize_access_token()
+    if request.args.get("error"):
+        description = (request.args.get("error_description") or "").strip()
+        flash(
+            "Google sign-in was canceled or denied."
+            + (f" {description}" if description else "")
+        )
+        return redirect(url_for("login_page"))
 
-    # Safer way: read user info from Google API
-    user_info = google.get("userinfo").json()
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get("userinfo")
+        if not user_info and token.get("id_token"):
+            user_info = google.parse_id_token(token)
+        user_info = user_info or {}
 
-    email = user_info.get("email")
-    name = user_info.get("name") or "TaskFlow User"
-    google_id = user_info.get("sub")  # Google unique user ID
+        email = user_info.get("email")
+        name = user_info.get("name") or "TaskFlow User"
+        google_id = user_info.get("sub")
 
-    user = fetch_user_by_email(email)
+        if not email or not google_id:
+            flash("Google sign-in failed because Google did not return the required account details.")
+            return redirect(url_for("login_page"))
 
-    if user:
-        user_id = user["id"]
-        username = user["username"]
-    else:
-        user_id, username = create_user_oauth(name, email, "google", google_id)
+        user = fetch_user_by_email(email)
+
+        if user:
+            user_id = user["id"]
+            username = user["username"]
+        else:
+            user_id, username = create_user_oauth(name, email, "google", google_id)
+    except OAuthError as exc:
+        app.logger.exception("Google OAuth callback failed.")
+        error_code = (getattr(exc, "error", "") or "").strip()
+        description = (getattr(exc, "description", "") or "").strip()
+
+        if error_code == "invalid_client":
+            message = "Google sign-in failed because the client ID or client secret is invalid."
+        elif error_code == "invalid_grant":
+            message = "Google sign-in expired before it could finish. Please try again."
+        elif error_code in {"access_denied", "mismatching_state"}:
+            message = "Google sign-in was interrupted. Please try again."
+        else:
+            message = "Google sign-in failed."
+
+        if description:
+            message = f"{message} {description}"
+
+        flash(message)
+        return redirect(url_for("login_page"))
+    except requests.RequestException:
+        app.logger.exception("Google user info lookup failed.")
+        flash("Google sign-in failed because the app could not reach Google. Please try again.")
+        return redirect(url_for("login_page"))
+    except mysql.connector.Error:
+        app.logger.exception("Google sign-in failed because the database is unavailable.")
+        flash(AUTH_DB_ERROR_MESSAGE)
+        return redirect(url_for("login_page"))
 
     session.update({
         "user_id": user_id,
