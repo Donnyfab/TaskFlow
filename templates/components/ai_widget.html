@@ -838,6 +838,40 @@
       return row;
     }
 
+    function getPendingActions(data) {
+      if (!data || typeof data !== 'object') {
+        return [];
+      }
+
+      if (Array.isArray(data.pending_actions) && data.pending_actions.length) {
+        return data.pending_actions;
+      }
+
+      return data.pending_action ? [data.pending_action] : [];
+    }
+
+    function applyResolvedActionState(actionIds, label) {
+      if (!Array.isArray(actionIds) || !actionIds.length) {
+        return;
+      }
+
+      actionIds.forEach((actionId) => {
+        const row = messagesEl.querySelector(`.tf-aiw-row[data-action-id="${actionId}"]`);
+        if (!row) {
+          return;
+        }
+
+        row.querySelectorAll('[data-aiw-action]').forEach((button) => {
+          button.disabled = true;
+        });
+        const statusEl = row.querySelector('[data-aiw-action-status]');
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = label;
+        }
+      });
+    }
+
     async function resolveAction(actionId, decision, row) {
       const buttons = row.querySelectorAll('[data-aiw-action]');
       const statusEl = row.querySelector('[data-aiw-action-status]');
@@ -854,6 +888,7 @@
         });
         const data = await response.json();
         statusEl.textContent = data.ok ? (decision === 'confirm' ? 'Done.' : 'Skipped.') : 'Could not apply.';
+        applyResolvedActionState(data.resolved_action_ids, statusEl.textContent);
         addMessage('ai', (data && data.reply) ? data.reply : "I'm here — what do you need?");
         state.history.push({ role: 'assistant', content: (data && data.reply) ? data.reply : "I'm here — what do you need?" });
         trimHistory();
@@ -915,9 +950,8 @@
         addMessage('ai', reply);
         state.history.push({ role: 'assistant', content: reply });
         trimHistory();
-        if (data && data.pending_action) {
-          addActionCard(data.pending_action);
-        }
+        applyResolvedActionState(data && data.resolved_action_ids, data && data.ok === false ? 'Could not apply.' : 'Done.');
+        getPendingActions(data).forEach(addActionCard);
       } catch (error) {
         typingRow.remove();
         addMessage('ai', "I'm here for you. What's on your mind?");

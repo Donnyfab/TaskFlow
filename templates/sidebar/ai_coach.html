@@ -10,10 +10,11 @@
   <script src="{{ url_for('static', filename='js/sidebar_mobile_nav.js') }}" defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; min-height: 100vh; }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; height: 100vh; min-height: 100vh; overflow: hidden; }
 
     /* ── APP SIDEBAR ── */
-    .app-sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; }
+    .app-sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; height: 100vh; min-height: 0; overflow-y: auto; }
     .sb-logo { display: flex; align-items: center; gap: 8px; padding: 0 18px 24px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; text-decoration: none; }
     .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .nav-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
@@ -27,7 +28,7 @@
     .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
 
     /* ── CHAT AREA ── */
-    .chat-area { display: flex; flex-direction: column; min-height: 100vh; min-width: 0; border-right: 1px solid rgba(255,255,255,0.05); overflow: hidden; }
+    .chat-area { display: flex; flex-direction: column; height: 100vh; min-height: 0; min-width: 0; border-right: 1px solid rgba(255,255,255,0.05); overflow: hidden; }
 
     /* TOPBAR */
     .chat-topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
@@ -47,7 +48,7 @@
     .qa-icon { font-size: 12px; }
 
     /* MESSAGES */
-    .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+    .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
     .messages::-webkit-scrollbar { width: 4px; }
     .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
 
@@ -108,41 +109,43 @@
     .send-btn:disabled { background: rgba(255,255,255,0.2); cursor: not-allowed; transform: none; }
     .send-icon { width: 14px; height: 14px; }
 
-    /* ── CONTEXT PANEL ── */
-    .context-panel { border-left: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; scrollbar-width: none; background: #0A0A0A; }
+    /* ── SAVED CHAT SIDEBAR ── */
+    .context-panel { border-left: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; height: 100vh; min-height: 0; overflow-y: auto; scrollbar-width: none; background: #0D0D0D; }
     .context-panel::-webkit-scrollbar { display: none; }
-    .cp-header { padding: 18px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
-    .cp-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 2px; }
-    .cp-sub { font-size: 10px; color: rgba(255,255,255,0.22); }
-    .cp-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.7px; padding: 14px 20px 6px; }
-
-    /* CONTEXT CARDS */
-    .ctx-card { margin: 0 12px 10px; background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; }
-    .ctx-row { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .ctx-row:last-child { border-bottom: none; }
-    .ctx-chk { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 7px; }
-    .ctx-chk.done { background: rgba(255,255,255,0.14); border-color: transparent; }
-    .ctx-text { font-size: 11px; color: rgba(255,255,255,0.55); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ctx-text.done { text-decoration: line-through; color: rgba(255,255,255,0.22); }
-
-    .h-ctx-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .h-ctx-row:last-child { border-bottom: none; }
-    .h-ctx-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .h-ctx-name { font-size: 11px; color: rgba(255,255,255,0.55); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .h-ctx-streak { font-size: 10px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
-
-    /* SCORE RING */
-    .score-mini { display: flex; align-items: center; gap: 12px; padding: 14px; }
-    .score-ring-sm { position: relative; width: 50px; height: 50px; flex-shrink: 0; }
-    .score-ring-sm svg { transform: rotate(-90deg); }
-    .score-ring-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: rgba(255,255,255,0.9); }
-    .score-meta-num { font-size: 12px; color: rgba(255,255,255,0.55); }
-    .score-meta-lbl { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 2px; }
-
-    /* JOURNAL SNIPPET */
-    .journal-snip { margin: 0 12px 16px; background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 14px; }
-    .js-label { font-size: 9px; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .js-text { font-size: 11px; color: rgba(255,255,255,0.42); line-height: 1.65; font-style: italic; }
+    .cp-header { padding: 18px 18px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+    .cp-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.56); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 2px; }
+    .cp-sub { font-size: 10px; color: rgba(255,255,255,0.24); }
+    .panel-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 12px 0; }
+    .panel-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.68); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .panel-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.88); }
+    .panel-btn.primary { background: #fff; border-color: #fff; color: #0A0A0A; }
+    .panel-btn.primary:hover { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
+    .search-shell { padding: 12px 12px 0; }
+    .search-box { display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 12px; }
+    .search-icon { font-size: 12px; color: rgba(255,255,255,0.34); flex-shrink: 0; }
+    .search-input { flex: 1; background: transparent; border: none; outline: none; color: rgba(255,255,255,0.8); font-size: 12px; font-family: inherit; }
+    .search-input::placeholder { color: rgba(255,255,255,0.2); }
+    .project-form { display: none; margin: 12px 12px 0; padding: 12px; background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
+    .project-form.visible { display: block; }
+    .project-form-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.34); margin-bottom: 10px; }
+    .project-input, .project-textarea { width: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.82); font-family: inherit; font-size: 12px; padding: 10px 12px; outline: none; }
+    .project-input:focus, .project-textarea:focus { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
+    .project-textarea { margin-top: 8px; min-height: 72px; resize: vertical; }
+    .project-form-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .project-form-msg { margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.32); }
+    .saved-section { padding: 16px 18px 8px; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.22); }
+    .saved-list { padding: 0 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .project-link, .thread-link { display: block; text-decoration: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 10px 12px; transition: all 0.15s; }
+    .project-link:hover, .thread-link:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); }
+    .project-link.active, .thread-link.active { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+    .project-link.hidden, .thread-link.hidden { display: none; }
+    .project-top, .thread-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .project-name, .thread-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.82); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .project-count, .thread-time { font-size: 10px; color: rgba(255,255,255,0.28); flex-shrink: 0; }
+    .project-desc, .thread-preview { font-size: 11px; color: rgba(255,255,255,0.38); line-height: 1.55; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .thread-meta { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 10px; color: rgba(255,255,255,0.24); }
+    .thread-pill { display: inline-flex; align-items: center; justify-content: center; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .saved-empty { margin: 0 12px 16px; padding: 12px 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); font-size: 11px; color: rgba(255,255,255,0.32); line-height: 1.6; }
 
     @media (max-width: 1100px) {
       body { grid-template-columns: 220px 1fr; }
@@ -196,7 +199,7 @@
           <div class="ai-desc">Your personal growth coach · Always online</div>
         </div>
       </div>
-      <button class="chat-clear-btn" onclick="clearChat()">Clear chat</button>
+      <button class="chat-clear-btn" onclick="startNewChat()">New chat</button>
     </div>
 
     <!-- QUICK ACTIONS -->
@@ -212,6 +215,25 @@
 
     <!-- MESSAGES -->
     <div class="messages" id="messages">
+      {% if active_ai_chat_messages %}
+        {% for message in active_ai_chat_messages %}
+        <div class="msg-row {{ 'user' if message.role == 'user' else 'ai' }}">
+          {% if message.role == 'user' %}
+          <div class="msg-col">
+            <div class="msg-bubble user">{{ message.content | e | replace('\n', '<br>') | safe }}</div>
+            <div class="msg-time">{{ message.time_label }}</div>
+          </div>
+          <div class="msg-avatar-sm">{{ user_initials if user_initials else 'TF' }}</div>
+          {% else %}
+          <div class="msg-avatar-sm">✦</div>
+          <div class="msg-col">
+            <div class="msg-bubble ai">{{ message.content | e | replace('\n', '<br>') | safe }}</div>
+            <div class="msg-time">{{ message.time_label }}</div>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
       <div class="empty-state" id="empty-state">
         <div class="es-ai-icon">✦</div>
         <div class="es-title">Let's get your life<br>organized.</div>
@@ -222,6 +244,7 @@
           <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
         </div>
       </div>
+      {% endif %}
     </div>
 
     <!-- INPUT -->
@@ -249,93 +272,98 @@
   <!-- CONTEXT PANEL -->
   <div class="context-panel">
     <div class="cp-header">
-      <div class="cp-title">Your current state</div>
-      <div class="cp-sub">What I know about you right now</div>
+      <div class="cp-title">Saved chats</div>
+      <div class="cp-sub">Persistent AI conversations and projects</div>
+    </div>
+    <div class="panel-actions">
+      <button type="button" class="panel-btn" onclick="focusSidebarSearch()">⌕ Search</button>
+      <button type="button" class="panel-btn primary" onclick="startNewChat()">＋ New chat</button>
+      <button type="button" class="panel-btn" onclick="toggleProjectComposer(true)">▣ Project</button>
     </div>
 
-    <div class="cp-section">Today's tasks</div>
-    <div class="ctx-card">
-      {% if context_tasks %}
-        {% for task in context_tasks[:5] %}
-        <div class="ctx-row">
-          <div class="ctx-chk {{ 'done' if task.completed else '' }}">{{ '✓' if task.completed else '' }}</div>
-          <div class="ctx-text {{ 'done' if task.completed else '' }}">{{ task.title }}</div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="ctx-row"><div class="ctx-text" style="color:rgba(255,255,255,0.25);">No tasks yet — add some!</div></div>
-      {% endif %}
-    </div>
-
-    <div class="cp-section">Habit streaks</div>
-    <div class="ctx-card">
-      {% if context_habits %}
-        {% for habit in context_habits[:5] %}
-        <div class="h-ctx-row">
-          <div class="h-ctx-dot" style="background:{{ 'rgba(80,210,130,0.75)' if habit.streak >= 7 else 'rgba(255,180,50,0.7)' if habit.streak >= 3 else 'rgba(255,100,100,0.6)' }}"></div>
-          <div class="h-ctx-name">{{ habit.name }}</div>
-          <div class="h-ctx-streak">{{ '🔥' if habit.streak >= 3 else '' }} {{ habit.streak }}d</div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="h-ctx-row"><div class="h-ctx-name" style="color:rgba(255,255,255,0.25);">No habits yet</div></div>
-      {% endif %}
-    </div>
-
-    <div class="cp-section">Growth score</div>
-    <div class="ctx-card">
-      <div class="score-mini">
-        <div class="score-ring-sm">
-          <svg width="50" height="50" viewBox="0 0 50 50">
-            <circle cx="25" cy="25" r="19" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
-            <circle cx="25" cy="25" r="19" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="5"
-              stroke-dasharray="119.4"
-              stroke-dashoffset="{{ 119.4 - (119.4 * growth_score / 100) }}"
-              stroke-linecap="round"/>
-          </svg>
-          <div class="score-ring-center">{{ growth_score }}</div>
-        </div>
-        <div>
-          <div class="score-meta-num">{{ growth_score }} / 100 today</div>
-          <div class="score-meta-lbl">{{ tasks_done }}/{{ tasks_total }} tasks · {{ habits_done }}/{{ habits_total }} habits</div>
-        </div>
+    <div class="search-shell">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input id="chat-search-input" class="search-input" type="text" placeholder="Search saved chats and projects" oninput="applySidebarSearch()">
       </div>
     </div>
 
-    {% if journal_snippet %}
-    <div class="cp-section">Last journal entry</div>
-    <div class="journal-snip">
-      <div class="js-label">{{ journal_snippet.date }}</div>
-      <div class="js-text">"{{ journal_snippet.preview }}"</div>
+    <div class="project-form" id="project-form">
+      <div class="project-form-title">Create new project</div>
+      <input id="project-name-input" class="project-input" type="text" maxlength="120" placeholder="TaskFlow launch, Fitness reset, Q2 goals...">
+      <textarea id="project-description-input" class="project-textarea" maxlength="255" placeholder="Optional description"></textarea>
+      <div class="project-form-actions">
+        <button type="button" class="panel-btn primary" onclick="submitProject()">Create project</button>
+        <button type="button" class="panel-btn" onclick="toggleProjectComposer(false)">Cancel</button>
+      </div>
+      <div class="project-form-msg" id="project-form-msg"></div>
     </div>
-    {% endif %}
+
+    <div class="saved-section">Projects</div>
+    <div class="saved-list" id="project-list">
+      <a href="/ai" class="project-link {{ 'active' if selected_ai_project_id is none else '' }}" data-project-item data-project-name="All chats">
+        <div class="project-top">
+          <div class="project-name">All chats</div>
+          <div class="project-count">{{ ai_total_threads_count }}</div>
+        </div>
+        <div class="project-desc">Every saved Taskflow AI conversation.</div>
+      </a>
+      {% for project in ai_projects %}
+      <a href="/ai?project={{ project.id }}" class="project-link {{ 'active' if selected_ai_project_id == project.id else '' }}" data-project-item data-project-name="{{ project.name }}">
+        <div class="project-top">
+          <div class="project-name">{{ project.name }}</div>
+          <div class="project-count">{{ project.chat_count }}</div>
+        </div>
+        <div class="project-desc">{{ project.description if project.description else 'No description yet.' }}</div>
+      </a>
+      {% endfor %}
+      {% if not ai_projects %}
+      <div class="saved-empty" id="project-empty">Create a project to group related AI chats, plans, and ideas.</div>
+      {% endif %}
+    </div>
+
+    <div class="saved-section">Recent chats</div>
+    <div class="saved-list" id="thread-list">
+      {% if ai_threads %}
+        {% for thread in ai_threads %}
+        <a
+          href="/ai?chat={{ thread.id }}{% if selected_ai_project_id is not none %}&project={{ selected_ai_project_id }}{% endif %}"
+          class="thread-link {{ 'active' if active_ai_chat and active_ai_chat.id == thread.id else '' }}"
+          data-thread-item
+          data-thread-id="{{ thread.id }}"
+          data-thread-title="{{ thread.title }}"
+          data-thread-preview="{{ thread.preview }}"
+          data-thread-project="{{ thread.project_name if thread.project_name else '' }}"
+          data-thread-project-id="{{ thread.project_id if thread.project_id is not none else '' }}"
+        >
+          <div class="thread-top">
+            <div class="thread-title">{{ thread.title }}</div>
+            <div class="thread-time">{{ thread.activity_label }}</div>
+          </div>
+          <div class="thread-preview">{{ thread.preview if thread.preview else 'No messages yet.' }}</div>
+          <div class="thread-meta">
+            {% if thread.project_name %}
+            <span class="thread-pill">{{ thread.project_name }}</span>
+            {% endif %}
+            <span>{{ thread.message_count }} {{ 'message' if thread.message_count == 1 else 'messages' }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      {% else %}
+      <div class="saved-empty" id="thread-empty">Start a chat and it will show up here automatically.</div>
+      {% endif %}
+    </div>
 
   </div>
 
   <script>
-    // ── SYSTEM PROMPT (built from Flask context)
-    const SYSTEM_PROMPT = `You are Taskflow AI — a personal life coach and accountability partner built into the Taskflow productivity app.
+    const SYSTEM_PROMPT = `You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`;
+    const INITIAL_CHAT_HISTORY = {{ active_ai_chat_messages | tojson }};
+    let chatHistory = Array.isArray(INITIAL_CHAT_HISTORY) ? [...INITIAL_CHAT_HISTORY] : [];
+    let currentThread = {{ active_ai_chat | tojson }};
+    let currentThreadId = currentThread ? currentThread.id : null;
+    let currentProjectId = {{ selected_ai_project_id | tojson }};
 
-Here is what you know about this user RIGHT NOW:
-- Name: {{ name if name else username }}
-- Tasks today: {{ context_tasks | map(attribute='title') | list | join(', ') if context_tasks else 'None added yet' }}
-- Tasks completed: {{ tasks_done }}/{{ tasks_total }}
-- Habits: {{ context_habits | map(attribute='name') | list | join(', ') if context_habits else 'None added yet' }}
-- Streak data: {{ context_habits | map(attribute='streak') | list | join(', ') if context_habits else 'N/A' }} days respectively
-- Growth score today: {{ growth_score }}/100
-{% if journal_snippet %}- Last journal: "{{ journal_snippet.preview }}"{% endif %}
-
-Your coaching style:
-- Speak like a real coach: direct, warm, and honest
-- Always reference their actual data — never be generic
-- Keep responses focused and under 4 sentences unless they need a detailed plan
-- When they need motivation, be intense and push them — not soft
-- When they ask for a plan, be specific with times and tasks
-- Call out patterns you notice across their tasks, habits, and journal`;
-
-    const chatHistory = [];
-
-    // ── AUTO RESIZE TEXTAREA
     function autoResize(el) {
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 120) + 'px';
@@ -349,7 +377,153 @@ Your coaching style:
         .replace(/\n/g, '<br>');
     }
 
-    // ── SEND MESSAGE
+    function buildEmptyStateHtml() {
+      return `
+        <div class="empty-state" id="empty-state">
+          <div class="es-ai-icon">✦</div>
+          <div class="es-title">Let's get your life<br>organized.</div>
+          <div class="es-sub">I know your tasks, habits, streaks, and journal. I'm not a generic AI — I'm your personal growth coach. Tell me what you need.</div>
+          <div class="es-btns">
+            <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
+            <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
+            <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
+          </div>
+        </div>`;
+    }
+
+    function buildThreadHref(threadId, projectId = currentProjectId) {
+      const params = new URLSearchParams();
+      if (threadId) params.set('chat', threadId);
+      if (projectId) params.set('project', projectId);
+      const query = params.toString();
+      return query ? `/ai?${query}` : '/ai';
+    }
+
+    function setActiveThreadClasses(threadId) {
+      document.querySelectorAll('[data-thread-item]').forEach((item) => {
+        item.classList.toggle('active', String(item.dataset.threadId) === String(threadId || ''));
+      });
+    }
+
+    function upsertThreadItem(thread) {
+      if (!thread || !thread.id) return;
+
+      const list = document.getElementById('thread-list');
+      if (!list) return;
+
+      const threadEmpty = document.getElementById('thread-empty');
+      if (threadEmpty) threadEmpty.remove();
+
+      let item = list.querySelector(`[data-thread-id="${thread.id}"]`);
+      if (!item) {
+        item = document.createElement('a');
+        item.dataset.threadItem = 'true';
+        list.prepend(item);
+      } else if (item.parentElement === list) {
+        list.prepend(item);
+      }
+
+      item.href = buildThreadHref(thread.id, currentProjectId || thread.project_id);
+      item.className = 'thread-link active';
+      item.dataset.threadId = String(thread.id);
+      item.dataset.threadTitle = thread.title || 'New chat';
+      item.dataset.threadPreview = thread.preview || '';
+      item.dataset.threadProject = thread.project_name || '';
+      item.dataset.threadProjectId = thread.project_id ?? '';
+      item.innerHTML = `
+        <div class="thread-top">
+          <div class="thread-title">${escapeHtml(thread.title || 'New chat')}</div>
+          <div class="thread-time">${escapeHtml(thread.activity_label || '')}</div>
+        </div>
+        <div class="thread-preview">${escapeHtml(thread.preview || 'No messages yet.')}</div>
+        <div class="thread-meta">
+          ${thread.project_name ? `<span class="thread-pill">${escapeHtml(thread.project_name)}</span>` : ''}
+          <span>${Number(thread.message_count || 0)} ${Number(thread.message_count || 0) === 1 ? 'message' : 'messages'}</span>
+        </div>`;
+
+      setActiveThreadClasses(thread.id);
+      applySidebarSearch();
+    }
+
+    function focusSidebarSearch() {
+      const input = document.getElementById('chat-search-input');
+      if (!input) return;
+      input.focus();
+      input.select();
+    }
+
+    function applySidebarSearch() {
+      const query = (document.getElementById('chat-search-input')?.value || '').trim().toLowerCase();
+
+      document.querySelectorAll('[data-project-item]').forEach((item) => {
+        const haystack = (item.dataset.projectName || '').toLowerCase();
+        item.classList.toggle('hidden', Boolean(query) && !haystack.includes(query));
+      });
+
+      document.querySelectorAll('[data-thread-item]').forEach((item) => {
+        const haystack = [
+          item.dataset.threadTitle || '',
+          item.dataset.threadPreview || '',
+          item.dataset.threadProject || ''
+        ].join(' ').toLowerCase();
+        item.classList.toggle('hidden', Boolean(query) && !haystack.includes(query));
+      });
+    }
+
+    function toggleProjectComposer(forceVisible) {
+      const form = document.getElementById('project-form');
+      if (!form) return;
+      const shouldShow = typeof forceVisible === 'boolean' ? forceVisible : !form.classList.contains('visible');
+      form.classList.toggle('visible', shouldShow);
+      if (shouldShow) {
+        document.getElementById('project-name-input')?.focus();
+      } else {
+        document.getElementById('project-form-msg').textContent = '';
+      }
+    }
+
+    async function submitProject() {
+      const nameInput = document.getElementById('project-name-input');
+      const descInput = document.getElementById('project-description-input');
+      const msgEl = document.getElementById('project-form-msg');
+      const name = (nameInput?.value || '').trim();
+      const description = (descInput?.value || '').trim();
+
+      if (!name) {
+        msgEl.textContent = 'Project name is required.';
+        return;
+      }
+
+      msgEl.textContent = 'Creating project...';
+
+      try {
+        const res = await fetch('/ai/projects/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok || !data.project) {
+          msgEl.textContent = data.error || 'Could not create project.';
+          return;
+        }
+        window.location.href = `/ai?project=${data.project.id}`;
+      } catch (error) {
+        msgEl.textContent = 'Could not create project.';
+      }
+    }
+
+    function startNewChat() {
+      chatHistory = [];
+      currentThread = null;
+      currentThreadId = null;
+      const messagesEl = document.getElementById('messages');
+      messagesEl.innerHTML = buildEmptyStateHtml();
+      setActiveThreadClasses(null);
+      history.replaceState({}, '', buildThreadHref(null, currentProjectId));
+      document.getElementById('msg-input').focus();
+    }
+
     async function sendMessage() {
       const inp = document.getElementById('msg-input');
       const btn = document.getElementById('send-btn');
@@ -373,17 +547,25 @@ Your coaching style:
           body: JSON.stringify({
             messages: chatHistory,
             system: SYSTEM_PROMPT,
-            active_page: 'ai'
+            active_page: 'ai',
+            persist_chat: true,
+            thread_id: currentThreadId,
+            project_id: currentProjectId
           })
         });
         const data = await res.json();
         const reply = data.reply || "I'm here — what do you need?";
         typing.remove();
+        if (data.thread) {
+          currentThread = data.thread;
+          currentThreadId = data.thread.id;
+          history.replaceState({}, '', buildThreadHref(currentThreadId, currentProjectId || data.thread.project_id));
+          upsertThreadItem(data.thread);
+        }
         chatHistory.push({ role: 'assistant', content: reply });
         addMessage('ai', reply);
-        if (data.pending_action) {
-          addActionCard(data.pending_action);
-        }
+        applyResolvedActionState(data.resolved_action_ids, data.ok === false ? 'Could not apply.' : 'Done.');
+        getPendingActions(data).forEach(addActionCard);
       } catch(e) {
         typing.remove();
         addMessage('ai', "I'm here for you. What's on your mind?");
@@ -397,8 +579,7 @@ Your coaching style:
       sendMessage();
     }
 
-    // ── ADD MESSAGE BUBBLE
-    function addMessage(type, text) {
+    function addMessage(type, text, timeLabel = '') {
       const es = document.getElementById('empty-state');
       if (es) es.remove();
 
@@ -410,7 +591,7 @@ Your coaching style:
       const h = now.getHours() % 12 || 12;
       const m = String(now.getMinutes()).padStart(2,'0');
       const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-      const timeStr = `${h}:${m} ${ampm}`;
+      const timeStr = timeLabel || `${h}:${m} ${ampm}`;
 
       const escaped = escapeHtml(text);
 
@@ -433,6 +614,34 @@ Your coaching style:
       msgs.appendChild(row);
       msgs.scrollTop = msgs.scrollHeight;
       return row;
+    }
+
+    function getPendingActions(data) {
+      if (!data || typeof data !== 'object') return [];
+
+      if (Array.isArray(data.pending_actions) && data.pending_actions.length) {
+        return data.pending_actions;
+      }
+
+      return data.pending_action ? [data.pending_action] : [];
+    }
+
+    function applyResolvedActionState(actionIds, label) {
+      if (!Array.isArray(actionIds) || !actionIds.length) return;
+
+      actionIds.forEach((actionId) => {
+        const row = document.querySelector(`.msg-row[data-action-id="${actionId}"]`);
+        if (!row) return;
+
+        row.querySelectorAll('[data-action-choice]').forEach((button) => {
+          button.disabled = true;
+        });
+        const statusEl = row.querySelector('[data-action-status]');
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = label;
+        }
+      });
     }
 
     function addActionCard(action) {
@@ -483,9 +692,16 @@ Your coaching style:
         const res = await fetch(`/ai/actions/${actionId}/${decision}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ thread_id: currentThreadId }),
         });
         const data = await res.json();
         statusEl.textContent = data.ok ? (decision === 'confirm' ? 'Done.' : 'Skipped.') : 'Could not apply.';
+        applyResolvedActionState(data.resolved_action_ids, statusEl.textContent);
+        if (data.thread) {
+          currentThread = data.thread;
+          currentThreadId = data.thread.id;
+          upsertThreadItem(data.thread);
+        }
         const reply = data.reply || "I'm here — what do you need?";
         chatHistory.push({ role: 'assistant', content: reply });
         addMessage('ai', reply);
@@ -513,24 +729,13 @@ Your coaching style:
       return row;
     }
 
-    // ── CLEAR CHAT
-    function clearChat() {
-      chatHistory.length = 0;
-      const msgs = document.getElementById('messages');
-      msgs.innerHTML = `
-        <div class="empty-state" id="empty-state">
-          <div class="es-ai-icon">✦</div>
-          <div class="es-title">Let's get your life<br>organized.</div>
-          <div class="es-sub">I know your tasks, habits, streaks, and journal. Tell me what you need.</div>
-          <div class="es-btns">
-            <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
-            <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
-            <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
-          </div>
-        </div>`;
-    }
+    document.getElementById('chat-search-input')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.target.value = '';
+        applySidebarSearch();
+      }
+    });
 
-    // Focus input on load
     document.getElementById('msg-input').focus();
   </script>
 

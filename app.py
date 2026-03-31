@@ -27,6 +27,7 @@ import os
 import json
 import calendar
 import re
+import time
 import requests
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -768,6 +769,53 @@ def ensure_ai_support_schema() -> bool:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_projects (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                name VARCHAR(120) NOT NULL,
+                description VARCHAR(255) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                archived_at DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY idx_ai_chat_projects_user_updated (user_id, updated_at)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_threads (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                project_id BIGINT NULL DEFAULT NULL,
+                title VARCHAR(255) NOT NULL DEFAULT 'New chat',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                last_message_at DATETIME NULL DEFAULT NULL,
+                archived_at DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY idx_ai_chat_threads_user_activity (user_id, last_message_at, updated_at),
+                KEY idx_ai_chat_threads_user_project (user_id, project_id)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_messages (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                thread_id BIGINT NOT NULL,
+                user_id INT NOT NULL,
+                role VARCHAR(16) NOT NULL,
+                content LONGTEXT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_ai_chat_messages_thread_created (thread_id, created_at),
+                KEY idx_ai_chat_messages_user_created (user_id, created_at)
+            )
+            """
+        )
         g._ai_support_schema_ready = True
     except mysql.connector.Error:
         app.logger.exception("Failed to ensure AI support schema.")
@@ -786,6 +834,323 @@ def safe_json_dumps(value):
 def safe_json_loads(value, default=None):
     if value in (None, ""):
         return default
+
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return default
+
+
+def build_ai_chat_title(seed_text: str, fallback: str = "New chat") -> str:
+    cleaned = re.sub(r"\s+", " ", (seed_text or "").strip()).strip("\"' ")
+    if not cleaned:
+        return fallback
+    return cleaned[:72].rstrip() + ("..." if len(cleaned) > 72 else "")
+
+
+def serialize_ai_chat_thread(thread_row):
+    if not thread_row:
+        return None
+
+    activity_at = (
+        thread_row.get("last_message_at")
+        or thread_row.get("updated_at")
+        or thread_row.get("created_at")
+    )
+    preview = re.sub(r"\s+", " ", (thread_row.get("preview") or "").strip())
+    return {
+        "id": thread_row["id"],
+        "project_id": thread_row.get("project_id"),
+        "project_name": thread_row.get("project_name"),
+        "title": build_ai_chat_title(thread_row.get("title") or "", fallback="New chat"),
+        "preview": preview[:140],
+        "message_count": int(thread_row.get("message_count") or 0),
+        "activity_label": format_note_timestamp(activity_at) if activity_at else "",
+    }
+
+
+def serialize_ai_chat_messages(message_rows):
+    serialized = []
+    for row in message_rows or []:
+        role = "assistant" if (row.get("role") or "").lower() in {"assistant", "ai"} else "user"
+        serialized.append(
+            {
+                "id": row.get("id"),
+                "role": role,
+                "content": row.get("content") or "",
+                "time_label": format_note_timestamp(row.get("created_at")) if row.get("created_at") else "",
+            }
+        )
+    return serialized
+
+
+def user_owns_ai_project(user_id: int, project_id: int | None) -> bool:
+    if not project_id or not ensure_ai_support_schema():
+        return False
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        SELECT 1
+        FROM ai_chat_projects
+        WHERE id = %s AND user_id = %s AND archived_at IS NULL
+        LIMIT 1
+        """,
+        (project_id, user_id),
+    )
+    owns_project = cursor.fetchone() is not None
+    cursor.close()
+    return owns_project
+
+
+def fetch_ai_chat_projects(user_id: int, limit: int = 40):
+    if not ensure_ai_support_schema():
+        return []
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.created_at,
+            p.updated_at,
+            COUNT(t.id) AS chat_count
+        FROM ai_chat_projects p
+        LEFT JOIN ai_chat_threads t
+          ON t.project_id = p.id
+         AND t.user_id = p.user_id
+         AND t.archived_at IS NULL
+        WHERE p.user_id = %s
+          AND p.archived_at IS NULL
+        GROUP BY p.id
+        ORDER BY p.updated_at DESC, p.id DESC
+        LIMIT %s
+        """,
+        (user_id, limit),
+    )
+    projects = cursor.fetchall()
+    cursor.close()
+    return projects
+
+
+def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: int = 120):
+    if not ensure_ai_support_schema():
+        return []
+
+    conditions = ["t.user_id = %s", "t.archived_at IS NULL"]
+    params = [user_id]
+
+    if project_id is not None:
+        conditions.append("t.project_id = %s")
+        params.append(project_id)
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        f"""
+        SELECT
+            t.id,
+            t.project_id,
+            t.title,
+            t.created_at,
+            t.updated_at,
+            t.last_message_at,
+            p.name AS project_name,
+            (
+                SELECT m.content
+                FROM ai_chat_messages m
+                WHERE m.thread_id = t.id
+                ORDER BY m.id DESC
+                LIMIT 1
+            ) AS preview,
+            (
+                SELECT COUNT(*)
+                FROM ai_chat_messages m
+                WHERE m.thread_id = t.id
+            ) AS message_count
+        FROM ai_chat_threads t
+        LEFT JOIN ai_chat_projects p
+          ON p.id = t.project_id
+         AND p.user_id = t.user_id
+         AND p.archived_at IS NULL
+        WHERE {' AND '.join(conditions)}
+        ORDER BY COALESCE(t.last_message_at, t.updated_at, t.created_at) DESC, t.id DESC
+        LIMIT %s
+        """,
+        tuple(params + [limit]),
+    )
+    threads = cursor.fetchall()
+    cursor.close()
+    return threads
+
+
+def fetch_ai_chat_thread(user_id: int, thread_id: int | None):
+    if not thread_id or not ensure_ai_support_schema():
+        return None
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT
+            t.id,
+            t.project_id,
+            t.title,
+            t.created_at,
+            t.updated_at,
+            t.last_message_at,
+            p.name AS project_name,
+            (
+                SELECT m.content
+                FROM ai_chat_messages m
+                WHERE m.thread_id = t.id
+                ORDER BY m.id DESC
+                LIMIT 1
+            ) AS preview,
+            (
+                SELECT COUNT(*)
+                FROM ai_chat_messages m
+                WHERE m.thread_id = t.id
+            ) AS message_count
+        FROM ai_chat_threads t
+        LEFT JOIN ai_chat_projects p
+          ON p.id = t.project_id
+         AND p.user_id = t.user_id
+         AND p.archived_at IS NULL
+        WHERE t.id = %s
+          AND t.user_id = %s
+          AND t.archived_at IS NULL
+        LIMIT 1
+        """,
+        (thread_id, user_id),
+    )
+    thread = cursor.fetchone()
+    cursor.close()
+    return thread
+
+
+def fetch_ai_chat_messages(user_id: int, thread_id: int, limit: int = 200):
+    if not ensure_ai_support_schema():
+        return []
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT m.id, m.role, m.content, m.created_at
+        FROM ai_chat_messages m
+        INNER JOIN ai_chat_threads t
+          ON t.id = m.thread_id
+         AND t.user_id = %s
+         AND t.archived_at IS NULL
+        WHERE m.thread_id = %s
+        ORDER BY m.id ASC
+        LIMIT %s
+        """,
+        (user_id, thread_id, limit),
+    )
+    messages = cursor.fetchall()
+    cursor.close()
+    return messages
+
+
+def create_ai_chat_project(user_id: int, name: str, description: str = ""):
+    if not ensure_ai_support_schema():
+        return None
+
+    project_name = re.sub(r"\s+", " ", (name or "").strip())[:120]
+    project_description = re.sub(r"\s+", " ", (description or "").strip())[:255]
+    if not project_name:
+        return None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO ai_chat_projects (user_id, name, description)
+        VALUES (%s, %s, %s)
+        """,
+        (user_id, project_name, project_description or None),
+    )
+    project_id = cursor.lastrowid
+    cursor.close()
+
+    return {
+        "id": project_id,
+        "name": project_name,
+        "description": project_description,
+        "chat_count": 0,
+    }
+
+
+def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int | None = None):
+    if not ensure_ai_support_schema():
+        return None
+
+    if project_id is not None and not user_owns_ai_project(user_id, project_id):
+        project_id = None
+
+    thread_title = build_ai_chat_title(title, fallback="New chat")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO ai_chat_threads (user_id, project_id, title)
+        VALUES (%s, %s, %s)
+        """,
+        (user_id, project_id, thread_title),
+    )
+    thread_id = cursor.lastrowid
+    if project_id is not None:
+        cursor.execute(
+            "UPDATE ai_chat_projects SET updated_at = NOW() WHERE id = %s AND user_id = %s",
+            (project_id, user_id),
+        )
+    cursor.close()
+    return fetch_ai_chat_thread(user_id, thread_id)
+
+
+def save_ai_chat_message(user_id: int, thread_id: int, role: str, content: str):
+    if not content or not ensure_ai_support_schema():
+        return None
+
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    normalized_role = "assistant" if (role or "").lower() in {"assistant", "ai"} else "user"
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO ai_chat_messages (thread_id, user_id, role, content)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (thread_id, user_id, normalized_role, content),
+    )
+    cursor.execute(
+        """
+        UPDATE ai_chat_threads
+        SET last_message_at = NOW(), updated_at = NOW()
+        WHERE id = %s AND user_id = %s
+        """,
+        (thread_id, user_id),
+    )
+    if thread.get("project_id"):
+        cursor.execute(
+            """
+            UPDATE ai_chat_projects
+            SET updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+            """,
+            (thread["project_id"], user_id),
+        )
+    cursor.close()
+    return True
 
     try:
         return json.loads(value)
@@ -990,17 +1355,17 @@ def extract_birthday_memory_and_action(user, message_text: str):
         re.IGNORECASE,
     )
     if not match:
-        return {"memories": [], "action": None}
+        return {"memories": [], "actions": []}
 
     month_name_raw = match.group(1).lower()
     day_number = int(match.group(2))
     month_number = MONTH_LOOKUP.get(month_name_raw)
     if not month_number:
-        return {"memories": [], "action": None}
+        return {"memories": [], "actions": []}
 
     next_occurrence = find_next_month_day(month_number, day_number)
     if not next_occurrence:
-        return {"memories": [], "action": None}
+        return {"memories": [], "actions": []}
 
     display_value = f"{calendar.month_name[month_number]} {day_number}"
     full_name = (user.get("name") or "").strip()
@@ -1035,7 +1400,7 @@ def extract_birthday_memory_and_action(user, message_text: str):
                 },
             }
         ],
-        "action": action,
+        "actions": [action] if action else [],
     }
 
 
@@ -1108,6 +1473,35 @@ def normalize_ai_action(raw_action, user):
     return None
 
 
+def normalize_ai_actions(raw_actions, user):
+    if isinstance(raw_actions, dict):
+        candidates = [raw_actions]
+    elif isinstance(raw_actions, list):
+        candidates = raw_actions
+    else:
+        return []
+
+    actions = []
+    seen = set()
+    for raw_action in candidates:
+        action = normalize_ai_action(raw_action, user)
+        if not action:
+            continue
+
+        action_key = (
+            action["type"],
+            action["title"].strip().lower(),
+            json.dumps(action["payload"], ensure_ascii=True, sort_keys=True),
+        )
+        if action_key in seen:
+            continue
+
+        seen.add(action_key)
+        actions.append(action)
+
+    return actions
+
+
 def analyze_message_for_memories_and_actions(client, user, message_text: str, active_page: str):
     fallback = extract_birthday_memory_and_action(user, message_text)
     if not message_warrants_memory_analysis(message_text):
@@ -1121,20 +1515,22 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         "Return strict JSON only with this shape:\n"
         "{\n"
         '  "memories": [{"memory_type":"","memory_key":"","label":"","value_text":"","value_json":{}}],\n'
-        '  "action": {"type":"","title":"","confirmation_text":"","payload":{}}\n'
+        '  "actions": [{"type":"","title":"","confirmation_text":"","payload":{}}]\n'
         "}\n\n"
         "Rules:\n"
         "- Save only durable facts or preferences worth remembering later.\n"
         "- Supported actions: create_task, create_habit, create_calendar_event.\n"
-        "- Only propose an action if the user clearly asked to create/add/schedule something, or if they mention a birthday worth offering to add to the calendar.\n"
+        "- Only propose actions if the user clearly asked to create/add/schedule something, or if they mention a birthday worth offering to add to the calendar.\n"
+        "- If the user asked to add multiple separate tasks/habits/events, return one action object per item.\n"
         "- For calendar events, payload.event_date must be YYYY-MM-DD and payload.event_time must be HH:MM or null.\n"
         "- If nothing should be saved, return an empty memories array.\n"
-        '- If no action is needed, set "action" to null.\n'
+        '- If no actions are needed, set "actions" to an empty array.\n'
         "- Never include extra commentary outside the JSON."
     )
 
     try:
-        response = client.messages.create(
+        response = call_anthropic_messages_api(
+            client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=220,
             system="You extract durable user memory and safe confirmation-gated TaskFlow actions.",
@@ -1146,9 +1542,11 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         return fallback
 
     memories = normalize_ai_memory_items(data.get("memories") or [])
-    action = normalize_ai_action(data.get("action"), user)
+    actions = normalize_ai_actions(data.get("actions"), user)
+    if not actions and data.get("action") is not None:
+        actions = normalize_ai_actions(data.get("action"), user)
 
-    if not memories and not action:
+    if not memories and not actions:
         return fallback
 
     if fallback["memories"]:
@@ -1159,15 +1557,72 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
                 memories.append(memory)
                 seen.add(key)
 
-    if action is None and fallback["action"] is not None:
-        action = fallback["action"]
+    if not actions and fallback["actions"]:
+        actions = fallback["actions"]
 
-    return {"memories": memories[:3], "action": action}
+    return {"memories": memories[:3], "actions": actions[:5]}
 
 
-def create_ai_action_request(user_id: int, action):
-    if not action or not ensure_ai_support_schema():
-        return None
+def infer_ai_action_from_recent_messages(client, user, messages, active_page: str):
+    if not isinstance(messages, list):
+        return []
+
+    transcript_lines = []
+    for message in messages[-6:]:
+        if not isinstance(message, dict):
+            continue
+        role = (message.get("role") or "").strip().lower()
+        if role not in {"user", "assistant"}:
+            continue
+        content = str(message.get("content") or "").strip()
+        if not content:
+            continue
+        speaker = "User" if role == "user" else "Assistant"
+        transcript_lines.append(f"{speaker}: {content}")
+
+    if len(transcript_lines) < 2:
+        return []
+
+    prompt = (
+        "Today is "
+        f"{datetime.now().date().isoformat()}.\n"
+        f"Current TaskFlow page: {active_page}.\n"
+        "Conversation transcript:\n"
+        + "\n".join(transcript_lines)
+        + "\n\nReturn strict JSON only with this shape:\n"
+        + '{ "actions": [{"type":"","title":"","confirmation_text":"","payload":{}}] }\n\n'
+        + "Rules:\n"
+        + "- Infer actions only if the assistant just proposed TaskFlow changes and the user approved them.\n"
+        + "- Supported actions: create_task, create_habit, create_calendar_event.\n"
+        + "- If multiple separate items were approved, return one action per item.\n"
+        + '- If no explicit actionable approval exists, return { "actions": [] }.\n'
+        + "- Prefer concise, specific titles based on the conversation.\n"
+        + "- Never include extra commentary outside the JSON."
+    )
+
+    try:
+        response = call_anthropic_messages_api(
+            client,
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=180,
+            system="You infer confirmation-gated TaskFlow actions from recent conversation context.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = extract_json_object(extract_anthropic_text(response)) or {}
+    except Exception:
+        app.logger.exception("AI follow-up action inference failed.")
+        return []
+
+    actions = normalize_ai_actions(data.get("actions"), user)
+    if not actions and data.get("action") is not None:
+        actions = normalize_ai_actions(data.get("action"), user)
+    return actions
+
+
+def create_ai_action_requests(user_id: int, actions):
+    actions = [action for action in (actions or []) if action]
+    if not actions or not ensure_ai_support_schema():
+        return []
 
     db = get_db()
     cursor = db.cursor()
@@ -1179,34 +1634,42 @@ def create_ai_action_request(user_id: int, action):
         """,
         (user_id,),
     )
-    cursor.execute(
-        """
-        INSERT INTO ai_action_requests
-            (user_id, action_type, title, confirmation_text, payload_json, status)
-        VALUES (%s, %s, %s, %s, %s, 'pending')
-        """,
-        (
-            user_id,
-            action["type"],
-            action["title"],
-            action["confirmation_text"],
-            safe_json_dumps(action["payload"]),
-        ),
-    )
-    action_id = cursor.lastrowid
+    created_actions = []
+    for action in actions:
+        cursor.execute(
+            """
+            INSERT INTO ai_action_requests
+                (user_id, action_type, title, confirmation_text, payload_json, status)
+            VALUES (%s, %s, %s, %s, %s, 'pending')
+            """,
+            (
+                user_id,
+                action["type"],
+                action["title"],
+                action["confirmation_text"],
+                safe_json_dumps(action["payload"]),
+            ),
+        )
+        created_actions.append(
+            {
+                "id": cursor.lastrowid,
+                "type": action["type"],
+                "title": action["title"],
+                "confirmation_text": action["confirmation_text"],
+            }
+        )
     cursor.close()
-
-    return {
-        "id": action_id,
-        "type": action["type"],
-        "title": action["title"],
-        "confirmation_text": action["confirmation_text"],
-    }
+    return created_actions
 
 
-def fetch_ai_action_request(user_id: int, action_id: int | None = None, status: str | None = None):
+def create_ai_action_request(user_id: int, action):
+    created_actions = create_ai_action_requests(user_id, [action] if action else [])
+    return created_actions[0] if created_actions else None
+
+
+def fetch_ai_action_requests(user_id: int, action_id: int | None = None, status: str | None = None):
     if not ensure_ai_support_schema():
-        return None
+        return []
 
     conditions = ["user_id = %s"]
     params = [user_id]
@@ -1226,14 +1689,18 @@ def fetch_ai_action_request(user_id: int, action_id: int | None = None, status: 
         SELECT id, user_id, action_type, title, confirmation_text, payload_json, status, created_at
         FROM ai_action_requests
         WHERE {' AND '.join(conditions)}
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
+        ORDER BY created_at ASC, id ASC
         """,
         tuple(params),
     )
-    action = cursor.fetchone()
+    actions = cursor.fetchall()
     cursor.close()
-    return action
+    return actions
+
+
+def fetch_ai_action_request(user_id: int, action_id: int | None = None, status: str | None = None):
+    actions = fetch_ai_action_requests(user_id, action_id=action_id, status=status)
+    return actions[-1] if actions else None
 
 
 def execute_ai_action_request(action_row):
@@ -1337,6 +1804,24 @@ def confirm_ai_action_request(action_row):
         cursor.close()
 
 
+def confirm_ai_action_requests(action_rows):
+    if not action_rows:
+        return {"ok": False, "reply": "That confirmation request has expired.", "status": "expired", "resolved_action_ids": []}
+
+    results = [confirm_ai_action_request(action_row) for action_row in action_rows]
+    replies = [result.get("reply") for result in results if result.get("reply")]
+    success_count = sum(1 for result in results if result.get("ok"))
+    ok = success_count == len(results)
+    status = "executed" if ok else ("partial" if success_count else "failed")
+    return {
+        "ok": ok,
+        "reply": "\n\n".join(replies) if replies else "Done.",
+        "status": status,
+        "results": results,
+        "resolved_action_ids": [action_row["id"] for action_row in action_rows],
+    }
+
+
 def cancel_ai_action_request(action_row):
     db = get_db()
     cursor = db.cursor()
@@ -1350,6 +1835,21 @@ def cancel_ai_action_request(action_row):
     )
     cursor.close()
     return {"ok": True, "reply": "Okay — I won't make that change.", "status": "cancelled"}
+
+
+def cancel_ai_action_requests(action_rows):
+    if not action_rows:
+        return {"ok": False, "reply": "That confirmation request has already been cleared.", "status": "expired", "resolved_action_ids": []}
+
+    results = [cancel_ai_action_request(action_row) for action_row in action_rows]
+    replies = [result.get("reply") for result in results if result.get("reply")]
+    return {
+        "ok": True,
+        "reply": "\n\n".join(replies) if replies else "Okay — I won't make those changes.",
+        "status": "cancelled",
+        "results": results,
+        "resolved_action_ids": [action_row["id"] for action_row in action_rows],
+    }
 
 
 def fetch_habit_for_user(habit_id: int, user_id: int):
@@ -2325,6 +2825,43 @@ def create_anthropic_client(api_key: str):
     return anthropic.Anthropic(api_key=api_key)
 
 
+def call_anthropic_messages_api(client, **kwargs):
+    import anthropic
+
+    last_error = None
+
+    for attempt in range(3):
+        try:
+            return client.messages.create(**kwargs)
+        except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APITimeoutError) as exc:
+            last_error = exc
+        except anthropic.APIStatusError as exc:
+            last_error = exc
+            status_code = getattr(exc, "status_code", None)
+            if status_code not in {429, 500, 502, 503, 504, 529}:
+                raise
+
+        if attempt < 2:
+            time.sleep(0.8 * (attempt + 1))
+
+    raise last_error
+
+
+def humanize_anthropic_error(exc, fallback: str):
+    status_code = getattr(exc, "status_code", None)
+    message = str(exc).lower()
+
+    if status_code == 529 or "overloaded" in message:
+        return "Taskflow AI is busy right now. Try again in a few seconds."
+    if status_code == 429 or "rate limit" in message:
+        return "Taskflow AI hit a temporary rate limit. Wait a moment and try again."
+    if "timeout" in message:
+        return "Taskflow AI took too long to respond. Try again."
+    if "connection" in message or "connect" in message:
+        return "Taskflow AI couldn't reach Anthropic right now. Try again shortly."
+    return fallback
+
+
 ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
 ANTHROPIC_CHAT_HISTORY_LIMIT = 10
 ANTHROPIC_CHAT_MAX_TOKENS = 350
@@ -2541,6 +3078,8 @@ def save_journal_entry(entry_id):
 def ai_coach_page():
     user_id = session["user_id"]
     ctx = build_home_dashboard_context(user_id)
+    selected_project_id = parse_optional_int(request.args.get("project"))
+    requested_chat_id = parse_optional_int(request.args.get("chat"))
 
     habits = sorted(
         fetch_user_habits(user_id),
@@ -2566,6 +3105,21 @@ def ai_coach_page():
         }
 
     template_context = dict(ctx)
+    ai_projects = fetch_ai_chat_projects(user_id)
+    all_ai_threads = fetch_ai_chat_threads(user_id)
+    ai_threads = fetch_ai_chat_threads(user_id, project_id=selected_project_id) if selected_project_id is not None else all_ai_threads
+    active_ai_chat = fetch_ai_chat_thread(user_id, requested_chat_id) if requested_chat_id else None
+    if active_ai_chat and selected_project_id is not None and active_ai_chat.get("project_id") != selected_project_id:
+        selected_project_id = active_ai_chat.get("project_id")
+        ai_threads = fetch_ai_chat_threads(user_id, project_id=selected_project_id)
+    if active_ai_chat is None and ai_threads:
+        active_ai_chat = ai_threads[0]
+    active_ai_chat_messages = (
+        fetch_ai_chat_messages(user_id, active_ai_chat["id"])
+        if active_ai_chat else
+        []
+    )
+
     template_context.update(
         {
             "active_page": "ai",
@@ -2577,6 +3131,12 @@ def ai_coach_page():
             "habits_total": ctx["habits_total"],
             "growth_score": ctx["growth_score"],
             "journal_snippet": journal_snippet,
+            "ai_projects": ai_projects,
+            "ai_threads": [serialize_ai_chat_thread(thread) for thread in ai_threads],
+            "active_ai_chat": serialize_ai_chat_thread(active_ai_chat),
+            "active_ai_chat_messages": serialize_ai_chat_messages(active_ai_chat_messages),
+            "selected_ai_project_id": selected_project_id,
+            "ai_total_threads_count": len(all_ai_threads),
         }
     )
     return render_template("sidebar/ai_coach.html", **template_context)
@@ -2596,7 +3156,8 @@ def ai_journal_insight():
 
     try:
         client = create_anthropic_client(anthropic_key)
-        response = client.messages.create(
+        response = call_anthropic_messages_api(
+            client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=ANTHROPIC_JOURNAL_MAX_TOKENS,
             system="You are a journal coach. Read this entry and give one short, specific, warm insight in 1–2 sentences. Be direct. No fluff.",
@@ -2606,7 +3167,7 @@ def ai_journal_insight():
         return jsonify({"insight": insight or "Keep going — patterns reveal themselves over time."})
     except Exception as e:
         app.logger.exception("AI journal insight failed: %s", e)
-        return jsonify({"insight": f"Error: {str(e)}"}), 200
+        return jsonify({"insight": humanize_anthropic_error(e, "I couldn't generate an insight right now. Try again in a moment.")}), 200
 
 
 @app.route("/ai/chat", methods=["POST"])
@@ -2616,6 +3177,9 @@ def ai_chat():
     messages = data.get("messages", [])
     active_page = str(data.get("active_page") or request.path or "app").strip().lower()
     system = data.get("system", "You are Taskflow AI, a personal life coach.")
+    persist_chat = bool(data.get("persist_chat"))
+    thread_id = parse_optional_int(data.get("thread_id"))
+    project_id = parse_optional_int(data.get("project_id"))
     normalized_messages = normalize_ai_chat_messages(messages)
 
     if not normalized_messages:
@@ -2630,14 +3194,34 @@ def ai_chat():
     if not latest_user_message:
         return jsonify({"reply": "What do you need help with?"})
 
-    pending_action = fetch_ai_action_request(session["user_id"], status="pending")
-    confirmation_choice = normalize_confirmation_choice(latest_user_message) if pending_action else None
-    if pending_action and confirmation_choice == "confirm":
-        result = confirm_ai_action_request(pending_action)
+    active_thread = None
+    if persist_chat and thread_id is not None:
+        active_thread = fetch_ai_chat_thread(session["user_id"], thread_id)
+        if not active_thread:
+            return jsonify({"reply": "That saved chat no longer exists."}), 404
+
+    pending_actions = fetch_ai_action_requests(session["user_id"], status="pending")
+    confirmation_choice = normalize_confirmation_choice(latest_user_message)
+    if pending_actions and confirmation_choice == "confirm":
+        result = confirm_ai_action_requests(pending_actions)
+        if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Done.")
+            result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(result), (200 if result["ok"] else 400)
-    if pending_action and confirmation_choice == "cancel":
-        result = cancel_ai_action_request(pending_action)
+    if pending_actions and confirmation_choice == "cancel":
+        result = cancel_ai_action_requests(pending_actions)
+        if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Skipped.")
+            result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(result)
+
+    if persist_chat and thread_id is None:
+        active_thread = create_ai_chat_thread(
+            session["user_id"],
+            title=latest_user_message,
+            project_id=project_id,
+        )
+        thread_id = active_thread["id"] if active_thread else None
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     if not anthropic_key:
@@ -2654,13 +3238,22 @@ def ai_chat():
         user = fetch_user_by_id(session["user_id"]) or {}
         client = create_anthropic_client(anthropic_key)
         saved_memories = []
-        created_action = None
+        created_actions = []
 
         analysis = analyze_message_for_memories_and_actions(client, user, latest_user_message, active_page)
         if analysis.get("memories"):
             saved_memories = save_user_memories(session["user_id"], analysis["memories"])
-        if analysis.get("action"):
-            created_action = create_ai_action_request(session["user_id"], analysis["action"])
+        if analysis.get("actions"):
+            created_actions = create_ai_action_requests(session["user_id"], analysis["actions"])
+        elif confirmation_choice == "confirm":
+            inferred_actions = infer_ai_action_from_recent_messages(
+                client,
+                user,
+                normalized_messages,
+                active_page,
+            )
+            if inferred_actions:
+                created_actions = create_ai_action_requests(session["user_id"], inferred_actions)
 
         memory_context = build_ai_memory_context(session["user_id"])
         live_context = build_ai_coach_system_context(session["user_id"], active_page)
@@ -2674,7 +3267,8 @@ def ai_chat():
         if memory_context:
             system_parts.append("Saved user memories you can rely on if relevant:\n" + memory_context)
 
-        response = client.messages.create(
+        response = call_anthropic_messages_api(
+            client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=ANTHROPIC_CHAT_MAX_TOKENS,
             system="\n\n".join(part for part in system_parts if part),
@@ -2683,13 +3277,50 @@ def ai_chat():
         reply = extract_anthropic_text(response)
         if saved_memories and "remember" not in reply.lower():
             reply = (reply or "Noted.") + "\n\nI'll remember that for future coaching."
+        if created_actions and "confirm" not in reply.lower():
+            confirm_line = (
+                "Confirm below and I'll make those changes in TaskFlow."
+                if len(created_actions) > 1
+                else "Confirm below and I'll make the change in TaskFlow."
+            )
+            reply = (reply or "Noted.") + f"\n\n{confirm_line}"
+        if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
+            save_ai_chat_message(session["user_id"], thread_id, "assistant", reply or "I'm here — what do you need?")
         payload = {"reply": reply or "I'm here — what do you need?"}
-        if created_action:
-            payload["pending_action"] = created_action
+        if created_actions:
+            payload["pending_actions"] = created_actions
+            payload["pending_action"] = created_actions[0]
+        if persist_chat and thread_id:
+            payload["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(payload)
     except Exception as e:
         app.logger.exception("AI chat failed: %s", e)
-        return jsonify({"reply": f"Error: {str(e)}"}), 200
+        error_reply = humanize_anthropic_error(e, "Taskflow AI couldn't respond right now. Try again in a moment.")
+        if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
+            save_ai_chat_message(session["user_id"], thread_id, "assistant", error_reply)
+        payload = {"reply": error_reply}
+        if persist_chat and thread_id:
+            payload["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
+        return jsonify(payload), 200
+
+
+@app.route("/ai/projects/create", methods=["POST"])
+@login_required
+def create_ai_project():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or request.form.get("name") or "").strip()
+    description = (data.get("description") or request.form.get("description") or "").strip()
+
+    if not name:
+        return jsonify({"ok": False, "error": "Project name is required."}), 400
+
+    project = create_ai_chat_project(session["user_id"], name, description)
+    if not project:
+        return jsonify({"ok": False, "error": "Could not create that project right now."}), 503
+
+    return jsonify({"ok": True, "project": project})
 
 
 @app.route("/ai/actions/<int:action_id>/confirm", methods=["POST"])
@@ -2700,6 +3331,11 @@ def confirm_ai_action(action_id):
         return jsonify({"ok": False, "reply": "That confirmation request has expired."}), 404
 
     result = confirm_ai_action_request(action)
+    data = request.get_json(silent=True) or {}
+    thread_id = parse_optional_int(data.get("thread_id"))
+    if thread_id and fetch_ai_chat_thread(session["user_id"], thread_id):
+        save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Done.")
+        result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
     return jsonify(result), (200 if result["ok"] else 400)
 
 
@@ -2711,6 +3347,11 @@ def cancel_ai_action(action_id):
         return jsonify({"ok": False, "reply": "That confirmation request has already been cleared."}), 404
 
     result = cancel_ai_action_request(action)
+    data = request.get_json(silent=True) or {}
+    thread_id = parse_optional_int(data.get("thread_id"))
+    if thread_id and fetch_ai_chat_thread(session["user_id"], thread_id):
+        save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Skipped.")
+        result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
     return jsonify(result)
 
 
@@ -2773,7 +3414,8 @@ def ai_plan_for_day():
 
     try:
         client = create_anthropic_client(anthropic_key)
-        response = client.messages.create(
+        response = call_anthropic_messages_api(
+            client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=ANTHROPIC_PLAN_MAX_TOKENS,
             system="You are Taskflow AI, a personal life coach. Create a concise day plan using the user's real dashboard data.",
@@ -2783,7 +3425,7 @@ def ai_plan_for_day():
         return jsonify({"plan": plan or fallback_plan})
     except Exception as e:
         app.logger.exception("AI day plan failed: %s", e)
-        return jsonify({"plan": fallback_plan}), 200
+        return jsonify({"plan": fallback_plan, "error": humanize_anthropic_error(e, "Taskflow AI couldn't generate a plan right now.")}), 200
 
 
 
