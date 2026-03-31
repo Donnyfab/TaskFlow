@@ -15,6 +15,7 @@ from flask import (
     Flask, render_template, request, redirect,
     url_for, session, g, abort, flash, jsonify
 )
+from flask_caching import Cache
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -23,6 +24,7 @@ from authlib.integrations.base_client.errors import OAuthError
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 import mysql.connector
+from mysql.connector.pooling import MySQLConnectionPool
 import os
 import json
 import calendar
@@ -36,6 +38,19 @@ from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
 
 # Load environment variables from .env FIRST (so os.environ works)
 load_dotenv()
+
+DB_CONFIG = {
+    "host": os.environ.get("DB_HOST", "localhost"),
+    "port": int(os.environ.get("DB_PORT", 3306)),
+    "user": os.environ.get("DB_USER", "root"),
+    "password": os.environ.get("DB_PASSWORD", ""),
+    "database": os.environ.get("DB_NAME", "todo_list"),
+    "autocommit": True,
+}
+
+DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 2)))
+db_pool = None
+
 print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
 
@@ -45,6 +60,13 @@ print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+app.config["CACHE_TYPE"] = os.environ.get("FLASK_CACHE_TYPE", "SimpleCache")
+app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.environ.get("FLASK_CACHE_DEFAULT_TIMEOUT", 60))
+app.config["CACHE_THRESHOLD"] = int(os.environ.get("FLASK_CACHE_THRESHOLD", 512))
+cache = Cache(app)
+USER_READ_CACHE_TIMEOUT = int(os.environ.get("USER_READ_CACHE_TIMEOUT", 30))
+DASHBOARD_CACHE_TIMEOUT = int(os.environ.get("DASHBOARD_CACHE_TIMEOUT", 15))
+SCHEMA_CACHE_TIMEOUT = int(os.environ.get("SCHEMA_CACHE_TIMEOUT", 300))
 
 # ============================================================
 # EMAIL (Gmail SMTP)
@@ -159,15 +181,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # NOTE: Hardcoding your password in code is risky.
 # Move these into a .env later (DB_HOST, DB_USER, etc.)
 
-DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "localhost"),
-    "port": int(os.environ.get("DB_PORT", 3306)),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", ""),
-    "database": os.environ.get("DB_NAME", "todo_list"),
-    "autocommit": True
-}
-
 AUTH_DB_ERROR_MESSAGE = (
     "We can't reach the database right now. Make sure MySQL is running and your DB settings are correct."
 )
@@ -230,13 +243,26 @@ def inject_auth_flags():
 # 6) DATABASE CONNECTION HELPERS
 # ============================================================
 
+def get_db_pool():
+    global db_pool
+
+    if db_pool is None:
+        db_pool = MySQLConnectionPool(
+            pool_name=f"taskflow_pool_{os.getpid()}",
+            pool_size=DB_POOL_SIZE,
+            pool_reset_session=True,
+            **DB_CONFIG,
+        )
+
+    return db_pool
+
 def get_db():
     """
     Creates ONE database connection per request.
     Flask stores it in `g` so every function can reuse it safely.
     """
     if "db" not in g:
-        g.db = mysql.connector.connect(**DB_CONFIG)
+        g.db = get_db_pool().get_connection()
     return g.db
 
 
@@ -254,6 +280,37 @@ def close_db(error=None):
 # ============================================================
 # 7) SMALL UTILITY HELPERS (simple reusable functions)
 # ============================================================
+
+def get_request_cache(bucket_name: str) -> dict:
+    caches = getattr(g, "_request_caches", None)
+    if caches is None:
+        caches = {}
+        g._request_caches = caches
+
+    bucket = caches.get(bucket_name)
+    if bucket is None:
+        bucket = {}
+        caches[bucket_name] = bucket
+
+    return bucket
+
+
+def get_user_cache_version(user_id: int) -> int:
+    cache_key = f"user-cache-version:{user_id}"
+    version = cache.get(cache_key)
+    if version is None:
+        version = 1
+        cache.set(cache_key, version, timeout=0)
+    return int(version)
+
+
+def invalidate_user_cached_data(user_id: int):
+    if not user_id:
+        return
+
+    cache_key = f"user-cache-version:{user_id}"
+    next_version = get_user_cache_version(user_id) + 1
+    cache.set(cache_key, next_version, timeout=0)
 
 def logged_in() -> bool:
     """Returns True if the user is currently logged in."""
@@ -320,24 +377,36 @@ def inject_user_globals():
 # ============================================================
 
 def fetch_user_by_email(email: str):
+    email_key = (email or "").strip().lower()
+    cache = get_request_cache("user_by_email")
+    if email_key in cache:
+        return cache[email_key]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
+    cursor.execute("SELECT * FROM users WHERE email=%s", (email_key,))
     user = cursor.fetchone()
     cursor.close()
+    cache[email_key] = user
     return user
 
 
 def fetch_user_by_username(username: str):
+    username_key = (username or "").strip().lower()
+    cache = get_request_cache("user_by_username")
+    if username_key in cache:
+        return cache[username_key]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+    cursor.execute("SELECT * FROM users WHERE username=%s", (username_key,))
     user = cursor.fetchone()
     cursor.close()
+    cache[username_key] = user
     return user
 
 
-def fetch_user_by_id(user_id: int):
+def _load_user_by_id_from_db(user_id: int):
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
@@ -346,6 +415,21 @@ def fetch_user_by_id(user_id: int):
     )
     user = cursor.fetchone()
     cursor.close()
+    return user
+
+
+@cache.memoize(timeout=USER_READ_CACHE_TIMEOUT)
+def _cached_fetch_user_by_id(user_id: int, cache_version: int):
+    return _load_user_by_id_from_db(user_id)
+
+
+def fetch_user_by_id(user_id: int):
+    cache = get_request_cache("user_by_id")
+    if user_id in cache:
+        return cache[user_id]
+
+    user = _cached_fetch_user_by_id(user_id, get_user_cache_version(user_id))
+    cache[user_id] = user
     return user
 
 
@@ -491,11 +575,17 @@ Message:
 # ============================================================
 
 def user_owns_list(user_id: int, list_id: int) -> bool:
+    cache_key = (user_id, list_id)
+    cache = get_request_cache("user_owns_list")
+    if cache_key in cache:
+        return cache[cache_key]
+
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT 1 FROM task_lists WHERE id=%s AND user_id=%s", (list_id, user_id))
     ok = cursor.fetchone() is not None
     cursor.close()
+    cache[cache_key] = ok
     return ok
 
 
@@ -504,6 +594,10 @@ def get_inbox_list_id(user_id: int) -> int:
     Every user should always have an Inbox list.
     If it doesn't exist, this creates it.
     """
+    cache = get_request_cache("inbox_list_id")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
@@ -514,6 +608,7 @@ def get_inbox_list_id(user_id: int) -> int:
 
     if row:
         cursor.close()
+        cache[user_id] = row["id"]
         return row["id"]
 
     cursor2 = db.cursor()
@@ -524,6 +619,7 @@ def get_inbox_list_id(user_id: int) -> int:
     inbox_id = cursor2.lastrowid
     cursor2.close()
     cursor.close()
+    cache[user_id] = inbox_id
     return inbox_id
 
 
@@ -536,11 +632,8 @@ def fetch_task_for_user(task_id: int, user_id: int):
     return task
 
 
-def habits_schema_available() -> bool:
-    cached = getattr(g, "_habits_schema_available", None)
-    if cached is not None:
-        return cached
-
+@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
+def _cached_habits_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
@@ -552,56 +645,68 @@ def habits_schema_available() -> bool:
         cursor.execute("SHOW TABLES LIKE 'habit_completions'")
         has_completions = cursor.fetchone() is not None
 
-        g._habits_schema_available = bool(has_habits and has_completions)
+        return bool(has_habits and has_completions)
     except mysql.connector.Error:
         app.logger.exception("Failed to verify habits schema availability.")
-        g._habits_schema_available = False
+        return False
     finally:
         if cursor is not None:
             cursor.close()
 
+def habits_schema_available() -> bool:
+    cached = getattr(g, "_habits_schema_available", None)
+    if cached is not None:
+        return cached
+
+    g._habits_schema_available = _cached_habits_schema_available()
     return g._habits_schema_available
 
+
+@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
+def _cached_notes_mood_column_available() -> bool:
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SHOW COLUMNS FROM notes LIKE 'mood'")
+        return cursor.fetchone() is not None
+    except mysql.connector.Error:
+        app.logger.exception("Failed to verify notes mood column availability.")
+        return False
+    finally:
+        if cursor is not None:
+            cursor.close()
 
 def notes_mood_column_available() -> bool:
     cached = getattr(g, "_notes_mood_column_available", None)
     if cached is not None:
         return cached
 
+    g._notes_mood_column_available = _cached_notes_mood_column_available()
+    return g._notes_mood_column_available
+
+
+@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
+def _cached_calendar_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SHOW COLUMNS FROM notes LIKE 'mood'")
-        g._notes_mood_column_available = cursor.fetchone() is not None
+        cursor.execute("SHOW TABLES LIKE 'calendar_events'")
+        return cursor.fetchone() is not None
     except mysql.connector.Error:
-        app.logger.exception("Failed to verify notes mood column availability.")
-        g._notes_mood_column_available = False
+        app.logger.exception("Failed to verify calendar schema availability.")
+        return False
     finally:
         if cursor is not None:
             cursor.close()
-
-    return g._notes_mood_column_available
-
 
 def calendar_schema_available() -> bool:
     cached = getattr(g, "_calendar_schema_available", None)
     if cached is not None:
         return cached
 
-    cursor = None
-    try:
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SHOW TABLES LIKE 'calendar_events'")
-        g._calendar_schema_available = cursor.fetchone() is not None
-    except mysql.connector.Error:
-        app.logger.exception("Failed to verify calendar schema availability.")
-        g._calendar_schema_available = False
-    finally:
-        if cursor is not None:
-            cursor.close()
-
+    g._calendar_schema_available = _cached_calendar_schema_available()
     return g._calendar_schema_available
 
 
@@ -622,24 +727,27 @@ def format_calendar_event_time(value):
     return text[:5] if len(text) >= 5 else text
 
 
-def focus_sessions_schema_available() -> bool:
-    cached = getattr(g, "_focus_sessions_schema_available", None)
-    if cached is not None:
-        return cached
-
+@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
+def _cached_focus_sessions_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
         cursor = db.cursor()
         cursor.execute("SHOW TABLES LIKE 'focus_sessions'")
-        g._focus_sessions_schema_available = cursor.fetchone() is not None
+        return cursor.fetchone() is not None
     except mysql.connector.Error:
         app.logger.exception("Failed to verify focus session schema availability.")
-        g._focus_sessions_schema_available = False
+        return False
     finally:
         if cursor is not None:
             cursor.close()
 
+def focus_sessions_schema_available() -> bool:
+    cached = getattr(g, "_focus_sessions_schema_available", None)
+    if cached is not None:
+        return cached
+
+    g._focus_sessions_schema_available = _cached_focus_sessions_schema_available()
     return g._focus_sessions_schema_available
 
 
@@ -1727,6 +1835,7 @@ def execute_ai_action_request(action_row):
                 """,
                 (user_id, list_id, title, ""),
             )
+            invalidate_user_cached_data(user_id)
             return {"reply": f'Added "{title}" to your tasks.', "action_type": action_type}
 
         if action_type == "create_habit":
@@ -1746,6 +1855,7 @@ def execute_ai_action_request(action_row):
                 """,
                 (user_id, name, icon, frequency),
             )
+            invalidate_user_cached_data(user_id)
             return {"reply": f'Created the habit "{name}".', "action_type": action_type}
 
         if action_type == "create_calendar_event":
@@ -1767,6 +1877,7 @@ def execute_ai_action_request(action_row):
                 """,
                 (user_id, title, event_date, event_time, category, color),
             )
+            invalidate_user_cached_data(user_id)
             return {"reply": f'Added "{title}" to your calendar.', "action_type": action_type}
 
         raise ValueError("That TaskFlow action is not supported yet.")
@@ -2314,6 +2425,7 @@ def upload_profile():
         (filename, session["user_id"])
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     return ("", 204)
 
@@ -2335,6 +2447,7 @@ def update_profile_name():
     cursor.close()
 
     session["user_name"] = full_name
+    invalidate_user_cached_data(session["user_id"])
     return ("", 204)
 
 
@@ -2431,6 +2544,10 @@ def fetch_dashboard_task_counts(user_id: int):
 
 
 def fetch_today_journal_entry(user_id: int):
+    cache = get_request_cache("today_journal_entry")
+    if user_id in cache:
+        return cache[user_id]
+
     journal_folder_id = get_journal_folder_id(user_id)
 
     db = get_db()
@@ -2450,10 +2567,11 @@ def fetch_today_journal_entry(user_id: int):
     )
     note = cursor.fetchone()
     cursor.close()
+    cache[user_id] = note
     return note
 
 
-def fetch_user_habits(user_id: int):
+def _load_user_habits_from_db(user_id: int):
     if not habits_schema_available():
         return []
 
@@ -2486,6 +2604,24 @@ def fetch_user_habits(user_id: int):
     for habit in habits:
         habit["completed_today"] = bool(habit.get("completed_today"))
 
+    return habits
+
+
+@cache.memoize(timeout=USER_READ_CACHE_TIMEOUT)
+def _cached_fetch_user_habits(user_id: int, cache_version: int):
+    return _load_user_habits_from_db(user_id)
+
+
+def fetch_user_habits(user_id: int):
+    if not habits_schema_available():
+        return []
+
+    cache_bucket = get_request_cache("user_habits")
+    if user_id in cache_bucket:
+        return cache_bucket[user_id]
+
+    habits = _cached_fetch_user_habits(user_id, get_user_cache_version(user_id))
+    cache_bucket[user_id] = habits
     return habits
 
 
@@ -2693,7 +2829,7 @@ def build_dashboard_ai_insight(tasks, tasks_done, tasks_total, journaled_today, 
     return "Focus on your most important task first. Small wins compound into big results."
 
 
-def build_home_dashboard_context(user_id: int):
+def _build_home_dashboard_context_uncached(user_id: int):
     now = datetime.now()
     hour = now.hour
     greeting = "morning" if hour < 12 else "afternoon" if hour < 17 else "evening"
@@ -2723,7 +2859,7 @@ def build_home_dashboard_context(user_id: int):
     active_days = fetch_dashboard_active_days(user_id, now)
     streak = calculate_dashboard_streak(user_id, now)
 
-    return {
+    context = {
         "current_user": SimpleNamespace(
             is_authenticated=True,
             username=user.get("username") or "there",
@@ -2760,6 +2896,23 @@ def build_home_dashboard_context(user_id: int):
         ),
     }
 
+    return context
+
+
+@cache.memoize(timeout=DASHBOARD_CACHE_TIMEOUT)
+def _cached_build_home_dashboard_context(user_id: int, cache_version: int):
+    return _build_home_dashboard_context_uncached(user_id)
+
+
+def build_home_dashboard_context(user_id: int):
+    cache_bucket = get_request_cache("home_dashboard_context")
+    if user_id in cache_bucket:
+        return cache_bucket[user_id]
+
+    context = _cached_build_home_dashboard_context(user_id, get_user_cache_version(user_id))
+    cache_bucket[user_id] = context
+    return context
+
 
 def build_dashboard_day_plan(context):
     open_tasks = [task for task in context["tasks"] if not task["completed"]]
@@ -2791,7 +2944,7 @@ def build_dashboard_day_plan(context):
 def build_ai_coach_system_context(user_id: int, active_page: str) -> str:
     ctx = build_home_dashboard_context(user_id)
     habit_context = sorted(
-        fetch_user_habits(user_id),
+        ctx.get("habits") or [],
         key=lambda habit: habit.get("streak") or 0,
         reverse=True,
     )[:5]
@@ -3031,6 +3184,7 @@ def new_journal_entry():
     )
     entry_id = cursor.lastrowid
     cursor.close()
+    invalidate_user_cached_data(user_id)
     return redirect(url_for("journal_page", entry_id=entry_id))
 
 
@@ -3067,6 +3221,7 @@ def save_journal_entry(entry_id):
         )
 
     cursor.close()
+    invalidate_user_cached_data(user_id)
 
     if autosave:
         return jsonify({"ok": True})
@@ -3082,7 +3237,7 @@ def ai_coach_page():
     requested_chat_id = parse_optional_int(request.args.get("chat"))
 
     habits = sorted(
-        fetch_user_habits(user_id),
+        ctx.get("habits") or [],
         key=lambda habit: habit.get("streak") or 0,
         reverse=True,
     )[:5]
@@ -3386,6 +3541,7 @@ def save_quick_journal_entry():
         )
 
     cursor.close()
+    invalidate_user_cached_data(user_id)
     return redirect(url_for("home_page"))
 
 
@@ -3485,6 +3641,7 @@ def rename_list(list_id):
         (name, list_id, session["user_id"])
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     return redirect(url_for("tasks_page", list_id=list_id))
 
@@ -3511,6 +3668,7 @@ def delete_list(list_id):
         (list_id, session["user_id"])
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     inbox_id = get_inbox_list_id(session["user_id"])
     return redirect(url_for("tasks_page", list_id=inbox_id))
@@ -3546,6 +3704,7 @@ def create_task():
         (session["user_id"], list_id, title, description)
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     # 🔥 THIS IS THE KEY LINE
     return redirect(url_for("tasks_page", list_id=list_id))
@@ -3580,6 +3739,7 @@ def create_quick_task():
     )
     task_id = cursor.lastrowid
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     return jsonify({"id": task_id, "title": title, "completed": False, "list_id": list_id})
 
@@ -3615,6 +3775,7 @@ def edit_task(task_id):
             (title, description, task_id, session["user_id"])
         )
         cursor.close()
+        invalidate_user_cached_data(session["user_id"])
 
         return redirect(url_for("home_page", list_id=task["list_id"]))
 
@@ -3641,6 +3802,7 @@ def toggle_task(task_id):
         (new_completed, task_id, session["user_id"])
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     if wants_json:
         return jsonify({"ok": True, "completed": bool(new_completed)})
@@ -3662,6 +3824,7 @@ def delete_task(task_id):
         (task_id, session["user_id"])
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
 
     return redirect(url_for("home_page", list_id=task["list_id"]))
 
@@ -3724,6 +3887,7 @@ def create_habit():
         (session["user_id"], name, icon, frequency),
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
     return redirect(url_for("habits_page"))
 
 
@@ -3790,6 +3954,7 @@ def toggle_habit(habit_id):
     )
     row = cursor.fetchone()
     cursor.close()
+    invalidate_user_cached_data(user_id)
 
     return jsonify({"ok": True, "completed": completed, "streak": row["streak"] if row else 0})
 
@@ -3814,6 +3979,7 @@ def delete_habit(habit_id):
         (habit_id, user_id),
     )
     cursor.close()
+    invalidate_user_cached_data(user_id)
     return jsonify({"ok": True})
 
 
@@ -4055,6 +4221,11 @@ def new_note_root():
 
 
 def get_or_create_note_folder_id(user_id, folder_name):
+    cache_key = (user_id, folder_name)
+    cache = get_request_cache("note_folder_id")
+    if cache_key in cache:
+        return cache[cache_key]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4071,6 +4242,7 @@ def get_or_create_note_folder_id(user_id, folder_name):
 
     if row:
         cursor.close()
+        cache[cache_key] = row["id"]
         return row["id"]
 
     cursor2 = db.cursor()
@@ -4082,6 +4254,7 @@ def get_or_create_note_folder_id(user_id, folder_name):
 
     cursor2.close()
     cursor.close()
+    cache[cache_key] = folder_id
     return folder_id
 
 
@@ -4147,6 +4320,10 @@ def save_last_opened_note():
 
 
 def fetch_folder_counts(user_id):
+    cache = get_request_cache("folder_counts")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4162,11 +4339,15 @@ def fetch_folder_counts(user_id):
 
     counts = {row["folder_id"]: row["count"] for row in cursor.fetchall()}
     cursor.close()
-
+    cache[user_id] = counts
     return counts
 
 
 def fetch_notes_counts(user_id):
+    cache = get_request_cache("notes_counts")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4190,11 +4371,15 @@ def fetch_notes_counts(user_id):
     root_count = cursor.fetchone()["count"]
 
     cursor.close()
-
-    return all_count, root_count
+    cache[user_id] = (all_count, root_count)
+    return cache[user_id]
 
 
 def fetch_deleted_notes_count(user_id):
+    cache = get_request_cache("deleted_notes_count")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4206,7 +4391,7 @@ def fetch_deleted_notes_count(user_id):
     """, (user_id,))
     count = cursor.fetchone()["count"]
     cursor.close()
-
+    cache[user_id] = count
     return count
 
 
@@ -4460,6 +4645,10 @@ def purge_folder(folder_id):
     return redirect(url_for("recently_deleted_page"))
 
 def fetch_active_folders(user_id):
+    cache = get_request_cache("active_folders")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4473,10 +4662,15 @@ def fetch_active_folders(user_id):
 
     rows = cursor.fetchall()
     cursor.close()
+    cache[user_id] = rows
     return rows
 
 
 def fetch_deleted_folders(user_id):
+    cache = get_request_cache("deleted_folders")
+    if user_id in cache:
+        return cache[user_id]
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -4490,6 +4684,7 @@ def fetch_deleted_folders(user_id):
 
     rows = cursor.fetchall()
     cursor.close()
+    cache[user_id] = rows
     return rows
 
 
@@ -4759,6 +4954,7 @@ def create_calendar_event():
         (session["user_id"], title, date, time, category, color),
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
     return redirect(url_for("calendar_page"))
 
 
@@ -4780,6 +4976,7 @@ def delete_calendar_event(event_id):
         (event_id, session["user_id"]),
     )
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
     return jsonify({"ok": True})
 
 
@@ -4898,6 +5095,7 @@ def complete_focus_session():
             )
 
         cursor.close()
+        invalidate_user_cached_data(session["user_id"])
         return jsonify({"ok": True})
     except mysql.connector.Error:
         app.logger.exception("Unable to complete focus session.")

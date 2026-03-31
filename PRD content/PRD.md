@@ -1,5 +1,6 @@
 # Taskflow PRD (v1.0)
-*Your entire life, in one place — guided by AI.*
+
+_Your entire life, in one place — guided by AI._
 
 ---
 
@@ -12,6 +13,7 @@ Taskflow is an AI-powered self-improvement OS that studies your behavior, plans 
 ## 2) The Problem
 
 People who want to improve their lives are forced to juggle:
+
 - A separate task app
 - A separate habit tracker
 - A separate notes/journal app
@@ -53,40 +55,44 @@ The AI doesn't just respond to what you type — it **learns your patterns** ove
 
 Most apps **track** your life. Taskflow **improves** it.
 
-| Feature | Other Apps | Taskflow |
-|---|---|---|
-| Task management | ✅ | ✅ |
-| Habit tracking | ✅ | ✅ |
-| Notes/Journal | ✅ | ✅ |
-| Calendar | ✅ | ✅ |
-| All in one place | ❌ | ✅ |
-| AI that knows YOU | ❌ | ✅ |
-| Proactive life guidance | ❌ | ✅ |
-| Accountability (NoFap etc.) | ❌ | ✅ |
+| Feature                     | Other Apps | Taskflow |
+| --------------------------- | ---------- | -------- |
+| Task management             | ✅         | ✅       |
+| Habit tracking              | ✅         | ✅       |
+| Notes/Journal               | ✅         | ✅       |
+| Calendar                    | ✅         | ✅       |
+| All in one place            | ❌         | ✅       |
+| AI that knows YOU           | ❌         | ✅       |
+| Proactive life guidance     | ❌         | ✅       |
+| Accountability (NoFap etc.) | ❌         | ✅       |
 
 ---
 
 ## 6) Core Features (Full Vision)
 
 ### 🏠 Dashboard (Home)
+
 - Overview of your day at a glance
 - AI daily briefing: "Here's what matters today"
 - Progress summary: streaks, completed tasks, mood
 - Quick actions: Add task, log habit, open journal
 
 ### ✅ Tasks
+
 - Create tasks with title, due date, priority, notes
 - AI suggests task priorities based on your patterns
 - Daily task planning: "What should I focus on today?"
 - Recurring tasks, subtasks, lists/categories
 
 ### 🔁 Habits
+
 - Create and track daily/weekly habits
 - Streak tracking with visual progress
 - AI detects which habits you're struggling with and suggests adjustments
 - Habit stacking suggestions ("After you work out, do X")
 
 ### 🚫 Accountability (NoFap / NoPorn / Custom)
+
 - Dedicated accountability tracker separate from habits
 - Day counter with streak and reset logging
 - Reflection prompt on relapse: "What triggered this? How do we prevent it?"
@@ -94,6 +100,7 @@ Most apps **track** your life. Taskflow **improves** it.
 - Custom accountability challenges (screen time, junk food, etc.)
 
 ### 📓 Notes & Journal
+
 - General notes (organized by folders/tags)
 - Daily journal with optional AI prompt: "What went well today?"
 - AI reads journal entries over time and surfaces patterns:
@@ -101,12 +108,15 @@ Most apps **track** your life. Taskflow **improves** it.
   - "You mentioned feeling unmotivated 4 times this week — here's what might help"
 
 ### 📅 Calendar
+
 - Weekly and monthly view
 - Connect tasks and habits to specific dates
 - AI suggests scheduling based on your best work times and energy patterns
 
 ### 🤖 AI Brain (Core Differentiator)
+
 The AI studies everything the user feeds into Taskflow:
+
 - Task completion rates
 - Habit streaks and failures
 - Journal entries and tone
@@ -114,6 +124,7 @@ The AI studies everything the user feeds into Taskflow:
 - Accountability resets
 
 And uses it to:
+
 - Generate a personalized daily plan ("Plan My Day")
 - Surface insights: "You complete more tasks on days you exercise"
 - Suggest better outcomes: "Based on your patterns, moving your deep work to morning could help"
@@ -135,6 +146,7 @@ MVP is complete when a user can:
 - [ ] View a basic calendar
 
 **MVP AI feature (locked): Plan My Day**
+
 - Uses tasks + habits + available time
 - Outputs: top 3 priorities + time blocks + habit slots + fallback plan
 - Plan is saveable and viewable later the same day
@@ -179,6 +191,7 @@ Mobile app, integrations, social accountability, gamification (XP, streaks, leve
 Taskflow becomes the operating system for your personal growth.
 
 You wake up, open Taskflow, and it already knows:
+
 - What you need to do today
 - What habits you need to keep
 - Where you've been slipping
@@ -186,4 +199,4 @@ You wake up, open Taskflow, and it already knows:
 
 Not because you told it — because it learned it.
 
-*One app. One AI. One you — but better.*
+_One app. One AI. One you — but better._
