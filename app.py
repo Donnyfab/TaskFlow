@@ -48,8 +48,10 @@ DB_CONFIG = {
     "autocommit": True,
 }
 
-DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 2)))
+DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 1)))
+DB_POOL_RETRY_AFTER = max(5, int(os.environ.get("DB_POOL_RETRY_AFTER", 30)))
 db_pool = None
+db_pool_unavailable_until = 0
 
 print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
@@ -244,15 +246,25 @@ def inject_auth_flags():
 # ============================================================
 
 def get_db_pool():
-    global db_pool
+    global db_pool, db_pool_unavailable_until
+
+    now = time.time()
 
     if db_pool is None:
-        db_pool = MySQLConnectionPool(
-            pool_name=f"taskflow_pool_{os.getpid()}",
-            pool_size=DB_POOL_SIZE,
-            pool_reset_session=True,
-            **DB_CONFIG,
-        )
+        if db_pool_unavailable_until > now:
+            return None
+
+        try:
+            db_pool = MySQLConnectionPool(
+                pool_name=f"taskflow_pool_{os.getpid()}",
+                pool_size=DB_POOL_SIZE,
+                pool_reset_session=True,
+                **DB_CONFIG,
+            )
+        except mysql.connector.Error:
+            db_pool_unavailable_until = now + DB_POOL_RETRY_AFTER
+            app.logger.exception("MySQL pool unavailable; using direct connections temporarily.")
+            db_pool = None
 
     return db_pool
 
@@ -262,7 +274,15 @@ def get_db():
     Flask stores it in `g` so every function can reuse it safely.
     """
     if "db" not in g:
-        g.db = get_db_pool().get_connection()
+        pool = get_db_pool()
+        if pool is not None:
+            try:
+                g.db = pool.get_connection()
+            except mysql.connector.Error:
+                app.logger.exception("MySQL pooled connection failed; falling back to direct connection.")
+                g.db = mysql.connector.connect(**DB_CONFIG)
+        else:
+            g.db = mysql.connector.connect(**DB_CONFIG)
     return g.db
 
 
@@ -1993,6 +2013,11 @@ def fetch_habit_for_user(habit_id: int, user_id: int):
 # ============================================================
 # 10) PUBLIC PAGES (no login required)
 # ============================================================
+
+@app.route("/ping")
+def ping():
+    return "pong", 200
+
 
 @app.route("/")
 def landing_page():
