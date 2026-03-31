@@ -5,6 +5,12 @@
   {% set mobile_page_current = 'Tasks' %}
 {% elif current_path == '/habits' %}
   {% set mobile_page_current = 'Habits' %}
+{% elif current_path == '/ai' %}
+  {% set mobile_page_current = 'AI Coach' %}
+{% elif current_path == '/calendar' %}
+  {% set mobile_page_current = 'Calendar' %}
+{% elif current_path.startswith('/focus') %}
+  {% set mobile_page_current = 'Focus Mode' %}
 {% elif current_path.startswith('/journal') %}
   {% set mobile_page_current = 'Journal' %}
 {% else %}
@@ -69,11 +75,35 @@
         </span>
       </a>
 
+      <a href="/ai" class="mobile-page-link {{ 'active' if current_path == '/ai' else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">✦</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">AI Coach</span>
+          <span class="mobile-page-link-sub">Coaching and guidance</span>
+        </span>
+      </a>
+
       <a href="/journal" class="mobile-page-link {{ 'active' if current_path.startswith('/journal') else '' }}" data-mobile-nav-link>
         <span class="mobile-page-link-icon">✎</span>
         <span class="mobile-page-link-copy">
           <span class="mobile-page-link-title">Journal</span>
           <span class="mobile-page-link-sub">Entries and reflections</span>
+        </span>
+      </a>
+
+      <a href="/calendar" class="mobile-page-link {{ 'active' if current_path == '/calendar' else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">▦</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Calendar</span>
+          <span class="mobile-page-link-sub">Events and schedule</span>
+        </span>
+      </a>
+
+      <a href="/focus" class="mobile-page-link {{ 'active' if current_path.startswith('/focus') else '' }}" data-mobile-nav-link>
+        <span class="mobile-page-link-icon">◎</span>
+        <span class="mobile-page-link-copy">
+          <span class="mobile-page-link-title">Focus Mode</span>
+          <span class="mobile-page-link-sub">Timer and deep work</span>
         </span>
       </a>
     </div>

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Focus Mode | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/sidebar_mobile_nav.js') }}" defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { --focus-sidebar-width: 220px; background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; min-height: 100vh; display: grid; grid-template-columns: var(--focus-sidebar-width) minmax(0, 1fr); transition: grid-template-columns 0.2s ease; }
+
+    .app-sidebar { width: var(--focus-sidebar-width); background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; overflow: hidden auto; min-width: 0; position: relative; z-index: 2; transition: transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease; }
+    .sidebar-head { display: flex; align-items: center; gap: 8px; padding: 0 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; }
+    .sb-logo { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); text-decoration: none; }
+    .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sb-logo-text { white-space: nowrap; }
+    .sb-toggle { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.46); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+    .sb-toggle:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.76); border-color: rgba(255,255,255,0.14); }
+    .sb-toggle svg { transition: transform 0.18s ease; }
+    .nav-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .sb-item:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.03); }
+    .sb-item.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.5); }
+    .sb-item-label { white-space: nowrap; }
+    .sb-icon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+    .sb-item.active .sb-icon { background: rgba(255,255,255,0.15); }
+    .sb-spacer { flex: 1; }
+    .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+    body.sidebar-collapsed { --focus-sidebar-width: 0px; }
+    body.sidebar-collapsed .app-sidebar {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-100%);
+      border-right-color: transparent;
+    }
+
+    .focus-sidebar-restore {
+      display: none;
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15,15,15,0.96);
+      color: rgba(255,255,255,0.5);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      z-index: 70;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+    .focus-sidebar-restore:hover {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.82);
+      border-color: rgba(255,255,255,0.14);
+    }
+    body.sidebar-collapsed .focus-sidebar-restore {
+      display: flex;
+    }
+
+    .focus-main { min-height: 100vh; min-width: 0; position: relative; }
+
+    .setup-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; width: 100%; }
+    .setup-card { background: #111; border: 1px solid rgba(255,255,255,0.09); border-radius: 20px; padding: 36px; max-width: 480px; width: 100%; }
+    .setup-back { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.28); text-decoration: none; margin-bottom: 24px; transition: color 0.15s; }
+    .setup-back:hover { color: rgba(255,255,255,0.55); }
+    .setup-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+    .setup-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .setup-eyebrow { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
+    .setup-title { font-size: 22px; font-weight: 800; letter-spacing: -0.8px; margin-bottom: 6px; color: rgba(255,255,255,0.9); }
+    .setup-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 28px; line-height: 1.6; }
+    .field-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
+    .task-sel { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #fff; font-family: inherit; outline: none; margin-bottom: 22px; cursor: pointer; }
+    .task-sel option { background: #1a1a1a; }
+    .dur-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 22px; }
+    .dur-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 6px; text-align: center; cursor: pointer; transition: all 0.18s; }
+    .dur-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); }
+    .dur-btn.sel { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.09); }
+    .dur-num { font-size: 18px; font-weight: 800; letter-spacing: -0.8px; color: rgba(255,255,255,0.88); line-height: 1; }
+    .dur-unit { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+    .strict-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; margin-bottom: 24px; }
+    .strict-name { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.75); margin-bottom: 2px; }
+    .strict-desc { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .tog { width: 38px; height: 21px; border-radius: 100px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; position: relative; transition: all 0.2s; flex-shrink: 0; }
+    .tog.on { background: rgba(255,255,255,0.65); border-color: transparent; }
+    .tog::after { content: ''; position: absolute; width: 15px; height: 15px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: all 0.2s; }
+    .tog.on::after { left: 20px; background: #0A0A0A; }
+    .start-btn { width: 100%; background: #fff; color: #0A0A0A; border: none; border-radius: 11px; padding: 14px; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: -0.2px; transition: all 0.2s; font-family: inherit; }
+    .start-btn:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+
+    .focus-screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; position: relative; width: 100%; }
+    .focus-topbar { position: absolute; top: 0; left: 0; right: 0; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .focus-session-lbl { font-size: 11px; color: rgba(255,255,255,0.28); }
+    .focus-exit-btn { font-size: 11px; color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .focus-exit-btn:hover { color: rgba(255,255,255,0.6); }
+    body.sidebar-collapsed .focus-topbar {
+      padding-left: 64px;
+    }
+    .focus-content { text-align: center; max-width: 560px; width: 100%; }
+    .focus-eyebrow { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    .focus-task-name { font-size: clamp(22px,4vw,38px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; color: rgba(255,255,255,0.9); margin-bottom: 36px; }
+    .prog-wrap { max-width: 400px; margin: 0 auto 32px; }
+    .prog-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+    .prog-fill { height: 100%; background: rgba(255,255,255,0.5); border-radius: 2px; transition: width 1s linear; }
+    .prog-lbls { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: rgba(255,255,255,0.22); }
+    .timer-wrap { position: relative; width: 200px; height: 200px; margin: 0 auto 36px; }
+    .timer-wrap svg { transform: rotate(-90deg); }
+    .timer-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .timer-digits { font-size: 44px; font-weight: 800; letter-spacing: -2px; color: rgba(255,255,255,0.92); font-variant-numeric: tabular-nums; line-height: 1; }
+    .timer-status { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 5px; }
+    .focus-ctrls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 36px; }
+    .ctrl { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s; border: none; font-family: inherit; }
+    .ctrl.main { background: #fff; color: #0A0A0A; font-size: 18px; }
+    .ctrl.main:hover { background: rgba(255,255,255,0.88); transform: scale(1.06); }
+    .ctrl.sec { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: rgba(255,255,255,0.45); }
+    .ctrl.sec:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); }
+    .ai-nudge { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 10px; max-width: 420px; margin: 0 auto; }
+    .nudge-pip { font-size: 10px; color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.07); border-radius: 6px; padding: 3px 7px; flex-shrink: 0; margin-top: 1px; }
+    .nudge-txt { font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.6; font-style: italic; }
+
+    .complete-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; width: 100%; }
+    .complete-card { background: #111; border: 1px solid rgba(255,255,255,0.09); border-radius: 20px; padding: 36px; max-width: 440px; width: 100%; text-align: center; }
+    .complete-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 18px; }
+    .complete-title { font-size: 22px; font-weight: 800; letter-spacing: -0.8px; margin-bottom: 8px; color: rgba(255,255,255,0.9); }
+    .complete-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 28px; line-height: 1.65; }
+    .complete-q { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.72); margin-bottom: 14px; }
+    .yn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .yn-btn { padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.18s; }
+    .yn-yes { background: #fff; color: #0A0A0A; border: none; }
+    .yn-yes:hover { background: rgba(255,255,255,0.88); }
+    .yn-no { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.1); }
+    .reflect-inp { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 9px; padding: 10px 14px; font-size: 12px; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; margin-bottom: 20px; }
+    .reflect-inp::placeholder { color: rgba(255,255,255,0.2); }
+    .next-steps { display: flex; flex-direction: column; gap: 8px; }
+    .next-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 12px; font-size: 12px; color: rgba(255,255,255,0.52); cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: block; }
+    .next-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.85); }
+
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal-bg.show { display: flex; }
+    .quit-card { background: #111; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 28px; max-width: 360px; width: 90%; text-align: center; }
+    .quit-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; color: rgba(255,255,255,0.9); }
+    .quit-desc { font-size: 13px; color: rgba(255,255,255,0.38); margin-bottom: 22px; line-height: 1.65; }
+    .quit-btns { display: flex; gap: 8px; }
+    .quit-keep { flex: 1; background: #fff; color: #0A0A0A; border: none; border-radius: 9px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .quit-end { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 11px; font-size: 13px; color: rgba(255,255,255,0.55); cursor: pointer; font-family: inherit; }
+
+    @media (max-width: 900px) {
+      body { --focus-sidebar-width: 0px; grid-template-columns: 1fr; }
+      .app-sidebar { display: none; }
+      .focus-sidebar-restore { display: none !important; }
+      .focus-main { min-height: calc(100vh - 72px); }
+      .setup-screen,
+      .focus-screen,
+      .complete-screen { min-height: calc(100vh - 72px); }
+      .focus-topbar { padding: 16px 20px; }
+      .setup-card,
+      .complete-card { padding: 28px; }
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <div class="app-sidebar">
+    <div class="sidebar-head">
+      <a href="{{ url_for('home_page') }}" class="sb-logo">
+        <div class="sb-logo-icon">
+          <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="sb-logo-text">TaskFlow</span>
+      </a>
+      <button type="button" class="sb-toggle" id="focus-sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="true">
+        <svg viewBox="0 0 12 12" fill="none" width="12" height="12">
+          <path d="M7.5 2.5L4 6L7.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="nav-label">Main</div>
+    <a href="/home" class="sb-item">
+      <div class="sb-icon">⌂</div><span class="sb-item-label">Home</span>
+    </a>
+    <a href="/tasks" class="sb-item">
+      <div class="sb-icon">✓</div><span class="sb-item-label">Tasks</span>
+    </a>
+    <a href="/habits" class="sb-item">
+      <div class="sb-icon">↺</div><span class="sb-item-label">Habits</span>
+    </a>
+    <a href="/ai" class="sb-item">
+      <div class="sb-icon">✦</div><span class="sb-item-label">AI Coach</span>
+    </a>
+
+    <div class="nav-label">Tools</div>
+    <a href="/journal" class="sb-item">
+      <div class="sb-icon">✎</div><span class="sb-item-label">Journal</span>
+    </a>
+    <a href="/calendar" class="sb-item">
+      <div class="sb-icon">▦</div><span class="sb-item-label">Calendar</span>
+    </a>
+    <a href="/focus" class="sb-item active">
+      <div class="sb-icon">◎</div><span class="sb-item-label">Focus Mode</span>
+    </a>
+
+    <div class="nav-label">Insights</div>
+    <a href="/score" class="sb-item">
+      <div class="sb-icon">↑</div><span class="sb-item-label">Growth Score</span>
+    </a>
+
+    {% with sidebar_user_name = username if username else 'Guest' %}
+      {% include 'includes/sidebar_profile_dropdown.html' %}
+    {% endwith %}
+  </div>
+
+  <button type="button" class="focus-sidebar-restore" id="focus-sidebar-restore" aria-label="Open sidebar">
+    <svg viewBox="0 0 12 12" fill="none" width="12" height="12">
+      <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  {% include 'includes/mobile_page_nav.html' %}
+
+  <div class="focus-main">
+
+  <!-- SETUP -->
+  <div class="setup-screen" id="setup-screen">
+    <div class="setup-card fade-in">
+      <a href="/home" class="setup-back">← Back to dashboard</a>
+      <div class="setup-logo">
+        <div class="setup-logo-icon"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span style="font-size:15px;font-weight:700;color:rgba(255,255,255,0.9);">TaskFlow</span>
+      </div>
+      <div class="setup-eyebrow">Focus Mode</div>
+      <div class="setup-title">What are you working on?</div>
+      <div class="setup-sub">Choose a task and set your session duration. Then lock in.</div>
+
+      <div class="field-label">Task</div>
+      <select class="task-sel" id="task-sel">
+        {% if tasks %}
+          {% for task in tasks %}
+          <option value="{{ task.id }}" {% if preselect_task_id and task.id|string == preselect_task_id|string %}selected{% endif %}>{{ task.title }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">No tasks — add one first</option>
+        {% endif %}
+      </select>
+
+      <div class="field-label">Session duration</div>
+      <div class="dur-grid">
+        <div class="dur-btn sel" onclick="pickDur(this,25)"><div class="dur-num">25</div><div class="dur-unit">min</div></div>
+        <div class="dur-btn" onclick="pickDur(this,45)"><div class="dur-num">45</div><div class="dur-unit">min</div></div>
+        <div class="dur-btn" onclick="pickDur(this,60)"><div class="dur-num">60</div><div class="dur-unit">min</div></div>
+        <div class="dur-btn" id="cust-btn" onclick="pickCustom()"><div class="dur-num" id="cust-num">—</div><div class="dur-unit">custom</div></div>
+      </div>
+
+      <div class="strict-row">
+        <div><div class="strict-name">Strict Mode</div><div class="strict-desc">Block distractions during session</div></div>
+        <div class="tog" onclick="this.classList.toggle('on')"></div>
+      </div>
+
+      <button class="start-btn" onclick="startFocus()">Start Focus Session →</button>
+    </div>
+  </div>
+
+  <!-- FOCUS -->
+  <div class="focus-screen" id="focus-screen">
+    <div class="focus-topbar">
+      <div class="focus-session-lbl" id="session-lbl">Focus · 25 min</div>
+      <button class="focus-exit-btn" onclick="tryExit()">✕ End session</button>
+    </div>
+    <div class="focus-content fade-in">
+      <div class="focus-eyebrow">Now focused on</div>
+      <div class="focus-task-name" id="focus-task-name">—</div>
+      <div class="prog-wrap">
+        <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="prog-lbls"><span id="lbl-el">0:00 elapsed</span><span id="lbl-re">25:00 left</span></div>
+      </div>
+      <div class="timer-wrap">
+        <svg width="200" height="200" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+          <circle id="timer-ring" cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.55)"
+            stroke-width="8" stroke-dasharray="552.9" stroke-dashoffset="0" stroke-linecap="round"
+            style="transition:stroke-dashoffset 1s linear;"/>
+        </svg>
+        <div class="timer-center">
+          <div class="timer-digits" id="timer-digits">25:00</div>
+          <div class="timer-status" id="timer-status">Focus</div>
+        </div>
+      </div>
+      <div class="focus-ctrls">
+        <button class="ctrl sec" onclick="tryExit()" title="End">■</button>
+        <button class="ctrl main" id="pp-btn" onclick="togglePause()">⏸</button>
+        <button class="ctrl sec" onclick="skipComplete()" title="Skip">↪</button>
+      </div>
+      <div class="ai-nudge">
+        <div class="nudge-pip">✦</div>
+        <div class="nudge-txt" id="nudge-txt">{{ ai_nudge if ai_nudge else '"Close everything except what you need. The work deserves your full attention."' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPLETE -->
+  <div class="complete-screen" id="complete-screen">
+    <div class="complete-card fade-in">
+      <div class="complete-icon">✦</div>
+      <div class="complete-title">Session complete.</div>
+      <div class="complete-sub" id="complete-sub">You just spent 25 minutes working on your task.</div>
+      <div class="complete-q">Did you complete this task?</div>
+      <div class="yn-grid" id="yn-grid">
+        <button class="yn-btn yn-yes" onclick="markDone(true)">Yes, done ✓</button>
+        <button class="yn-btn yn-no" onclick="markDone(false)">Not yet</button>
+      </div>
+      <input class="reflect-inp" id="reflect-inp" placeholder="How did it go? What distracted you?">
+      <div class="next-steps">
+        <button class="next-btn" onclick="restartSetup()">↺ Start another session</button>
+        <a href="/home" class="next-btn">⌂ Back to dashboard</a>
+        <a href="/ai" class="next-btn">✦ Talk to AI coach</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIT MODAL -->
+  <div class="modal-bg" id="quit-modal">
+    <div class="quit-card">
+      <div class="quit-title">Still have time left</div>
+      <div class="quit-desc" id="quit-desc">You still have time left. Leaving breaks your focus momentum.</div>
+      <div class="quit-btns">
+        <button class="quit-keep" onclick="closeQuit()">Keep going</button>
+        <button class="quit-end" onclick="endSession()">End session</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const C = 552.9;
+    let totalSec = 25*60, timeLeft = totalSec, running = false, iv = null;
+    let selDur = 25, selTaskId = null, selTaskTitle = '';
+    const SIDEBAR_KEY = 'taskflow.focus.sidebarCollapsed';
+
+    // ── AI-READY HOOKS
+    function getFocusSuggestion(title) {
+      const tips = [
+        `"Break "${title}" into the smallest possible action first."`,
+        `"Close everything except what you need right now."`,
+        `"The first 5 minutes are the hardest. After that, you'll be in flow."`,
+        `"What single thing would make this session a success?"`,
+        `"You've been consistent — this session continues that momentum."`,
+      ];
+      return tips[Math.floor(Math.random()*tips.length)];
+    }
+    function logFocusInsight(d) { console.log('[Focus Insight]', d); }
+
+    // ── SETUP
+    function pickDur(el, min) {
+      document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('sel'));
+      el.classList.add('sel'); selDur = min;
+    }
+    function pickCustom() {
+      const v = prompt('Session duration (1–120 minutes):', '30');
+      if (v && !isNaN(v)) {
+        selDur = Math.min(120,Math.max(1,parseInt(v)));
+        document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('sel'));
+        document.getElementById('cust-btn').classList.add('sel');
+        document.getElementById('cust-num').textContent = selDur;
+      }
+    }
+
+    function startFocus() {
+      const sel = document.getElementById('task-sel');
+      selTaskId = sel?.value || null;
+      selTaskTitle = sel?.options[sel.selectedIndex]?.text || 'Focus session';
+      if (!selTaskId) { alert('Please select a task first.'); return; }
+
+      totalSec = selDur * 60; timeLeft = totalSec; running = true;
+      document.getElementById('session-lbl').textContent = `Focus · ${selDur} min`;
+      document.getElementById('focus-task-name').textContent = selTaskTitle;
+      document.getElementById('nudge-txt').textContent = getFocusSuggestion(selTaskTitle);
+      document.getElementById('pp-btn').textContent = '⏸';
+      document.getElementById('timer-status').textContent = 'Focus';
+      document.getElementById('timer-ring').setAttribute('stroke-dashoffset','0');
+      document.getElementById('prog-fill').style.width = '0%';
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('complete-screen').style.display = 'none';
+      document.getElementById('focus-screen').style.display = 'flex';
+      updateDisplay();
+      clearInterval(iv);
+      iv = setInterval(tick, 1000);
+    }
+
+    // ── TIMER
+    function tick() {
+      if (!running) return;
+      timeLeft = Math.max(0, timeLeft-1);
+      updateDisplay();
+      if (timeLeft <= 0) { clearInterval(iv); running = false; showComplete(); }
+    }
+    function updateDisplay() {
+      const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
+      const s = (timeLeft%60).toString().padStart(2,'0');
+      document.getElementById('timer-digits').textContent = `${m}:${s}`;
+      const p = (totalSec-timeLeft)/totalSec;
+      document.getElementById('timer-ring').setAttribute('stroke-dashoffset', (C*(1-p)).toFixed(1));
+      document.getElementById('prog-fill').style.width = (p*100).toFixed(1)+'%';
+      const el = totalSec-timeLeft, em=Math.floor(el/60), es=el%60;
+      document.getElementById('lbl-el').textContent = `${em}:${es.toString().padStart(2,'0')} elapsed`;
+      document.getElementById('lbl-re').textContent = `${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')} left`;
+    }
+    function togglePause() {
+      running=!running;
+      document.getElementById('pp-btn').textContent = running?'⏸':'▶';
+      document.getElementById('timer-status').textContent = running?'Focus':'Paused';
+    }
+    function skipComplete() { clearInterval(iv); running=false; showComplete(); }
+
+    // ── EXIT
+    function tryExit() {
+      if (timeLeft < totalSec-30) {
+        const m=Math.floor(timeLeft/60), s=timeLeft%60;
+        document.getElementById('quit-desc').textContent = `You still have ${m}:${s.toString().padStart(2,'0')} left. Leaving breaks your focus momentum.`;
+        running=false; document.getElementById('pp-btn').textContent='▶'; document.getElementById('timer-status').textContent='Paused';
+        document.getElementById('quit-modal').classList.add('show');
+      } else { endSession(); }
+    }
+    function closeQuit() { document.getElementById('quit-modal').classList.remove('show'); running=true; document.getElementById('pp-btn').textContent='⏸'; document.getElementById('timer-status').textContent='Focus'; }
+    function endSession() { document.getElementById('quit-modal').classList.remove('show'); clearInterval(iv); running=false; showComplete(); }
+
+    // ── COMPLETE
+    function showComplete() {
+      const spent = totalSec-timeLeft, m=Math.floor(spent/60), s=spent%60;
+      logFocusInsight({ task_id:selTaskId, task_title:selTaskTitle, session_duration:totalSec, actual_time_spent:spent, timestamp:new Date().toISOString() });
+      document.getElementById('complete-sub').textContent = `You spent ${m>0?m+'m ':''}${s}s on "${selTaskTitle}". Every session compounds.`;
+      document.getElementById('focus-screen').style.display = 'none';
+      document.getElementById('complete-screen').style.display = 'flex';
+      fetch('/focus/sessions/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ task_id:selTaskId, session_duration:totalSec, actual_time_spent:spent, completed:false }) }).catch(()=>{});
+    }
+
+    function markDone(done) {
+      const reflection = document.getElementById('reflect-inp').value.trim();
+      fetch('/focus/sessions/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ task_id:selTaskId, completed:done, reflection }) }).catch(()=>{});
+      document.getElementById('yn-grid').innerHTML = done
+        ? `<div style="padding:12px;background:rgba(80,210,130,0.08);border:1px solid rgba(80,210,130,0.18);border-radius:10px;font-size:13px;color:rgba(100,220,140,0.8);text-align:center;grid-column:span 2;">✓ Task marked complete</div>`
+        : `<div style="padding:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:rgba(255,255,255,0.38);text-align:center;grid-column:span 2;">Kept as in progress</div>`;
+    }
+
+    function restartSetup() {
+      document.getElementById('complete-screen').style.display='none';
+      document.getElementById('setup-screen').style.display='flex';
+      document.getElementById('yn-grid').innerHTML=`<button class="yn-btn yn-yes" onclick="markDone(true)">Yes, done ✓</button><button class="yn-btn yn-no" onclick="markDone(false)">Not yet</button>`;
+      document.getElementById('reflect-inp').value='';
+    }
+
+    window.addEventListener('beforeunload', e => {
+      if (running || (timeLeft>0 && timeLeft<totalSec)) { e.preventDefault(); e.returnValue='You have an active focus session.'; }
+    });
+
+    const sidebarToggle = document.getElementById('focus-sidebar-toggle');
+    const sidebarRestore = document.getElementById('focus-sidebar-restore');
+    function setSidebarCollapsed(collapsed) {
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      sidebarToggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      sidebarRestore?.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+    }
+
+    sidebarToggle?.addEventListener('click', () => {
+      setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+    });
+
+    sidebarRestore?.addEventListener('click', () => {
+      setSidebarCollapsed(false);
+    });
+
+    if (localStorage.getItem(SIDEBAR_KEY) === '1') {
+      setSidebarCollapsed(true);
+    }
+  </script>
+
+  </div>
+
+</body>
+</html>

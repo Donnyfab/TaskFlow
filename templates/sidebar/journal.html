@@ -76,7 +76,7 @@
     .entry-textarea::placeholder { color: rgba(255,255,255,0.14); }
 
     /* FOOTER */
-    .editor-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 32px 24px; border-top: 1px solid rgba(255,255,255,0.04); flex-shrink: 0; }
+    .editor-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 108px 24px 32px; border-top: 1px solid rgba(255,255,255,0.04); flex-shrink: 0; }
     .wc-txt { font-size: 11px; color: rgba(255,255,255,0.22); }
     .mood-row { display: flex; align-items: center; gap: 6px; }
     .mood-label { font-size: 11px; color: rgba(255,255,255,0.25); margin-right: 2px; }
@@ -107,6 +107,17 @@
       .app-sidebar { display: none; }
       .main { grid-template-columns: 1fr; }
       .entries-list { display: none; }
+      .editor-footer { padding-right: 88px; }
+    }
+
+    body .tf-aiw-fab {
+      bottom: 4px;
+    }
+
+    @media (max-width: 640px) {
+      body .tf-aiw-fab {
+        bottom: 8px;
+      }
     }
   </style>
 </head>
@@ -363,5 +374,6 @@
     });
   </script>
 
+  {% include 'components/ai_widget.html' %}
 </body>
 </html>

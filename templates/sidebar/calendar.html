@@ -1,10 +1,565 @@
-{% extends "base.html" %}
-{% block title %}Tasks • TaskFlow{% endblock %}
-{% block content %}
-<div class="h-full flex items-center justify-center">
-  <div class="text-center">
-    <h1 class="text-4xl font-bold">Calendar</h1>
-    <p class="text-zinc-400 mt-2">Overview coming soon.</p>
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>Calendar | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/sidebar_mobile_nav.js') }}" defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── APP SIDEBAR ── */
+    .app-sidebar { background: #0D0D0D; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; }
+    .sb-logo { display: flex; align-items: center; gap: 8px; padding: 0 18px 24px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 16px; text-decoration: none; }
+    .sb-logo-icon { width: 26px; height: 26px; background: #fff; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .nav-label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px; margin-bottom: 6px; margin-top: 16px; }
+    .sb-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
+    .sb-item:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.03); }
+    .sb-item.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.5); }
+    .sb-icon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+    .sb-item.active .sb-icon { background: rgba(255,255,255,0.15); }
+    .sb-spacer { flex: 1; }
+    .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .sb-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+    /* ── MAIN ── */
+    .main { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: 100vh; min-width: 0; }
+
+    /* ── CALENDAR AREA ── */
+    .cal-area { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    .cal-topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+    .cal-nav { display: flex; align-items: center; gap: 10px; }
+    .cal-month-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; color: rgba(255,255,255,0.9); min-width: 170px; }
+    .nav-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 7px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; color: rgba(255,255,255,0.5); transition: all 0.15s; }
+    .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .today-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); border-radius: 7px; padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,0.55); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .today-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+    .cal-right-btns { display: flex; gap: 6px; align-items: center; }
+    .view-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 5px 11px; font-size: 11px; color: rgba(255,255,255,0.4); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .view-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+    .view-btn.active { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
+    .add-ev-btn { background: #fff; color: #0A0A0A; border: none; border-radius: 7px; padding: 6px 14px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .add-ev-btn:hover { background: rgba(255,255,255,0.88); }
+
+    /* DAY NAMES */
+    .day-names { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+    .day-name { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.28); text-align: center; padding: 7px 0; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    /* CALENDAR GRID */
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); flex: 1; }
+    .cal-cell { border-right: 1px solid rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.04); padding: 6px 7px; min-height: 90px; cursor: pointer; transition: background 0.15s; position: relative; }
+    .cal-cell:hover { background: rgba(255,255,255,0.02); }
+    .cal-cell.other-month { opacity: 0.35; }
+    .cal-cell.today { background: rgba(255,255,255,0.03); }
+    .cal-cell.selected { background: rgba(255,255,255,0.04); }
+    .day-num { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 3px; }
+    .cal-cell.today .day-num { background: #fff; color: #0A0A0A; font-weight: 700; }
+    .cal-cell.selected:not(.today) .day-num { background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.9); }
+
+    .ev-pill { display: flex; align-items: center; gap: 3px; padding: 2px 5px; border-radius: 4px; font-size: 9px; margin-bottom: 2px; cursor: pointer; overflow: hidden; white-space: nowrap; transition: opacity 0.15s; }
+    .ev-pill:hover { opacity: 0.75; }
+    .ev-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .ev-pill-text { overflow: hidden; text-overflow: ellipsis; }
+    .ev-more { font-size: 9px; color: rgba(255,255,255,0.25); padding: 1px 3px; }
+
+    /* WEEK VIEW */
+    .week-grid { display: none; flex-direction: column; flex: 1; }
+    .week-grid.active { display: flex; }
+    .week-header { display: grid; grid-template-columns: 50px repeat(7,1fr); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .week-day-hd { padding: 8px; text-align: center; }
+    .week-day-name { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.4px; }
+    .week-day-num { font-size: 18px; font-weight: 800; letter-spacing: -0.8px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+    .week-day-hd.today .week-day-num { color: #fff; }
+    .week-body { display: grid; grid-template-columns: 50px repeat(7,1fr); overflow-y: auto; flex: 1; }
+    .week-time-col { display: flex; flex-direction: column; }
+    .week-hour { height: 48px; padding: 2px 6px 0 0; text-align: right; font-size: 9px; color: rgba(255,255,255,0.2); flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .week-day-col { border-left: 1px solid rgba(255,255,255,0.04); display: flex; flex-direction: column; position: relative; }
+    .week-slot { height: 48px; border-bottom: 1px solid rgba(255,255,255,0.03); flex-shrink: 0; cursor: pointer; transition: background 0.1s; }
+    .week-slot:hover { background: rgba(255,255,255,0.02); }
+    .week-ev { position: absolute; left: 3px; right: 3px; border-radius: 5px; padding: 3px 6px; font-size: 10px; font-weight: 500; cursor: pointer; z-index: 2; overflow: hidden; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel { border-left: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+    .rp-header { padding: 18px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+    .rp-date-big { font-size: 28px; font-weight: 800; letter-spacing: -1px; color: rgba(255,255,255,0.9); line-height: 1; margin-bottom: 3px; }
+    .rp-month-day { font-size: 12px; color: rgba(255,255,255,0.3); }
+    .rp-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 20px 6px; }
+
+    /* EVENT CARDS */
+    .ev-card { padding: 10px 20px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s; }
+    .ev-card:hover { background: rgba(255,255,255,0.03); }
+    .ev-card-bar { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; min-height: 36px; }
+    .ev-card-body { flex: 1; }
+    .ev-card-title { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.78); margin-bottom: 3px; }
+    .ev-card-time { font-size: 10px; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
+    .ev-card-tag { font-size: 9px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); display: inline-block; }
+    .ev-del { font-size: 10px; color: rgba(255,255,255,0.2); cursor: pointer; padding: 2px 5px; border-radius: 4px; transition: all 0.15s; flex-shrink: 0; }
+    .ev-del:hover { background: rgba(255,60,60,0.1); color: rgba(255,100,100,0.6); }
+
+    /* MINI CALENDAR IN PANEL */
+    .mini-cal { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .mini-cal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .mini-cal-month { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6); }
+    .mini-nav { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+    .mini-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+    .mini-dn { font-size: 8px; color: rgba(255,255,255,0.2); text-align: center; padding: 2px 0; }
+    .mini-d { font-size: 10px; color: rgba(255,255,255,0.35); text-align: center; padding: 3px 1px; border-radius: 4px; cursor: pointer; transition: all 0.12s; }
+    .mini-d:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); }
+    .mini-d.today { background: #fff; color: #0A0A0A; font-weight: 700; }
+    .mini-d.selected { background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.9); }
+    .mini-d.has-ev { color: rgba(255,255,255,0.65); }
+
+    /* EMPTY STATE */
+    .rp-empty { padding: 28px 20px; text-align: center; }
+    .rp-empty-title { font-size: 13px; color: rgba(255,255,255,0.3); margin-bottom: 5px; }
+    .rp-empty-sub { font-size: 11px; color: rgba(255,255,255,0.18); line-height: 1.6; }
+
+    /* MODAL */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-bg.show { display: flex; }
+    .modal { background: #111; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 28px; max-width: 420px; width: 90%; }
+    .modal-title { font-size: 16px; font-weight: 800; letter-spacing: -0.4px; color: rgba(255,255,255,0.9); margin-bottom: 20px; }
+    .m-field { margin-bottom: 14px; }
+    .m-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .m-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 9px; padding: 10px 13px; font-size: 13px; color: #fff; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    .m-input:focus { border-color: rgba(255,255,255,0.22); }
+    .m-input::placeholder { color: rgba(255,255,255,0.2); }
+    .m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .m-select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 9px; padding: 10px 13px; font-size: 13px; color: #fff; font-family: inherit; outline: none; cursor: pointer; }
+    .m-select option { background: #1a1a1a; }
+    .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; transition: all 0.15s; border: 2px solid transparent; }
+    .color-dot:hover { transform: scale(1.1); }
+    .color-dot.selected { border-color: #fff; transform: scale(1.15); }
+    .m-btns { display: flex; gap: 8px; margin-top: 20px; }
+    .m-cancel { flex: 1; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.09); border-radius: 9px; padding: 10px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .m-save { flex: 1; background: #fff; color: #0A0A0A; border: none; border-radius: 9px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .m-save:hover { background: rgba(255,255,255,0.88); }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      .app-sidebar { display: none; }
+      .main { grid-template-columns: 1fr; }
+      .cal-topbar { padding: 18px 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+      .cal-nav { width: 100%; flex-wrap: wrap; }
+      .cal-month-title { min-width: 0; }
+      .cal-right-btns { width: 100%; flex-wrap: wrap; }
+      .right-panel { display: none; }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+
+  <!-- APP SIDEBAR -->
+  <div class="app-sidebar">
+    <a href="{{ url_for('home_page') }}" class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+          <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      TaskFlow
+    </a>
+    <div class="nav-label">Main</div>
+    <a href="/home" class="sb-item"><div class="sb-icon">⌂</div>Home</a>
+    <a href="/tasks" class="sb-item"><div class="sb-icon">✓</div>Tasks</a>
+    <a href="/habits" class="sb-item"><div class="sb-icon">↺</div>Habits</a>
+    <a href="/ai" class="sb-item"><div class="sb-icon">✦</div>AI Coach</a>
+    <div class="nav-label">Tools</div>
+    <a href="/journal" class="sb-item"><div class="sb-icon">✎</div>Journal</a>
+    <a href="/calendar" class="sb-item active"><div class="sb-icon">▦</div>Calendar</a>
+    <a href="/focus" class="sb-item"><div class="sb-icon">◎</div>Focus Mode</a>
+    <div class="nav-label">Insights</div>
+    <a href="/score" class="sb-item"><div class="sb-icon">↑</div>Growth Score</a>
+    {% with sidebar_user_name = username if username else 'Guest' %}
+      {% include 'includes/sidebar_profile_dropdown.html' %}
+    {% endwith %}
   </div>
-</div>
-{% endblock %}
+
+  {% include 'includes/mobile_page_nav.html' %}
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- CALENDAR AREA -->
+    <div class="cal-area">
+      <div class="cal-topbar">
+        <div class="cal-nav">
+          <div class="nav-btn" onclick="changeMonth(-1)">‹</div>
+          <div class="nav-btn" onclick="changeMonth(1)">›</div>
+          <div class="cal-month-title" id="month-title"></div>
+          <button class="today-btn" onclick="goToday()">Today</button>
+        </div>
+        <div class="cal-right-btns">
+          <button class="view-btn active" id="btn-month" onclick="setView('month')">Month</button>
+          <button class="view-btn" id="btn-week" onclick="setView('week')">Week</button>
+          <button class="add-ev-btn" onclick="openModal()">+ Add event</button>
+        </div>
+      </div>
+
+      <!-- MONTH VIEW -->
+      <div id="month-view" style="display:flex;flex-direction:column;flex:1;">
+        <div class="day-names">
+          <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+          <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div>
+          <div class="day-name">Sat</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <!-- WEEK VIEW -->
+      <div id="week-view" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="week-header" id="week-header">
+          <div style="border-bottom:1px solid rgba(255,255,255,0.05);"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:50px repeat(7,1fr);flex:1;overflow-y:auto;" id="week-body"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- MINI CALENDAR -->
+      <div class="mini-cal">
+        <div class="mini-cal-hd">
+          <span class="mini-cal-month" id="mini-month"></span>
+          <div style="display:flex;gap:4px;">
+            <button class="mini-nav" onclick="changeMonth(-1)">‹</button>
+            <button class="mini-nav" onclick="changeMonth(1)">›</button>
+          </div>
+        </div>
+        <div class="mini-grid" id="mini-grid"></div>
+      </div>
+
+      <!-- SELECTED DAY -->
+      <div class="rp-header">
+        <div class="rp-date-big" id="rp-day-num"></div>
+        <div class="rp-month-day" id="rp-month-day"></div>
+      </div>
+
+      <div id="rp-events-wrap"></div>
+
+      <!-- UPCOMING SECTION -->
+      <div class="rp-section" style="margin-top:8px;">Upcoming tasks</div>
+      <div id="upcoming-tasks">
+        {% for task in upcoming_tasks %}
+        <div class="ev-card">
+          <div class="ev-card-bar" style="background:rgba(255,255,255,0.25)"></div>
+          <div class="ev-card-body">
+            <div class="ev-card-title">{{ task.title }}</div>
+            <div class="ev-card-tag">Task</div>
+          </div>
+        </div>
+        {% else %}
+        <div class="rp-empty">
+          <div class="rp-empty-title">No upcoming tasks</div>
+          <div class="rp-empty-sub">Add tasks from the tasks page and they'll appear here.</div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ADD EVENT MODAL -->
+  <div class="modal-bg" id="modal">
+    <div class="modal">
+      <div class="modal-title">New event</div>
+      <form method="POST" action="/calendar/events/create">
+        <div class="m-field">
+          <div class="m-label">Title</div>
+          <input class="m-input" name="title" id="ev-title" placeholder="e.g. Morning workout, Study session..." required>
+        </div>
+        <div class="m-row">
+          <div class="m-field">
+            <div class="m-label">Date</div>
+            <input class="m-input" type="date" name="date" id="ev-date" required>
+          </div>
+          <div class="m-field">
+            <div class="m-label">Time</div>
+            <input class="m-input" type="time" name="time" id="ev-time" value="09:00">
+          </div>
+        </div>
+        <div class="m-field">
+          <div class="m-label">Category</div>
+          <select class="m-select" name="category">
+            <option value="task">Task</option>
+            <option value="habit">Habit</option>
+            <option value="focus">Focus session</option>
+            <option value="personal">Personal</option>
+            <option value="music">Music</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="m-field">
+          <div class="m-label">Color</div>
+          <input type="hidden" name="color" id="ev-color" value="rgba(255,255,255,0.7)">
+          <div class="color-row">
+            <div class="color-dot selected" style="background:rgba(255,255,255,0.65)" onclick="selectColor(this,'rgba(255,255,255,0.7)')"></div>
+            <div class="color-dot" style="background:rgba(100,160,255,0.75)" onclick="selectColor(this,'rgba(100,160,255,0.75)')"></div>
+            <div class="color-dot" style="background:rgba(160,100,255,0.75)" onclick="selectColor(this,'rgba(160,100,255,0.75)')"></div>
+            <div class="color-dot" style="background:rgba(80,210,120,0.75)" onclick="selectColor(this,'rgba(80,210,120,0.75)')"></div>
+            <div class="color-dot" style="background:rgba(255,180,50,0.75)" onclick="selectColor(this,'rgba(255,180,50,0.75)')"></div>
+            <div class="color-dot" style="background:rgba(255,90,90,0.75)" onclick="selectColor(this,'rgba(255,90,90,0.75)')"></div>
+          </div>
+        </div>
+        <div class="m-btns">
+          <button type="button" class="m-cancel" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="m-save">Add event →</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    // ── EVENTS DATA from Flask
+    const serverEvents = {{ calendar_events | tojson if calendar_events else '[]' }};
+
+    // Build events map: key = "YYYY-M-D"
+    let eventsMap = {};
+    serverEvents.forEach(ev => {
+      if (!ev.date) return;
+      const d = new Date(ev.date);
+      const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+      if (!eventsMap[key]) eventsMap[key] = [];
+      eventsMap[key].push(ev);
+    });
+
+    // State
+    const now = new Date();
+    let curYear = now.getFullYear();
+    let curMonth = now.getMonth();
+    let selDay = now.getDate();
+    let selMonth = now.getMonth();
+    let selYear = now.getFullYear();
+    let curView = 'month';
+
+    function getKey(y,m,d) { return `${y}-${m+1}-${d}`; }
+
+    // ── RENDER MONTH VIEW
+    function renderMonth() {
+      document.getElementById('month-title').textContent = MONTHS[curMonth] + ' ' + curYear;
+      const firstDay = new Date(curYear, curMonth, 1).getDay();
+      const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+      const daysInPrev = new Date(curYear, curMonth, 0).getDate();
+      const grid = document.getElementById('cal-grid');
+      grid.innerHTML = '';
+
+      let cells = [];
+      for (let i = firstDay-1; i >= 0; i--) cells.push({d: daysInPrev-i, m: curMonth-1, y: curYear, other: true});
+      for (let d = 1; d <= daysInMonth; d++) cells.push({d, m: curMonth, y: curYear});
+      while (cells.length % 7 !== 0 || cells.length < 35) {
+        cells.push({d: cells.length - daysInMonth - firstDay + 1, m: curMonth+1, y: curYear, other: true});
+      }
+
+      cells.forEach(c => {
+        const adjM = c.m < 0 ? 11 : c.m > 11 ? 0 : c.m;
+        const adjY = c.m < 0 ? c.y-1 : c.m > 11 ? c.y+1 : c.y;
+        const isToday = !c.other && c.d===now.getDate() && adjM===now.getMonth() && adjY===now.getFullYear();
+        const isSel = !c.other && c.d===selDay && adjM===selMonth && adjY===selYear;
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell' + (c.other?' other-month':'') + (isToday?' today':'') + (isSel?' selected':'');
+        cell.onclick = () => { selDay=c.d; selMonth=adjM; selYear=adjY; renderMonth(); renderMiniCal(); renderPanel(); };
+
+        const num = document.createElement('div');
+        num.className = 'day-num';
+        num.textContent = c.d;
+        cell.appendChild(num);
+
+        const key = getKey(adjY, adjM, c.d);
+        const evs = eventsMap[key] || [];
+        evs.slice(0,3).forEach(ev => {
+          const pill = document.createElement('div');
+          pill.className = 'ev-pill';
+          pill.style.background = (ev.color||'rgba(255,255,255,0.7)').replace(/[\d.]+\)$/, '0.1)');
+          pill.innerHTML = `<div class="ev-dot" style="background:${ev.color||'rgba(255,255,255,0.7)'}"></div><span class="ev-pill-text" style="color:${ev.color||'rgba(255,255,255,0.7)'}">${ev.title}</span>`;
+          cell.appendChild(pill);
+        });
+        if (evs.length > 3) {
+          const more = document.createElement('div');
+          more.className = 'ev-more';
+          more.textContent = `+${evs.length-3} more`;
+          cell.appendChild(more);
+        }
+        grid.appendChild(cell);
+      });
+
+      renderMiniCal();
+      renderPanel();
+    }
+
+    // ── RENDER WEEK VIEW
+    function renderWeek() {
+      document.getElementById('month-title').textContent = MONTHS[curMonth] + ' ' + curYear;
+      const startOfWeek = new Date(selYear, selMonth, selDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+      const hd = document.getElementById('week-header');
+      hd.innerHTML = '<div style="border-bottom:1px solid rgba(255,255,255,0.05);"></div>';
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek); d.setDate(d.getDate()+i);
+        const isToday = d.toDateString() === now.toDateString();
+        const col = document.createElement('div');
+        col.className = 'week-day-hd' + (isToday?' today':'');
+        col.style.cssText = 'padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05);border-left:1px solid rgba(255,255,255,0.04);';
+        col.innerHTML = `<div class="week-day-name">${DAYS_SHORT[d.getDay()]}</div><div class="week-day-num" style="font-size:16px;font-weight:800;letter-spacing:-0.5px;color:${isToday?'#fff':'rgba(255,255,255,0.55)'};">${d.getDate()}</div>`;
+        hd.appendChild(col);
+      }
+
+      const body = document.getElementById('week-body');
+      body.innerHTML = '';
+      const timeCol = document.createElement('div');
+      timeCol.className = 'week-time-col';
+      for (let h = 0; h < 24; h++) {
+        const slot = document.createElement('div');
+        slot.className = 'week-hour';
+        slot.textContent = h === 0 ? '' : `${h > 12 ? h-12 : h}${h >= 12 ? 'pm' : 'am'}`;
+        timeCol.appendChild(slot);
+      }
+      body.appendChild(timeCol);
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek); d.setDate(d.getDate()+i);
+        const key = getKey(d.getFullYear(), d.getMonth(), d.getDate());
+        const evs = eventsMap[key] || [];
+        const col = document.createElement('div');
+        col.style.cssText = 'border-left:1px solid rgba(255,255,255,0.04);position:relative;';
+        for (let h = 0; h < 24; h++) {
+          const slot = document.createElement('div');
+          slot.className = 'week-slot';
+          slot.onclick = () => {
+            selDay=d.getDate(); selMonth=d.getMonth(); selYear=d.getFullYear();
+            document.getElementById('ev-date').value = `${selYear}-${String(selMonth+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`;
+            document.getElementById('ev-time').value = `${String(h).padStart(2,'0')}:00`;
+            openModal();
+          };
+          col.appendChild(slot);
+        }
+        evs.forEach(ev => {
+          const t = ev.time || '09:00';
+          const [hh,mm] = t.split(':').map(Number);
+          const top = (hh + mm/60) * 48;
+          const evEl = document.createElement('div');
+          evEl.className = 'week-ev';
+          evEl.style.cssText = `top:${top}px;height:44px;background:${(ev.color||'rgba(255,255,255,0.7)').replace(/[\d.]+\)$/,'0.15)')};border-left:3px solid ${ev.color||'rgba(255,255,255,0.7)'};`;
+          evEl.innerHTML = `<div style="font-size:10px;font-weight:600;color:${ev.color||'rgba(255,255,255,0.8)'};">${ev.title}</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">${ev.time||''}</div>`;
+          col.appendChild(evEl);
+        });
+        body.appendChild(col);
+      }
+      renderPanel();
+      renderMiniCal();
+    }
+
+    // ── MINI CALENDAR
+    function renderMiniCal() {
+      document.getElementById('mini-month').textContent = MONTHS[curMonth].slice(0,3) + ' ' + curYear;
+      const firstDay = new Date(curYear, curMonth, 1).getDay();
+      const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+      const daysInPrev = new Date(curYear, curMonth, 0).getDate();
+      const grid = document.getElementById('mini-grid');
+      grid.innerHTML = '';
+      ['S','M','T','W','T','F','S'].forEach(n => {
+        const dn = document.createElement('div'); dn.className='mini-dn'; dn.textContent=n; grid.appendChild(dn);
+      });
+      for (let i = firstDay-1; i >= 0; i--) {
+        const d = document.createElement('div'); d.className='mini-d'; d.textContent=daysInPrev-i; d.style.opacity='0.2'; grid.appendChild(d);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const cell = document.createElement('div');
+        const isToday = d===now.getDate() && curMonth===now.getMonth() && curYear===now.getFullYear();
+        const isSel = d===selDay && curMonth===selMonth && curYear===selYear;
+        const key = getKey(curYear, curMonth, d);
+        const hasEv = (eventsMap[key]||[]).length > 0;
+        cell.className = 'mini-d' + (isToday?' today':'') + (isSel&&!isToday?' selected':'') + (hasEv&&!isToday?' has-ev':'');
+        cell.textContent = d;
+        cell.onclick = () => { selDay=d; selMonth=curMonth; selYear=curYear; renderMonth(); renderPanel(); };
+        grid.appendChild(cell);
+      }
+    }
+
+    // ── RIGHT PANEL
+    function renderPanel() {
+      document.getElementById('rp-day-num').textContent = selDay;
+      document.getElementById('rp-month-day').textContent = DAYS_FULL[new Date(selYear,selMonth,selDay).getDay()] + ', ' + MONTHS[selMonth] + ' ' + selYear;
+      const key = getKey(selYear, selMonth, selDay);
+      const evs = eventsMap[key] || [];
+      const wrap = document.getElementById('rp-events-wrap');
+      wrap.innerHTML = '';
+      const label = document.createElement('div'); label.className='rp-section'; label.textContent='Events'; wrap.appendChild(label);
+      if (evs.length === 0) {
+        wrap.innerHTML += `<div class="rp-empty"><div class="rp-empty-title">No events today</div><div class="rp-empty-sub">Click + Add event to schedule something for this day.</div></div>`;
+        return;
+      }
+      evs.forEach((ev, idx) => {
+        const card = document.createElement('div'); card.className='ev-card';
+        card.innerHTML = `<div class="ev-card-bar" style="background:${ev.color||'rgba(255,255,255,0.5)'}"></div><div class="ev-card-body"><div class="ev-card-title">${ev.title}</div><div class="ev-card-time">${ev.time||'All day'}</div><span class="ev-card-tag">${ev.category||'Event'}</span></div><div class="ev-del" onclick="deleteEvent('${key}',${idx})">✕</div>`;
+        wrap.appendChild(card);
+      });
+    }
+
+    function deleteEvent(key, idx) {
+      if (!eventsMap[key]) return;
+      const ev = eventsMap[key][idx];
+      eventsMap[key].splice(idx, 1);
+      if (ev.id) fetch(`/calendar/events/${ev.id}/delete`, { method: 'POST' });
+      curView === 'month' ? renderMonth() : renderWeek();
+      renderPanel();
+    }
+
+    // ── NAVIGATION
+    function changeMonth(dir) {
+      curMonth += dir;
+      if (curMonth > 11) { curMonth=0; curYear++; }
+      if (curMonth < 0) { curMonth=11; curYear--; }
+      curView === 'month' ? renderMonth() : renderWeek();
+    }
+
+    function goToday() {
+      curYear=now.getFullYear(); curMonth=now.getMonth();
+      selDay=now.getDate(); selMonth=now.getMonth(); selYear=now.getFullYear();
+      curView === 'month' ? renderMonth() : renderWeek();
+    }
+
+    // ── VIEW SWITCHER
+    function setView(v) {
+      curView = v;
+      document.getElementById('month-view').style.display = v==='month' ? 'flex' : 'none';
+      document.getElementById('week-view').style.display = v==='week' ? 'flex' : 'none';
+      document.getElementById('btn-month').classList.toggle('active', v==='month');
+      document.getElementById('btn-week').classList.toggle('active', v==='week');
+      v==='month' ? renderMonth() : renderWeek();
+    }
+
+    // ── MODAL
+    function openModal() {
+      const y = selYear, m = String(selMonth+1).padStart(2,'0'), d = String(selDay).padStart(2,'0');
+      document.getElementById('ev-date').value = `${y}-${m}-${d}`;
+      document.getElementById('modal').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+    document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+    function selectColor(el, color) {
+      document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('ev-color').value = color;
+    }
+
+    // ── INIT
+    renderMonth();
+  </script>
+
+  {% include 'components/ai_widget.html' %}
+</body>
+</html>

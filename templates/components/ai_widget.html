@@ -1,0 +1,1022 @@
+{% if active_page is not defined %}
+  {% if request.path == '/home' %}
+    {% set active_page = 'home' %}
+  {% elif request.path == '/tasks' %}
+    {% set active_page = 'tasks' %}
+  {% elif request.path == '/habits' %}
+    {% set active_page = 'habits' %}
+  {% elif request.path.startswith('/journal') %}
+    {% set active_page = 'journal' %}
+  {% elif request.path == '/calendar' %}
+    {% set active_page = 'calendar' %}
+  {% elif request.path == '/settings' %}
+    {% set active_page = 'settings' %}
+  {% else %}
+    {% set active_page = 'app' %}
+  {% endif %}
+{% endif %}
+
+<style>
+  .tf-aiw-root {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  .tf-aiw-fab,
+  .tf-aiw-panel {
+    pointer-events: auto;
+  }
+
+  .tf-aiw-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    width: 54px;
+    height: 54px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    background: #0F0F0F;
+    color: rgba(255,255,255,0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 18px 42px rgba(0,0,0,0.34);
+    cursor: pointer;
+    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .tf-aiw-fab:hover {
+    background: #141414;
+    border-color: rgba(255,255,255,0.14);
+    transform: translateY(-1px);
+  }
+
+  .tf-aiw-fab-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .tf-aiw-panel {
+    position: fixed;
+    width: min(380px, calc(100vw - 24px));
+    height: min(520px, calc(100vh - 24px));
+    background: #0F0F0F;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px;
+    box-shadow: 0 26px 60px rgba(0,0,0,0.42);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.96);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  }
+
+  .tf-aiw-root.is-open .tf-aiw-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+  }
+
+  .tf-aiw-root.is-open .tf-aiw-fab {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    pointer-events: none;
+  }
+
+  .tf-aiw-panel.dragging,
+  .tf-aiw-panel.dragging .tf-aiw-topbar {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .tf-aiw-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: grab;
+    background: rgba(255,255,255,0.01);
+  }
+
+  .tf-aiw-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .tf-aiw-title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.88);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .tf-aiw-title-copy {
+    min-width: 0;
+  }
+
+  .tf-aiw-title-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.88);
+    line-height: 1.2;
+  }
+
+  .tf-aiw-title-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.28);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tf-aiw-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tf-aiw-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .tf-aiw-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+
+  .tf-aiw-messages::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .tf-aiw-messages::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+  }
+
+  .tf-aiw-empty {
+    margin: auto 0;
+    text-align: center;
+    padding: 12px 8px;
+  }
+
+  .tf-aiw-empty-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: rgba(255,255,255,0.88);
+  }
+
+  .tf-aiw-empty-title {
+    font-size: 19px;
+    line-height: 1.15;
+    letter-spacing: -0.6px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 8px;
+  }
+
+  .tf-aiw-empty-sub {
+    max-width: 280px;
+    margin: 0 auto;
+    font-size: 12px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.34);
+  }
+
+  .tf-aiw-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .tf-aiw-row.user {
+    justify-content: flex-end;
+  }
+
+  .tf-aiw-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.54);
+    flex-shrink: 0;
+  }
+
+  .tf-aiw-message-wrap {
+    max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tf-aiw-row.user .tf-aiw-message-wrap {
+    align-items: flex-end;
+  }
+
+  .tf-aiw-bubble {
+    padding: 11px 14px;
+    border-radius: 16px;
+    font-size: 12px;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+
+  .tf-aiw-bubble.ai {
+    background: #111;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.78);
+    border-radius: 4px 16px 16px 16px;
+  }
+
+  .tf-aiw-bubble.user {
+    background: rgba(255,255,255,0.11);
+    color: rgba(255,255,255,0.88);
+    border-radius: 16px 16px 4px 16px;
+  }
+
+  .tf-aiw-time {
+    font-size: 9px;
+    color: rgba(255,255,255,0.2);
+    padding: 0 4px;
+  }
+
+  .tf-aiw-typing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tf-aiw-typing-bubble {
+    background: #111;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px 16px 16px 16px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .tf-aiw-typing-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+    animation: tf-aiw-typing 1.2s infinite;
+  }
+
+  .tf-aiw-typing-dot:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  .tf-aiw-typing-dot:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+
+  .tf-aiw-typing-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.24);
+    margin-left: 3px;
+  }
+
+  .tf-aiw-action-card {
+    background: #111;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 12px 14px;
+  }
+
+  .tf-aiw-action-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.24);
+    margin-bottom: 6px;
+  }
+
+  .tf-aiw-action-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.86);
+    margin-bottom: 6px;
+  }
+
+  .tf-aiw-action-copy {
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.58);
+  }
+
+  .tf-aiw-action-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .tf-aiw-action-btn {
+    border-radius: 10px;
+    padding: 8px 11px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.72);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .tf-aiw-action-btn:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.16);
+    color: rgba(255,255,255,0.9);
+  }
+
+  .tf-aiw-action-btn.confirm {
+    background: #fff;
+    border-color: #fff;
+    color: #0A0A0A;
+  }
+
+  .tf-aiw-action-btn.confirm:hover {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(255,255,255,0.9);
+  }
+
+  .tf-aiw-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .tf-aiw-action-status {
+    margin-top: 10px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.34);
+  }
+
+  @keyframes tf-aiw-typing {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+    40% { transform: translateY(-4px); opacity: 0.9; }
+  }
+
+  .tf-aiw-footer {
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 12px 14px 14px;
+    background: rgba(15,15,15,0.98);
+  }
+
+  .tf-aiw-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    scrollbar-width: none;
+  }
+
+  .tf-aiw-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tf-aiw-chip {
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.54);
+    padding: 6px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tf-aiw-chip:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.82);
+    border-color: rgba(255,255,255,0.14);
+  }
+
+  .tf-aiw-composer {
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.03);
+    padding: 12px;
+  }
+
+  .tf-aiw-input {
+    width: 100%;
+    min-height: 68px;
+    max-height: 140px;
+    resize: none;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: rgba(255,255,255,0.86);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .tf-aiw-input::placeholder {
+    color: rgba(255,255,255,0.22);
+  }
+
+  .tf-aiw-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tf-aiw-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tf-aiw-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.48);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .tf-aiw-icon-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.76);
+    border-color: rgba(255,255,255,0.14);
+  }
+
+  .tf-aiw-send {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 0;
+    background: #fff;
+    color: #0A0A0A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.16s ease, background 0.15s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .tf-aiw-send:hover {
+    background: rgba(255,255,255,0.9);
+    transform: translateY(-1px);
+  }
+
+  .tf-aiw-send:disabled {
+    opacity: 0.36;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 640px) {
+    .tf-aiw-fab {
+      right: 14px;
+      bottom: 14px;
+      width: 50px;
+      height: 50px;
+      border-radius: 15px;
+    }
+
+    .tf-aiw-panel {
+      width: calc(100vw - 16px);
+      height: min(500px, calc(100vh - 16px));
+    }
+
+    .tf-aiw-topbar {
+      padding: 13px 14px;
+    }
+
+    .tf-aiw-messages {
+      padding: 14px;
+    }
+
+    .tf-aiw-footer {
+      padding: 12px;
+    }
+  }
+</style>
+
+<div class="tf-aiw-root" data-tf-aiw-root>
+  <button type="button" class="tf-aiw-fab" data-tf-aiw-open aria-label="Open AI coach">
+    <span class="tf-aiw-fab-icon">✦</span>
+  </button>
+
+  <section class="tf-aiw-panel" data-tf-aiw-panel aria-label="Taskflow AI widget">
+    <div class="tf-aiw-topbar" data-tf-aiw-drag>
+      <div class="tf-aiw-title">
+        <div class="tf-aiw-title-icon">✦</div>
+        <div class="tf-aiw-title-copy">
+          <div class="tf-aiw-title-label">Taskflow AI</div>
+          <div class="tf-aiw-title-sub">Your personal coach, anywhere in TaskFlow</div>
+        </div>
+      </div>
+      <button type="button" class="tf-aiw-close" data-tf-aiw-close aria-label="Close AI coach">✕</button>
+    </div>
+
+    <div class="tf-aiw-messages" data-tf-aiw-messages>
+      <div class="tf-aiw-empty" data-tf-aiw-empty>
+        <div class="tf-aiw-empty-icon">✦</div>
+        <div class="tf-aiw-empty-title">Ask for guidance<br>without leaving the page.</div>
+        <div class="tf-aiw-empty-sub">I can help you plan, refocus, and coach you through what matters right now.</div>
+      </div>
+    </div>
+
+    <div class="tf-aiw-footer">
+      <div class="tf-aiw-chips">
+        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="Plan my day. Tell me what I should do first on this page.">Plan my day</button>
+        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="I need motivation. Give me direct coaching based on what I should be doing here.">I need motivation</button>
+        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="What should I focus on right now? Be specific.">What should I focus on?</button>
+      </div>
+
+      <div class="tf-aiw-composer">
+        <textarea
+          class="tf-aiw-input"
+          data-tf-aiw-input
+          rows="3"
+          placeholder="Ask Taskflow AI anything…"
+        ></textarea>
+
+        <div class="tf-aiw-actions">
+          <button type="button" class="tf-aiw-icon-btn" title="More tools coming soon" aria-label="More tools">
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <div class="tf-aiw-actions-right">
+            <button type="button" class="tf-aiw-icon-btn" title="Voice input coming soon" aria-label="Voice input">
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                <path d="M8 10.5C6.62 10.5 5.5 9.38 5.5 8V4.75C5.5 3.37 6.62 2.25 8 2.25C9.38 2.25 10.5 3.37 10.5 4.75V8C10.5 9.38 9.38 10.5 8 10.5Z" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M3.5 7.75V8C3.5 10.49 5.51 12.5 8 12.5C10.49 12.5 12.5 10.49 12.5 8V7.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M8 12.5V14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <button type="button" class="tf-aiw-send" data-tf-aiw-send aria-label="Send message">
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                <path d="M8 3V13M8 3L4.5 6.5M8 3L11.5 6.5" stroke="#0A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  (() => {
+    const root = document.querySelector('[data-tf-aiw-root]');
+    if (!root || root.dataset.initialized === '1') {
+      return;
+    }
+    root.dataset.initialized = '1';
+
+    const panel = root.querySelector('[data-tf-aiw-panel]');
+    const openButton = root.querySelector('[data-tf-aiw-open]');
+    const closeButton = root.querySelector('[data-tf-aiw-close]');
+    const dragHandle = root.querySelector('[data-tf-aiw-drag]');
+    const messagesEl = root.querySelector('[data-tf-aiw-messages]');
+    const emptyEl = root.querySelector('[data-tf-aiw-empty]');
+    const inputEl = root.querySelector('[data-tf-aiw-input]');
+    const sendButton = root.querySelector('[data-tf-aiw-send]');
+    const quickButtons = root.querySelectorAll('[data-tf-aiw-quick]');
+
+    const POSITION_KEY = 'taskflow.aiWidget.position';
+    const OPEN_KEY = 'taskflow.aiWidget.open';
+    const systemPrompt = "You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the {{ active_page }} page right now.";
+    const activePage = "{{ active_page }}";
+    const userInitials = "{{ user_initials if user_initials else 'TF' }}";
+
+    const state = {
+      open: localStorage.getItem(OPEN_KEY) === '1',
+      position: null,
+      history: [],
+      pending: false,
+      drag: null,
+    };
+
+    function readStoredPosition() {
+      try {
+        const raw = localStorage.getItem(POSITION_KEY);
+        if (!raw) {
+          return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          return parsed;
+        }
+      } catch (error) {
+        return null;
+      }
+      return null;
+    }
+
+    function savePosition() {
+      if (!state.position) {
+        return;
+      }
+      localStorage.setItem(POSITION_KEY, JSON.stringify(state.position));
+    }
+
+    function setOpen(nextOpen) {
+      state.open = nextOpen;
+      root.classList.toggle('is-open', nextOpen);
+      localStorage.setItem(OPEN_KEY, nextOpen ? '1' : '0');
+      if (nextOpen) {
+        ensurePosition();
+        requestAnimationFrame(() => {
+          inputEl.focus();
+          scrollMessagesToBottom();
+        });
+      }
+    }
+
+    function panelWidth() {
+      return panel.offsetWidth || Math.min(380, window.innerWidth - 24);
+    }
+
+    function panelHeight() {
+      return panel.offsetHeight || Math.min(520, window.innerHeight - 24);
+    }
+
+    function defaultPosition() {
+      const margin = 18;
+      return clampPosition({
+        x: window.innerWidth - panelWidth() - margin,
+        y: window.innerHeight - panelHeight() - margin,
+      });
+    }
+
+    function clampPosition(position) {
+      const margin = 8;
+      const maxX = Math.max(margin, window.innerWidth - panelWidth() - margin);
+      const maxY = Math.max(margin, window.innerHeight - panelHeight() - margin);
+      return {
+        x: Math.min(Math.max(position.x, margin), maxX),
+        y: Math.min(Math.max(position.y, margin), maxY),
+      };
+    }
+
+    function applyPosition(position) {
+      panel.style.left = `${position.x}px`;
+      panel.style.top = `${position.y}px`;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    }
+
+    function ensurePosition() {
+      if (!state.position) {
+        state.position = readStoredPosition() || defaultPosition();
+      }
+      state.position = clampPosition(state.position);
+      applyPosition(state.position);
+      savePosition();
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
+
+    function currentTimeLabel() {
+      const now = new Date();
+      const hours = now.getHours() % 12 || 12;
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const suffix = now.getHours() >= 12 ? 'PM' : 'AM';
+      return `${hours}:${minutes} ${suffix}`;
+    }
+
+    function scrollMessagesToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function removeEmptyState() {
+      if (emptyEl && emptyEl.parentNode) {
+        emptyEl.parentNode.removeChild(emptyEl);
+      }
+    }
+
+    function addMessage(role, text) {
+      removeEmptyState();
+      const row = document.createElement('div');
+      row.className = `tf-aiw-row ${role}`;
+
+      if (role === 'ai') {
+        row.innerHTML = `
+          <div class="tf-aiw-avatar">✦</div>
+          <div class="tf-aiw-message-wrap">
+            <div class="tf-aiw-bubble ai">${escapeHtml(text)}</div>
+            <div class="tf-aiw-time">${currentTimeLabel()}</div>
+          </div>
+        `;
+      } else {
+        row.innerHTML = `
+          <div class="tf-aiw-message-wrap">
+            <div class="tf-aiw-bubble user">${escapeHtml(text)}</div>
+            <div class="tf-aiw-time">${currentTimeLabel()}</div>
+          </div>
+          <div class="tf-aiw-avatar">${userInitials}</div>
+        `;
+      }
+
+      messagesEl.appendChild(row);
+      scrollMessagesToBottom();
+      return row;
+    }
+
+    function addTyping() {
+      removeEmptyState();
+      const row = document.createElement('div');
+      row.className = 'tf-aiw-typing';
+      row.innerHTML = `
+        <div class="tf-aiw-avatar">✦</div>
+        <div class="tf-aiw-typing-bubble">
+          <div class="tf-aiw-typing-dot"></div>
+          <div class="tf-aiw-typing-dot"></div>
+          <div class="tf-aiw-typing-dot"></div>
+          <span class="tf-aiw-typing-label">Analyzing your patterns…</span>
+        </div>
+      `;
+      messagesEl.appendChild(row);
+      scrollMessagesToBottom();
+      return row;
+    }
+
+    function addActionCard(action) {
+      if (!action || !action.id) {
+        return null;
+      }
+
+      removeEmptyState();
+      const row = document.createElement('div');
+      row.className = 'tf-aiw-row ai';
+      row.dataset.actionId = String(action.id);
+      row.innerHTML = `
+        <div class="tf-aiw-avatar">✦</div>
+        <div class="tf-aiw-message-wrap">
+          <div class="tf-aiw-action-card">
+            <div class="tf-aiw-action-label">Needs confirmation</div>
+            <div class="tf-aiw-action-title">${escapeHtml(action.title || 'TaskFlow change')}</div>
+            <div class="tf-aiw-action-copy">${escapeHtml(action.confirmation_text || 'Do you want me to make this change in TaskFlow?')}</div>
+            <div class="tf-aiw-action-controls">
+              <button type="button" class="tf-aiw-action-btn confirm" data-aiw-action="confirm">Confirm</button>
+              <button type="button" class="tf-aiw-action-btn" data-aiw-action="cancel">Not now</button>
+            </div>
+            <div class="tf-aiw-action-status" data-aiw-action-status hidden></div>
+          </div>
+          <div class="tf-aiw-time">${currentTimeLabel()}</div>
+        </div>
+      `;
+
+      const controls = row.querySelectorAll('[data-aiw-action]');
+      controls.forEach((button) => {
+        button.addEventListener('click', () => resolveAction(action.id, button.dataset.aiwAction, row));
+      });
+
+      messagesEl.appendChild(row);
+      scrollMessagesToBottom();
+      return row;
+    }
+
+    async function resolveAction(actionId, decision, row) {
+      const buttons = row.querySelectorAll('[data-aiw-action]');
+      const statusEl = row.querySelector('[data-aiw-action-status]');
+      buttons.forEach((button) => {
+        button.disabled = true;
+      });
+      statusEl.hidden = false;
+      statusEl.textContent = decision === 'confirm' ? 'Applying change...' : 'Clearing request...';
+
+      try {
+        const response = await fetch(`/ai/actions/${actionId}/${decision}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+        statusEl.textContent = data.ok ? (decision === 'confirm' ? 'Done.' : 'Skipped.') : 'Could not apply.';
+        addMessage('ai', (data && data.reply) ? data.reply : "I'm here — what do you need?");
+        state.history.push({ role: 'assistant', content: (data && data.reply) ? data.reply : "I'm here — what do you need?" });
+        trimHistory();
+      } catch (error) {
+        statusEl.textContent = 'Could not apply.';
+        addMessage('ai', "I couldn't finish that change right now.");
+        state.history.push({ role: 'assistant', content: "I couldn't finish that change right now." });
+        trimHistory();
+      }
+    }
+
+    function trimHistory() {
+      if (state.history.length > 20) {
+        state.history = state.history.slice(-20);
+      }
+    }
+
+    function autoResize() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = `${Math.min(inputEl.scrollHeight, 140)}px`;
+    }
+
+    function updateSendState() {
+      sendButton.disabled = state.pending || !inputEl.value.trim();
+    }
+
+    async function submitMessage(explicitText) {
+      const message = (explicitText || inputEl.value || '').trim();
+      if (!message || state.pending) {
+        return;
+      }
+
+      setOpen(true);
+      state.pending = true;
+      inputEl.value = '';
+      autoResize();
+      updateSendState();
+
+      addMessage('user', message);
+      state.history.push({ role: 'user', content: message });
+      trimHistory();
+
+      const typingRow = addTyping();
+
+      try {
+        const response = await fetch('/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: state.history,
+            system: systemPrompt,
+            active_page: activePage,
+          }),
+        });
+
+        const data = await response.json();
+        const reply = (data && data.reply) ? data.reply : "I'm here — what do you need?";
+        typingRow.remove();
+        addMessage('ai', reply);
+        state.history.push({ role: 'assistant', content: reply });
+        trimHistory();
+        if (data && data.pending_action) {
+          addActionCard(data.pending_action);
+        }
+      } catch (error) {
+        typingRow.remove();
+        addMessage('ai', "I'm here for you. What's on your mind?");
+      } finally {
+        state.pending = false;
+        updateSendState();
+        inputEl.focus();
+      }
+    }
+
+    function startDrag(event) {
+      if (event.target.closest('[data-tf-aiw-close]')) {
+        return;
+      }
+
+      if (!state.open) {
+        return;
+      }
+
+      ensurePosition();
+      state.drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: state.position.x,
+        originY: state.position.y,
+      };
+      panel.classList.add('dragging');
+      if (dragHandle.setPointerCapture) {
+        dragHandle.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+    }
+
+    function moveDrag(event) {
+      if (!state.drag || event.pointerId !== state.drag.pointerId) {
+        return;
+      }
+
+      state.position = clampPosition({
+        x: state.drag.originX + (event.clientX - state.drag.startX),
+        y: state.drag.originY + (event.clientY - state.drag.startY),
+      });
+      applyPosition(state.position);
+    }
+
+    function endDrag(event) {
+      if (!state.drag || event.pointerId !== state.drag.pointerId) {
+        return;
+      }
+
+      panel.classList.remove('dragging');
+      if (dragHandle.releasePointerCapture) {
+        try {
+          dragHandle.releasePointerCapture(event.pointerId);
+        } catch (error) {
+          // no-op
+        }
+      }
+      savePosition();
+      state.drag = null;
+    }
+
+    openButton.addEventListener('click', () => setOpen(true));
+    closeButton.addEventListener('click', () => setOpen(false));
+    sendButton.addEventListener('click', () => submitMessage());
+
+    inputEl.addEventListener('input', () => {
+      autoResize();
+      updateSendState();
+    });
+
+    inputEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        submitMessage();
+      }
+    });
+
+    quickButtons.forEach((button) => {
+      button.addEventListener('click', () => submitMessage(button.dataset.tfAiwQuick));
+    });
+
+    dragHandle.addEventListener('pointerdown', startDrag);
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    window.addEventListener('resize', () => {
+      if (!state.position) {
+        return;
+      }
+      state.position = clampPosition(state.position);
+      applyPosition(state.position);
+      savePosition();
+    });
+
+    ensurePosition();
+    autoResize();
+    updateSendState();
+    setOpen(state.open);
+  })();
+</script>

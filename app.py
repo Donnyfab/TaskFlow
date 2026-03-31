@@ -26,6 +26,7 @@ import mysql.connector
 import os
 import json
 import calendar
+import re
 import requests
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -34,6 +35,7 @@ from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
 
 # Load environment variables from .env FIRST (so os.environ works)
 load_dotenv()
+print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
 
 # ============================================================
@@ -579,6 +581,775 @@ def notes_mood_column_available() -> bool:
             cursor.close()
 
     return g._notes_mood_column_available
+
+
+def calendar_schema_available() -> bool:
+    cached = getattr(g, "_calendar_schema_available", None)
+    if cached is not None:
+        return cached
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SHOW TABLES LIKE 'calendar_events'")
+        g._calendar_schema_available = cursor.fetchone() is not None
+    except mysql.connector.Error:
+        app.logger.exception("Failed to verify calendar schema availability.")
+        g._calendar_schema_available = False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    return g._calendar_schema_available
+
+
+def format_calendar_event_time(value):
+    if value is None:
+        return None
+
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds())
+        hours = (total_seconds // 3600) % 24
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+
+    text = str(value)
+    return text[:5] if len(text) >= 5 else text
+
+
+def focus_sessions_schema_available() -> bool:
+    cached = getattr(g, "_focus_sessions_schema_available", None)
+    if cached is not None:
+        return cached
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SHOW TABLES LIKE 'focus_sessions'")
+        g._focus_sessions_schema_available = cursor.fetchone() is not None
+    except mysql.connector.Error:
+        app.logger.exception("Failed to verify focus session schema availability.")
+        g._focus_sessions_schema_available = False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    return g._focus_sessions_schema_available
+
+
+def parse_optional_int(value):
+    if value in (None, "", False):
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+DEFAULT_AI_ACTION_COLOR = "rgba(255,255,255,0.7)"
+AI_ACTION_CONFIRM_WORDS = {
+    "yes",
+    "yeah",
+    "yep",
+    "sure",
+    "do it",
+    "add it",
+    "add that",
+    "create it",
+    "create that",
+    "schedule it",
+    "sounds good",
+    "ok",
+    "okay",
+    "please do",
+    "go ahead",
+}
+AI_ACTION_CANCEL_WORDS = {
+    "no",
+    "nope",
+    "nah",
+    "cancel",
+    "dont",
+    "don't",
+    "not now",
+    "never mind",
+    "nevermind",
+    "skip it",
+    "no thanks",
+}
+AI_MEMORY_TRIGGER_PATTERN = re.compile(
+    r"\b("
+    r"my birthday|remember|call me|my goal|i want to|i need to|"
+    r"i (?:prefer|like|work best|am most productive)|"
+    r"add|create|schedule|put .* calendar|task|habit|calendar"
+    r")\b",
+    re.IGNORECASE,
+)
+MONTH_LOOKUP = {
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "sept": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
+}
+
+
+def ensure_ai_support_schema() -> bool:
+    cached = getattr(g, "_ai_support_schema_ready", None)
+    if cached is not None:
+        return cached
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_memories (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                memory_type VARCHAR(64) NOT NULL,
+                memory_key VARCHAR(128) NOT NULL,
+                label VARCHAR(255) NOT NULL,
+                value_text TEXT NOT NULL,
+                value_json LONGTEXT NULL,
+                source VARCHAR(64) NOT NULL DEFAULT 'ai',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                last_used_at DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_user_memory (user_id, memory_type, memory_key),
+                KEY idx_user_memories_user_updated (user_id, updated_at)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_action_requests (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                action_type VARCHAR(64) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                confirmation_text TEXT NOT NULL,
+                payload_json LONGTEXT NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                confirmed_at DATETIME NULL DEFAULT NULL,
+                executed_at DATETIME NULL DEFAULT NULL,
+                cancelled_at DATETIME NULL DEFAULT NULL,
+                error_text TEXT NULL,
+                PRIMARY KEY (id),
+                KEY idx_ai_action_requests_user_status_created (user_id, status, created_at)
+            )
+            """
+        )
+        g._ai_support_schema_ready = True
+    except mysql.connector.Error:
+        app.logger.exception("Failed to ensure AI support schema.")
+        g._ai_support_schema_ready = False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    return g._ai_support_schema_ready
+
+
+def safe_json_dumps(value):
+    return json.dumps(value, ensure_ascii=True)
+
+
+def safe_json_loads(value, default=None):
+    if value in (None, ""):
+        return default
+
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return default
+
+
+def slugify_memory_key(value: str) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_")
+    return key[:128] or "memory"
+
+
+def fetch_user_memories(user_id: int, limit: int = 6):
+    if not ensure_ai_support_schema():
+        return []
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, memory_type, memory_key, label, value_text, value_json
+        FROM user_memories
+        WHERE user_id = %s
+        ORDER BY updated_at DESC, id DESC
+        LIMIT %s
+        """,
+        (user_id, limit),
+    )
+    memories = cursor.fetchall()
+    cursor.close()
+    return memories
+
+
+def build_ai_memory_context(user_id: int, limit: int = 6) -> str:
+    memories = fetch_user_memories(user_id, limit=limit)
+    if not memories:
+        return ""
+
+    lines = []
+    memory_ids = []
+    for memory in memories:
+        label = (memory.get("label") or memory.get("memory_type") or "Memory").strip()
+        value_text = (memory.get("value_text") or "").strip()
+        if not value_text:
+            continue
+        memory_ids.append(memory["id"])
+        lines.append(f"- {label}: {value_text}")
+
+    if memory_ids:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.executemany(
+            "UPDATE user_memories SET last_used_at = NOW() WHERE id = %s",
+            [(memory_id,) for memory_id in memory_ids],
+        )
+        cursor.close()
+
+    return "\n".join(lines)
+
+
+def normalize_ai_memory_items(raw_memories):
+    if not isinstance(raw_memories, list):
+        return []
+
+    normalized = []
+    seen_keys = set()
+
+    for item in raw_memories[:3]:
+        if not isinstance(item, dict):
+            continue
+
+        memory_type = slugify_memory_key(item.get("memory_type") or "memory")
+        label = (item.get("label") or memory_type.replace("_", " ").title()).strip()[:255]
+        value_text = str(item.get("value_text") or "").strip()
+        if not value_text:
+            continue
+
+        memory_key = slugify_memory_key(item.get("memory_key") or label or memory_type)
+        dedupe_key = (memory_type, memory_key)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+
+        value_json = item.get("value_json")
+        normalized.append(
+            {
+                "memory_type": memory_type,
+                "memory_key": memory_key,
+                "label": label,
+                "value_text": value_text,
+                "value_json": value_json if isinstance(value_json, (dict, list, str, int, float, bool)) or value_json is None else str(value_json),
+            }
+        )
+
+    return normalized
+
+
+def save_user_memories(user_id: int, memories):
+    if not memories or not ensure_ai_support_schema():
+        return []
+
+    normalized = normalize_ai_memory_items(memories)
+    if not normalized:
+        return []
+
+    db = get_db()
+    cursor = db.cursor()
+    saved = []
+
+    for memory in normalized:
+        value_json = memory.get("value_json")
+        cursor.execute(
+            """
+            INSERT INTO user_memories
+                (user_id, memory_type, memory_key, label, value_text, value_json, source)
+            VALUES (%s, %s, %s, %s, %s, %s, 'ai')
+            ON DUPLICATE KEY UPDATE
+                label = VALUES(label),
+                value_text = VALUES(value_text),
+                value_json = VALUES(value_json),
+                source = VALUES(source),
+                updated_at = NOW()
+            """,
+            (
+                user_id,
+                memory["memory_type"],
+                memory["memory_key"],
+                memory["label"],
+                memory["value_text"],
+                safe_json_dumps(value_json) if value_json is not None else None,
+            ),
+        )
+        saved.append(f"{memory['label']}: {memory['value_text']}")
+
+    cursor.close()
+    return saved
+
+
+def extract_json_object(text: str):
+    if not text:
+        return None
+
+    candidate = text.strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?\s*|\s*```$", "", candidate, flags=re.IGNORECASE | re.DOTALL).strip()
+
+    try:
+        return json.loads(candidate)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+
+    match = re.search(r"\{.*\}", candidate, re.DOTALL)
+    if not match:
+        return None
+
+    try:
+        return json.loads(match.group(0))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def message_warrants_memory_analysis(message_text: str) -> bool:
+    message = (message_text or "").strip()
+    if not message:
+        return False
+    return AI_MEMORY_TRIGGER_PATTERN.search(message) is not None
+
+
+def normalize_confirmation_choice(message_text: str):
+    normalized = re.sub(r"[^a-z0-9'\s]+", " ", (message_text or "").lower()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+    if not normalized:
+        return None
+
+    if normalized in AI_ACTION_CONFIRM_WORDS or any(normalized.startswith(f"{word} ") for word in AI_ACTION_CONFIRM_WORDS):
+        return "confirm"
+
+    if normalized in AI_ACTION_CANCEL_WORDS or any(normalized.startswith(f"{word} ") for word in AI_ACTION_CANCEL_WORDS):
+        return "cancel"
+
+    return None
+
+
+def find_next_month_day(month_number: int, day_number: int):
+    today = datetime.now().date()
+
+    for year in (today.year, today.year + 1):
+        try:
+            candidate = datetime(year, month_number, day_number).date()
+        except ValueError:
+            return None
+        if candidate >= today:
+            return candidate
+
+    return None
+
+
+def extract_birthday_memory_and_action(user, message_text: str):
+    match = re.search(
+        r"\bmy birthday(?: is| is on|'s on| falls on)?\s+([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\b",
+        message_text or "",
+        re.IGNORECASE,
+    )
+    if not match:
+        return {"memories": [], "action": None}
+
+    month_name_raw = match.group(1).lower()
+    day_number = int(match.group(2))
+    month_number = MONTH_LOOKUP.get(month_name_raw)
+    if not month_number:
+        return {"memories": [], "action": None}
+
+    next_occurrence = find_next_month_day(month_number, day_number)
+    if not next_occurrence:
+        return {"memories": [], "action": None}
+
+    display_value = f"{calendar.month_name[month_number]} {day_number}"
+    full_name = (user.get("name") or "").strip()
+    event_title = f"{full_name}'s birthday" if full_name else "Birthday"
+
+    action = None
+    if calendar_schema_available():
+        action = {
+            "type": "create_calendar_event",
+            "title": event_title,
+            "confirmation_text": f"You told me your birthday is {display_value}. Want me to add your next birthday to your calendar?",
+            "payload": {
+                "title": event_title,
+                "event_date": next_occurrence.isoformat(),
+                "event_time": "09:00",
+                "category": "personal",
+                "color": DEFAULT_AI_ACTION_COLOR,
+            },
+        }
+
+    return {
+        "memories": [
+            {
+                "memory_type": "birthday",
+                "memory_key": "birthday",
+                "label": "Birthday",
+                "value_text": display_value,
+                "value_json": {
+                    "month": month_number,
+                    "day": day_number,
+                    "next_occurrence": next_occurrence.isoformat(),
+                },
+            }
+        ],
+        "action": action,
+    }
+
+
+def normalize_ai_action(raw_action, user):
+    if not isinstance(raw_action, dict):
+        return None
+
+    action_type = slugify_memory_key(raw_action.get("type") or "")
+    payload = raw_action.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+
+    if action_type == "create_task":
+        title = str(payload.get("title") or raw_action.get("title") or "").strip()
+        if not title:
+            return None
+
+        list_id = parse_optional_int(payload.get("list_id"))
+        return {
+            "type": action_type,
+            "title": title[:255],
+            "confirmation_text": (raw_action.get("confirmation_text") or f'Want me to add "{title}" to your tasks?').strip(),
+            "payload": {
+                "title": title[:255],
+                "list_id": list_id,
+            },
+        }
+
+    if action_type == "create_habit":
+        name = str(payload.get("name") or raw_action.get("title") or "").strip()
+        if not name:
+            return None
+
+        frequency = str(payload.get("frequency") or "Daily").strip() or "Daily"
+        icon = str(payload.get("icon") or "↺").strip() or "↺"
+        return {
+            "type": action_type,
+            "title": name[:255],
+            "confirmation_text": (raw_action.get("confirmation_text") or f'Want me to create the habit "{name}"?').strip(),
+            "payload": {
+                "name": name[:255],
+                "frequency": frequency[:20],
+                "icon": icon[:10],
+            },
+        }
+
+    if action_type == "create_calendar_event":
+        title = str(payload.get("title") or raw_action.get("title") or "").strip()
+        event_date = str(payload.get("event_date") or "").strip()
+        if not title or not event_date:
+            return None
+
+        event_time = str(payload.get("event_time") or "").strip() or "09:00"
+        category = str(payload.get("category") or "personal").strip() or "personal"
+        color = str(payload.get("color") or DEFAULT_AI_ACTION_COLOR).strip() or DEFAULT_AI_ACTION_COLOR
+
+        return {
+            "type": action_type,
+            "title": title[:255],
+            "confirmation_text": (raw_action.get("confirmation_text") or f'Want me to add "{title}" to your calendar?').strip(),
+            "payload": {
+                "title": title[:255],
+                "event_date": event_date[:10],
+                "event_time": event_time[:5],
+                "category": category[:32],
+                "color": color[:64],
+            },
+        }
+
+    return None
+
+
+def analyze_message_for_memories_and_actions(client, user, message_text: str, active_page: str):
+    fallback = extract_birthday_memory_and_action(user, message_text)
+    if not message_warrants_memory_analysis(message_text):
+        return fallback
+
+    prompt = (
+        "Today is "
+        f"{datetime.now().date().isoformat()}.\n"
+        f"Current TaskFlow page: {active_page}.\n"
+        f"User message: {message_text}\n\n"
+        "Return strict JSON only with this shape:\n"
+        "{\n"
+        '  "memories": [{"memory_type":"","memory_key":"","label":"","value_text":"","value_json":{}}],\n'
+        '  "action": {"type":"","title":"","confirmation_text":"","payload":{}}\n'
+        "}\n\n"
+        "Rules:\n"
+        "- Save only durable facts or preferences worth remembering later.\n"
+        "- Supported actions: create_task, create_habit, create_calendar_event.\n"
+        "- Only propose an action if the user clearly asked to create/add/schedule something, or if they mention a birthday worth offering to add to the calendar.\n"
+        "- For calendar events, payload.event_date must be YYYY-MM-DD and payload.event_time must be HH:MM or null.\n"
+        "- If nothing should be saved, return an empty memories array.\n"
+        '- If no action is needed, set "action" to null.\n'
+        "- Never include extra commentary outside the JSON."
+    )
+
+    try:
+        response = client.messages.create(
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=220,
+            system="You extract durable user memory and safe confirmation-gated TaskFlow actions.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = extract_json_object(extract_anthropic_text(response)) or {}
+    except Exception:
+        app.logger.exception("AI memory extraction failed.")
+        return fallback
+
+    memories = normalize_ai_memory_items(data.get("memories") or [])
+    action = normalize_ai_action(data.get("action"), user)
+
+    if not memories and not action:
+        return fallback
+
+    if fallback["memories"]:
+        seen = {(memory["memory_type"], memory["memory_key"]) for memory in memories}
+        for memory in fallback["memories"]:
+            key = (memory["memory_type"], memory["memory_key"])
+            if key not in seen:
+                memories.append(memory)
+                seen.add(key)
+
+    if action is None and fallback["action"] is not None:
+        action = fallback["action"]
+
+    return {"memories": memories[:3], "action": action}
+
+
+def create_ai_action_request(user_id: int, action):
+    if not action or not ensure_ai_support_schema():
+        return None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_action_requests
+        SET status = 'cancelled', cancelled_at = NOW(), error_text = NULL
+        WHERE user_id = %s AND status = 'pending'
+        """,
+        (user_id,),
+    )
+    cursor.execute(
+        """
+        INSERT INTO ai_action_requests
+            (user_id, action_type, title, confirmation_text, payload_json, status)
+        VALUES (%s, %s, %s, %s, %s, 'pending')
+        """,
+        (
+            user_id,
+            action["type"],
+            action["title"],
+            action["confirmation_text"],
+            safe_json_dumps(action["payload"]),
+        ),
+    )
+    action_id = cursor.lastrowid
+    cursor.close()
+
+    return {
+        "id": action_id,
+        "type": action["type"],
+        "title": action["title"],
+        "confirmation_text": action["confirmation_text"],
+    }
+
+
+def fetch_ai_action_request(user_id: int, action_id: int | None = None, status: str | None = None):
+    if not ensure_ai_support_schema():
+        return None
+
+    conditions = ["user_id = %s"]
+    params = [user_id]
+
+    if action_id is not None:
+        conditions.append("id = %s")
+        params.append(action_id)
+
+    if status is not None:
+        conditions.append("status = %s")
+        params.append(status)
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        f"""
+        SELECT id, user_id, action_type, title, confirmation_text, payload_json, status, created_at
+        FROM ai_action_requests
+        WHERE {' AND '.join(conditions)}
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        """,
+        tuple(params),
+    )
+    action = cursor.fetchone()
+    cursor.close()
+    return action
+
+
+def execute_ai_action_request(action_row):
+    payload = safe_json_loads(action_row.get("payload_json"), default={}) or {}
+    action_type = action_row.get("action_type")
+    user_id = action_row["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+        if action_type == "create_task":
+            title = str(payload.get("title") or "").strip()
+            if not title:
+                raise ValueError("Task title is missing.")
+
+            list_id = parse_optional_int(payload.get("list_id"))
+            if not list_id or not user_owns_list(user_id, list_id):
+                list_id = get_inbox_list_id(user_id)
+
+            cursor.execute(
+                """
+                INSERT INTO tasks (user_id, list_id, title, description)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (user_id, list_id, title, ""),
+            )
+            return {"reply": f'Added "{title}" to your tasks.', "action_type": action_type}
+
+        if action_type == "create_habit":
+            if not habits_schema_available():
+                raise ValueError("Habits are not configured in the database yet.")
+
+            name = str(payload.get("name") or "").strip()
+            if not name:
+                raise ValueError("Habit name is missing.")
+
+            icon = str(payload.get("icon") or "↺").strip() or "↺"
+            frequency = str(payload.get("frequency") or "Daily").strip() or "Daily"
+            cursor.execute(
+                """
+                INSERT INTO habits (user_id, name, icon, frequency, streak, created_at)
+                VALUES (%s, %s, %s, %s, 0, NOW())
+                """,
+                (user_id, name, icon, frequency),
+            )
+            return {"reply": f'Created the habit "{name}".', "action_type": action_type}
+
+        if action_type == "create_calendar_event":
+            if not calendar_schema_available():
+                raise ValueError("Calendar is not configured in the database yet.")
+
+            title = str(payload.get("title") or "").strip()
+            event_date = str(payload.get("event_date") or "").strip()
+            if not title or not event_date:
+                raise ValueError("Calendar event details are incomplete.")
+
+            event_time = str(payload.get("event_time") or "09:00").strip() or "09:00"
+            category = str(payload.get("category") or "personal").strip() or "personal"
+            color = str(payload.get("color") or DEFAULT_AI_ACTION_COLOR).strip() or DEFAULT_AI_ACTION_COLOR
+            cursor.execute(
+                """
+                INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (user_id, title, event_date, event_time, category, color),
+            )
+            return {"reply": f'Added "{title}" to your calendar.', "action_type": action_type}
+
+        raise ValueError("That TaskFlow action is not supported yet.")
+    finally:
+        cursor.close()
+
+
+def confirm_ai_action_request(action_row):
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+        result = execute_ai_action_request(action_row)
+        cursor.execute(
+            """
+            UPDATE ai_action_requests
+            SET status = 'executed', confirmed_at = NOW(), executed_at = NOW(), error_text = NULL
+            WHERE id = %s AND user_id = %s
+            """,
+            (action_row["id"], action_row["user_id"]),
+        )
+        return {"ok": True, "reply": result["reply"], "status": "executed", "action_type": result["action_type"]}
+    except Exception as exc:
+        cursor.execute(
+            """
+            UPDATE ai_action_requests
+            SET status = 'failed', confirmed_at = NOW(), error_text = %s
+            WHERE id = %s AND user_id = %s
+            """,
+            (str(exc), action_row["id"], action_row["user_id"]),
+        )
+        app.logger.exception("AI action execution failed.")
+        return {"ok": False, "reply": f"I couldn't make that change: {exc}", "status": "failed"}
+    finally:
+        cursor.close()
+
+
+def cancel_ai_action_request(action_row):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_action_requests
+        SET status = 'cancelled', cancelled_at = NOW(), error_text = NULL
+        WHERE id = %s AND user_id = %s
+        """,
+        (action_row["id"], action_row["user_id"]),
+    )
+    cursor.close()
+    return {"ok": True, "reply": "Okay — I won't make that change.", "status": "cancelled"}
 
 
 def fetch_habit_for_user(habit_id: int, user_id: int):
@@ -1517,6 +2288,90 @@ def build_dashboard_day_plan(context):
     return "\n".join(lines)
 
 
+def build_ai_coach_system_context(user_id: int, active_page: str) -> str:
+    ctx = build_home_dashboard_context(user_id)
+    habit_context = sorted(
+        fetch_user_habits(user_id),
+        key=lambda habit: habit.get("streak") or 0,
+        reverse=True,
+    )[:5]
+
+    journal_preview = "None"
+    today_entry = ctx.get("today_journal_entry")
+    if today_entry and (today_entry.get("content") or "").strip():
+        content = (today_entry.get("content") or "").strip()
+        journal_preview = content[:140] + ("..." if len(content) > 140 else "")
+
+    return "\n".join(
+        [
+            "Here is what you know about this user RIGHT NOW:",
+            f"- Current page: {active_page}",
+            f"- Name: {ctx['name'] if ctx.get('name') else ctx.get('username', 'there')}",
+            f"- Tasks today: {', '.join(task['title'] for task in ctx['tasks']) if ctx.get('tasks') else 'None added yet'}",
+            f"- Tasks completed: {ctx['tasks_done']}/{ctx['tasks_total']}",
+            f"- Habits: {', '.join(habit['name'] for habit in habit_context) if habit_context else 'None added yet'}",
+            f"- Habit streaks: {', '.join(str(habit['streak']) for habit in habit_context) if habit_context else 'N/A'}",
+            f"- Growth score today: {ctx['growth_score']}/100",
+            f"- Today's journal: {journal_preview}",
+            f"- Greeting: {ctx['greeting']}",
+            f"- Current streak: {ctx['streak']}",
+        ]
+    )
+
+
+def create_anthropic_client(api_key: str):
+    import anthropic
+
+    return anthropic.Anthropic(api_key=api_key)
+
+
+ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+ANTHROPIC_CHAT_HISTORY_LIMIT = 10
+ANTHROPIC_CHAT_MAX_TOKENS = 350
+ANTHROPIC_PLAN_MAX_TOKENS = 250
+ANTHROPIC_JOURNAL_MAX_TOKENS = 120
+
+
+def extract_anthropic_text(response) -> str:
+    parts = []
+    for block in getattr(response, "content", []) or []:
+        text = getattr(block, "text", "")
+        if text:
+            parts.append(text)
+    return "\n".join(parts).strip()
+
+
+def normalize_ai_chat_messages(messages):
+    normalized = []
+
+    for message in messages[-ANTHROPIC_CHAT_HISTORY_LIMIT:]:
+        if not isinstance(message, dict):
+            continue
+
+        role = (message.get("role") or "").strip()
+        if role not in {"user", "assistant"}:
+            continue
+
+        content = message.get("content", "")
+        if isinstance(content, list):
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_value = (item.get("text") or "").strip()
+                    if text_value:
+                        text_parts.append(text_value)
+            content_text = "\n".join(text_parts).strip()
+        else:
+            content_text = str(content).strip()
+
+        if not content_text:
+            continue
+
+        normalized.append({"role": role, "content": content_text})
+
+    return normalized
+
+
 @app.route("/home")
 @login_required
 def home_page():
@@ -1681,6 +2536,52 @@ def save_journal_entry(entry_id):
     return redirect(url_for("journal_page", entry_id=entry_id))
 
 
+@app.route("/ai")
+@login_required
+def ai_coach_page():
+    user_id = session["user_id"]
+    ctx = build_home_dashboard_context(user_id)
+
+    habits = sorted(
+        fetch_user_habits(user_id),
+        key=lambda habit: habit.get("streak") or 0,
+        reverse=True,
+    )[:5]
+
+    journal_snippet = None
+    today_entry = ctx.get("today_journal_entry")
+    if today_entry and (today_entry.get("content") or "").strip():
+        content = (today_entry.get("content") or "").strip()
+        created_at = today_entry.get("created_at")
+        date_label = "Today"
+
+        if created_at:
+            hour = created_at.hour % 12 or 12
+            am_pm = "AM" if created_at.hour < 12 else "PM"
+            date_label = f"{created_at.strftime('%A, %B %d')} · {hour}:{created_at.minute:02d} {am_pm}"
+
+        journal_snippet = {
+            "date": date_label,
+            "preview": content[:120] + ("..." if len(content) > 120 else ""),
+        }
+
+    template_context = dict(ctx)
+    template_context.update(
+        {
+            "active_page": "ai",
+            "context_tasks": ctx["tasks"],
+            "context_habits": habits,
+            "tasks_done": ctx["tasks_done"],
+            "tasks_total": ctx["tasks_total"],
+            "habits_done": ctx["habits_done"],
+            "habits_total": ctx["habits_total"],
+            "growth_score": ctx["growth_score"],
+            "journal_snippet": journal_snippet,
+        }
+    )
+    return render_template("sidebar/ai_coach.html", **template_context)
+
+
 @app.route("/ai/journal-insight", methods=["POST"])
 @login_required
 def ai_journal_insight():
@@ -1694,26 +2595,123 @@ def ai_journal_insight():
         return jsonify({"insight": "Keep writing — consistency compounds over time."})
 
     try:
-        res = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": anthropic_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 150,
-                "system": "You are a journal coach. Read this entry and give one short, specific, warm insight in 1–2 sentences. Be direct. No fluff.",
-                "messages": [{"role": "user", "content": content}],
-            },
-            timeout=10,
+        client = create_anthropic_client(anthropic_key)
+        response = client.messages.create(
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=ANTHROPIC_JOURNAL_MAX_TOKENS,
+            system="You are a journal coach. Read this entry and give one short, specific, warm insight in 1–2 sentences. Be direct. No fluff.",
+            messages=[{"role": "user", "content": content}],
         )
-        result = res.json()
-        insight = result.get("content", [{}])[0].get("text", "")
+        insight = extract_anthropic_text(response)
         return jsonify({"insight": insight or "Keep going — patterns reveal themselves over time."})
-    except Exception:
-        return jsonify({"insight": "Keep writing — your consistency is building something real."})
+    except Exception as e:
+        app.logger.exception("AI journal insight failed: %s", e)
+        return jsonify({"insight": f"Error: {str(e)}"}), 200
+
+
+@app.route("/ai/chat", methods=["POST"])
+@login_required
+def ai_chat():
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages", [])
+    active_page = str(data.get("active_page") or request.path or "app").strip().lower()
+    system = data.get("system", "You are Taskflow AI, a personal life coach.")
+    normalized_messages = normalize_ai_chat_messages(messages)
+
+    if not normalized_messages:
+        return jsonify({"reply": "What do you need help with?"})
+
+    latest_user_message = ""
+    for message in reversed(normalized_messages):
+        if message["role"] == "user":
+            latest_user_message = message["content"]
+            break
+
+    if not latest_user_message:
+        return jsonify({"reply": "What do you need help with?"})
+
+    pending_action = fetch_ai_action_request(session["user_id"], status="pending")
+    confirmation_choice = normalize_confirmation_choice(latest_user_message) if pending_action else None
+    if pending_action and confirmation_choice == "confirm":
+        result = confirm_ai_action_request(pending_action)
+        return jsonify(result), (200 if result["ok"] else 400)
+    if pending_action and confirmation_choice == "cancel":
+        result = cancel_ai_action_request(pending_action)
+        return jsonify(result)
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        return jsonify(
+            {
+                "reply": (
+                    "AI coaching requires an Anthropic API key. "
+                    "Add ANTHROPIC_API_KEY to your environment variables."
+                )
+            }
+        )
+
+    try:
+        user = fetch_user_by_id(session["user_id"]) or {}
+        client = create_anthropic_client(anthropic_key)
+        saved_memories = []
+        created_action = None
+
+        analysis = analyze_message_for_memories_and_actions(client, user, latest_user_message, active_page)
+        if analysis.get("memories"):
+            saved_memories = save_user_memories(session["user_id"], analysis["memories"])
+        if analysis.get("action"):
+            created_action = create_ai_action_request(session["user_id"], analysis["action"])
+
+        memory_context = build_ai_memory_context(session["user_id"])
+        live_context = build_ai_coach_system_context(session["user_id"], active_page)
+        system_parts = [
+            "You are Taskflow AI - a personal life coach and accountability partner built into the Taskflow productivity app.",
+            live_context,
+            str(system).strip(),
+            "You never directly modify TaskFlow data on your own.",
+            "If the user wants to create, edit, complete, delete, or schedule something, keep the response brief and let TaskFlow ask for explicit confirmation before any change happens.",
+        ]
+        if memory_context:
+            system_parts.append("Saved user memories you can rely on if relevant:\n" + memory_context)
+
+        response = client.messages.create(
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=ANTHROPIC_CHAT_MAX_TOKENS,
+            system="\n\n".join(part for part in system_parts if part),
+            messages=normalized_messages,
+        )
+        reply = extract_anthropic_text(response)
+        if saved_memories and "remember" not in reply.lower():
+            reply = (reply or "Noted.") + "\n\nI'll remember that for future coaching."
+        payload = {"reply": reply or "I'm here — what do you need?"}
+        if created_action:
+            payload["pending_action"] = created_action
+        return jsonify(payload)
+    except Exception as e:
+        app.logger.exception("AI chat failed: %s", e)
+        return jsonify({"reply": f"Error: {str(e)}"}), 200
+
+
+@app.route("/ai/actions/<int:action_id>/confirm", methods=["POST"])
+@login_required
+def confirm_ai_action(action_id):
+    action = fetch_ai_action_request(session["user_id"], action_id=action_id, status="pending")
+    if not action:
+        return jsonify({"ok": False, "reply": "That confirmation request has expired."}), 404
+
+    result = confirm_ai_action_request(action)
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
+@app.route("/ai/actions/<int:action_id>/cancel", methods=["POST"])
+@login_required
+def cancel_ai_action(action_id):
+    action = fetch_ai_action_request(session["user_id"], action_id=action_id, status="pending")
+    if not action:
+        return jsonify({"ok": False, "reply": "That confirmation request has already been cleared."}), 404
+
+    result = cancel_ai_action_request(action)
+    return jsonify(result)
 
 
 @app.route("/journal/quick", methods=["POST"])
@@ -1754,7 +2752,38 @@ def save_quick_journal_entry():
 @login_required
 def ai_plan_for_day():
     context = build_home_dashboard_context(session["user_id"])
-    return jsonify({"plan": build_dashboard_day_plan(context)})
+    fallback_plan = build_dashboard_day_plan(context)
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if not anthropic_key:
+        return jsonify({"plan": fallback_plan})
+
+    prompt = "\n".join(
+        [
+            f"Name: {context['name']}",
+            f"Greeting: {context['greeting']}",
+            f"Open tasks: {', '.join(task['title'] for task in context['tasks'] if not task['completed']) or 'None'}",
+            f"Completed tasks: {context['tasks_done']}/{context['tasks_total']}",
+            f"Habits done: {context['habits_done']}/{context['habits_total']}",
+            f"Current streak: {context['streak']}",
+            f"Journaled today: {'yes' if context['journaled_today'] else 'no'}",
+            "Build a focused plan for today in 4 short numbered lines.",
+        ]
+    )
+
+    try:
+        client = create_anthropic_client(anthropic_key)
+        response = client.messages.create(
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=ANTHROPIC_PLAN_MAX_TOKENS,
+            system="You are Taskflow AI, a personal life coach. Create a concise day plan using the user's real dashboard data.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        plan = extract_anthropic_text(response)
+        return jsonify({"plan": plan or fallback_plan})
+    except Exception as e:
+        app.logger.exception("AI day plan failed: %s", e)
+        return jsonify({"plan": fallback_plan}), 200
 
 
 
@@ -3009,7 +4038,228 @@ def autosave_note(note_id):
 @app.route("/calendar")
 @login_required
 def calendar_page():
-    return render_template("sidebar/calendar.html", active_page="calendar", page_title="Calendar")
+    user_id = session["user_id"]
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    events = []
+    if calendar_schema_available():
+        cursor.execute(
+            """
+            SELECT
+                id,
+                title,
+                event_date AS date,
+                event_time AS time,
+                category,
+                color
+            FROM calendar_events
+            WHERE user_id = %s
+              AND deleted_at IS NULL
+            ORDER BY event_date ASC, event_time ASC
+            """,
+            (user_id,),
+        )
+        events = cursor.fetchall()
+
+        for event in events:
+            if event.get("date"):
+                event["date"] = event["date"].strftime("%Y-%m-%d")
+            event["time"] = format_calendar_event_time(event.get("time"))
+
+    cursor.execute(
+        """
+        SELECT id, title
+        FROM tasks
+        WHERE user_id = %s
+          AND completed = 0
+        ORDER BY created_at DESC
+        LIMIT 5
+        """,
+        (user_id,),
+    )
+    upcoming_tasks = cursor.fetchall()
+    cursor.close()
+
+    return render_template(
+        "sidebar/calendar.html",
+        calendar_events=events,
+        upcoming_tasks=upcoming_tasks,
+        active_page="calendar",
+        page_title="Calendar",
+    )
+
+
+@app.route("/calendar/events/create", methods=["POST"])
+@login_required
+def create_calendar_event():
+    if not calendar_schema_available():
+        flash("Calendar is not configured in the database yet.")
+        return redirect(url_for("calendar_page"))
+
+    title = (request.form.get("title") or "").strip()
+    date = (request.form.get("date") or "").strip()
+    time = (request.form.get("time") or "09:00").strip()
+    category = (request.form.get("category") or "personal").strip() or "personal"
+    color = (request.form.get("color") or "rgba(255,255,255,0.7)").strip() or "rgba(255,255,255,0.7)"
+
+    if not title or not date:
+        return redirect(url_for("calendar_page"))
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        """,
+        (session["user_id"], title, date, time, category, color),
+    )
+    cursor.close()
+    return redirect(url_for("calendar_page"))
+
+
+@app.route("/calendar/events/<int:event_id>/delete", methods=["POST"])
+@login_required
+def delete_calendar_event(event_id):
+    if not calendar_schema_available():
+        return jsonify({"error": "Calendar is not configured in the database yet."}), 503
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE calendar_events
+        SET deleted_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+        """,
+        (event_id, session["user_id"]),
+    )
+    cursor.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/focus")
+@app.route("/focus/<int:task_id>")
+@login_required
+def focus_page(task_id=None):
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, title
+        FROM tasks
+        WHERE user_id = %s
+          AND completed = 0
+        ORDER BY created_at DESC
+        """,
+        (user_id,),
+    )
+    tasks = cursor.fetchall()
+    cursor.close()
+
+    return render_template(
+        "sidebar/focus.html",
+        tasks=tasks,
+        preselect_task_id=task_id,
+        ai_nudge='"Close everything except what you need. The work deserves your full attention."',
+        active_page="focus",
+    )
+
+
+@app.route("/focus/sessions/save", methods=["POST"])
+@login_required
+def save_focus_session():
+    if not focus_sessions_schema_available():
+        return jsonify({"ok": False, "message": "Focus sessions are not configured in the database yet."}), 503
+
+    data = request.get_json(silent=True) or {}
+    task_id = parse_optional_int(data.get("task_id"))
+    session_duration = parse_optional_int(data.get("session_duration")) or 0
+    actual_time_spent = parse_optional_int(data.get("actual_time_spent")) or 0
+    completed = bool(data.get("completed", False))
+
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            INSERT INTO focus_sessions
+                (user_id, task_id, session_duration, actual_time_spent, completed, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
+            """,
+            (
+                session["user_id"],
+                task_id,
+                session_duration,
+                actual_time_spent,
+                completed,
+            ),
+        )
+        cursor.close()
+        return jsonify({"ok": True})
+    except mysql.connector.Error:
+        app.logger.exception("Unable to save focus session.")
+        return jsonify({"ok": False, "message": "Unable to save focus session right now."}), 500
+
+
+@app.route("/focus/sessions/complete", methods=["POST"])
+@login_required
+def complete_focus_session():
+    if not focus_sessions_schema_available():
+        return jsonify({"ok": False, "message": "Focus sessions are not configured in the database yet."}), 503
+
+    data = request.get_json(silent=True) or {}
+    task_id = parse_optional_int(data.get("task_id"))
+    completed = bool(data.get("completed", False))
+    reflection = (data.get("reflection") or "").strip()
+
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        if task_id is not None:
+            cursor.execute(
+                """
+                UPDATE focus_sessions
+                SET completed = %s, reflection = %s
+                WHERE user_id = %s AND task_id = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (completed, reflection, session["user_id"], task_id),
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE focus_sessions
+                SET completed = %s, reflection = %s
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (completed, reflection, session["user_id"]),
+            )
+
+        if completed and task_id is not None:
+            cursor.execute(
+                """
+                UPDATE tasks
+                SET completed = 1
+                WHERE id = %s
+                  AND user_id = %s
+                """,
+                (task_id, session["user_id"]),
+            )
+
+        cursor.close()
+        return jsonify({"ok": True})
+    except mysql.connector.Error:
+        app.logger.exception("Unable to complete focus session.")
+        return jsonify({"ok": False, "message": "Unable to complete focus session right now."}), 500
 
 
 @app.route("/trash")
