@@ -21,7 +21,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build as google_build
 from types import SimpleNamespace
 import mysql.connector
 from mysql.connector.pooling import MySQLConnectionPool
@@ -230,7 +233,11 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
         client_secret=GOOGLE_CLIENT_SECRET,
         # Google OpenID metadata (tells Authlib where JWKS + endpoints are)
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-        client_kwargs={"scope": "openid email profile"},
+        client_kwargs={
+            "scope": "openid email profile https://www.googleapis.com/auth/calendar",
+            "access_type": "offline",
+            "prompt": "consent",
+        },
     )
 else:
     print("⚠️ Google OAuth disabled (missing env vars)")
@@ -295,6 +302,34 @@ def close_db(error=None):
     db = g.pop("db", None)
     if db is not None:
         db.close()
+
+
+def ensure_google_oauth_token_columns():
+    columns_ready = getattr(g, "_google_oauth_token_columns_ready", None)
+    if columns_ready is not None:
+        return columns_ready
+
+    cursor = None
+    try:
+        cursor = get_db().cursor()
+        required_columns = {
+            "google_access_token": "LONGTEXT NULL",
+            "google_refresh_token": "LONGTEXT NULL",
+            "google_token_expiry": "BIGINT NULL DEFAULT NULL",
+        }
+
+        for column_name, column_definition in required_columns.items():
+            cursor.execute("SHOW COLUMNS FROM users LIKE %s", (column_name,))
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    f"ALTER TABLE users ADD COLUMN {column_name} {column_definition}"
+                )
+
+        g._google_oauth_token_columns_ready = True
+        return True
+    finally:
+        if cursor is not None:
+            cursor.close()
 
 
 # ============================================================
@@ -427,10 +462,25 @@ def fetch_user_by_username(username: str):
 
 
 def _load_user_by_id_from_db(user_id: int):
+    ensure_google_oauth_token_columns()
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
-        "SELECT id, name, username, email, profile_image, auth_provider, is_verified FROM users WHERE id=%s",
+        """
+        SELECT
+            id,
+            name,
+            username,
+            email,
+            profile_image,
+            auth_provider,
+            is_verified,
+            google_access_token,
+            google_refresh_token,
+            google_token_expiry
+        FROM users
+        WHERE id = %s
+        """,
         (user_id,)
     )
     user = cursor.fetchone()
@@ -494,6 +544,26 @@ def create_user_oauth(name, email, provider, provider_id):
     cursor.close()
 
     return user_id, username
+
+
+def save_google_oauth_tokens(user_id: int, access_token: str | None, refresh_token: str | None, token_expiry):
+    if not user_id:
+        return
+
+    ensure_google_oauth_token_columns()
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE users
+        SET google_access_token = %s,
+            google_refresh_token = COALESCE(%s, google_refresh_token),
+            google_token_expiry = %s
+        WHERE id = %s
+        """,
+        (access_token, refresh_token, token_expiry, user_id),
+    )
+    cursor.close()
 
 
 def set_email_verification_token(user_id: int, token: str):
@@ -730,6 +800,38 @@ def calendar_schema_available() -> bool:
     return g._calendar_schema_available
 
 
+def ensure_calendar_google_sync_columns():
+    columns_ready = getattr(g, "_calendar_google_sync_columns_ready", None)
+    if columns_ready is not None:
+        return columns_ready
+
+    if not calendar_schema_available():
+        g._calendar_google_sync_columns_ready = False
+        return False
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SHOW COLUMNS FROM calendar_events LIKE 'google_event_id'")
+        if cursor.fetchone() is None:
+            cursor.execute(
+                """
+                ALTER TABLE calendar_events
+                ADD COLUMN google_event_id VARCHAR(255) NULL DEFAULT NULL
+                """
+            )
+        g._calendar_google_sync_columns_ready = True
+        return True
+    except mysql.connector.Error:
+        app.logger.exception("Failed to ensure calendar Google sync columns.")
+        g._calendar_google_sync_columns_ready = False
+        return False
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+
 def format_calendar_event_time(value):
     if value is None:
         return None
@@ -745,6 +847,129 @@ def format_calendar_event_time(value):
 
     text = str(value)
     return text[:5] if len(text) >= 5 else text
+
+
+def get_google_calendar_service(user_id: int):
+    if not user_id or not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return None
+
+    ensure_google_oauth_token_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT google_access_token, google_refresh_token, google_token_expiry
+        FROM users WHERE id = %s
+        """,
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    if not row or not row.get("google_refresh_token"):
+        return None
+
+    expiry = None
+    token_expiry = row.get("google_token_expiry")
+    if token_expiry:
+        try:
+            expiry = datetime.utcfromtimestamp(int(token_expiry))
+        except (TypeError, ValueError, OSError):
+            expiry = None
+
+    creds = Credentials(
+        token=row.get("google_access_token"),
+        refresh_token=row.get("google_refresh_token"),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        expiry=expiry,
+    )
+
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        refreshed_expiry = int(creds.expiry.timestamp()) if creds.expiry else None
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            UPDATE users
+            SET google_access_token = %s,
+                google_token_expiry = %s
+            WHERE id = %s
+            """,
+            (creds.token, refreshed_expiry, user_id),
+        )
+        cursor.close()
+
+    return google_build("calendar", "v3", credentials=creds)
+
+
+def push_event_to_google(user_id: int, event):
+    service = get_google_calendar_service(user_id)
+    if not service:
+        return None
+
+    event_title = str((event or {}).get("title") or "").strip()
+    event_date = str((event or {}).get("date") or "").strip()
+    event_time = str((event or {}).get("time") or "09:00").strip() or "09:00"
+    if not event_title or not event_date:
+        return None
+
+    try:
+        start_dt = datetime.strptime(f"{event_date} {event_time}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+
+    end_dt = start_dt + timedelta(hours=1)
+    google_event = {
+        "summary": event_title,
+        "start": {
+            "dateTime": start_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+            "timeZone": "America/New_York",
+        },
+        "end": {
+            "dateTime": end_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+            "timeZone": "America/New_York",
+        },
+    }
+
+    created = service.events().insert(
+        calendarId="primary",
+        body=google_event,
+    ).execute()
+
+    return created.get("id")
+
+
+def delete_event_from_google(user_id: int, google_event_id: str | None):
+    service = get_google_calendar_service(user_id)
+    if not service or not google_event_id:
+        return
+
+    try:
+        service.events().delete(
+            calendarId="primary",
+            eventId=google_event_id,
+        ).execute()
+    except Exception:
+        pass
+
+
+def pull_google_calendar_events(user_id: int):
+    service = get_google_calendar_service(user_id)
+    if not service:
+        return []
+
+    now = datetime.now(timezone.utc).isoformat()
+    result = service.events().list(
+        calendarId="primary",
+        timeMin=now,
+        maxResults=50,
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
+
+    return result.get("items", [])
 
 
 @cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
@@ -2240,6 +2465,25 @@ def execute_ai_action_request(action_row):
                 """,
                 (user_id, title, event_date, event_time, category, color),
             )
+            event_id = cursor.lastrowid
+            if ensure_calendar_google_sync_columns():
+                try:
+                    google_event_id = push_event_to_google(
+                        user_id,
+                        {"title": title, "date": event_date, "time": event_time},
+                    )
+                    if google_event_id:
+                        cursor.execute(
+                            """
+                            UPDATE calendar_events
+                            SET google_event_id = %s
+                            WHERE id = %s
+                              AND user_id = %s
+                            """,
+                            (google_event_id, event_id, user_id),
+                        )
+                except Exception:
+                    app.logger.exception("Google Calendar push failed for AI-created event %s.", event_id)
             invalidate_user_cached_data(user_id)
             return {"reply": f'Added "{title}" to your calendar.', "action_type": action_type}
 
@@ -3442,15 +3686,28 @@ def home_page():
 @login_required
 def settings_page():
     user = fetch_user_by_id(session["user_id"])
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT google_refresh_token, email FROM users WHERE id = %s",
+        (session["user_id"],)
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    google_calendar_connected = bool(row and row.get("google_refresh_token"))
+    display_name = (user.get("name") or user.get("username") or "TaskFlow").strip()
     return render_template(
         "auth/settings.html",
-        name=user["name"].split()[0],
-        full_name=user["name"],
+        name=display_name.split()[0],
+        full_name=display_name,
         username=user["username"],
         email=user["email"],
         profile_image=user["profile_image"] or "default.png",
         auth_provider=user["auth_provider"],
         is_verified=bool(user["is_verified"]),
+        current_user_email=row["email"] if row else "",
+        google_calendar_connected=google_calendar_connected,
     )
 
 
@@ -5401,6 +5658,14 @@ def calendar_page():
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
+    ensure_google_oauth_token_columns()
+    cursor.execute(
+        "SELECT google_refresh_token FROM users WHERE id = %s",
+        (user_id,),
+    )
+    user_row = cursor.fetchone()
+    google_calendar_connected = bool(user_row and user_row.get("google_refresh_token"))
+
     events = []
     if calendar_schema_available():
         cursor.execute(
@@ -5446,6 +5711,7 @@ def calendar_page():
         upcoming_tasks=upcoming_tasks,
         active_page="calendar",
         page_title="Calendar",
+        google_calendar_connected=google_calendar_connected,
     )
 
 
@@ -5474,7 +5740,30 @@ def create_calendar_event():
         """,
         (session["user_id"], title, date, time, category, color),
     )
+    event_id = cursor.lastrowid
     cursor.close()
+
+    if ensure_calendar_google_sync_columns():
+        try:
+            google_event_id = push_event_to_google(
+                session["user_id"],
+                {"title": title, "date": date, "time": time},
+            )
+            if google_event_id:
+                cursor = db.cursor()
+                cursor.execute(
+                    """
+                    UPDATE calendar_events
+                    SET google_event_id = %s
+                    WHERE id = %s
+                      AND user_id = %s
+                    """,
+                    (google_event_id, event_id, session["user_id"]),
+                )
+                cursor.close()
+        except Exception:
+            app.logger.exception("Google Calendar push failed for calendar event %s.", event_id)
+
     invalidate_user_cached_data(session["user_id"])
     return redirect(url_for("calendar_page"))
 
@@ -5486,6 +5775,29 @@ def delete_calendar_event(event_id):
         return jsonify({"error": "Calendar is not configured in the database yet."}), 503
 
     db = get_db()
+    row = None
+    if ensure_calendar_google_sync_columns():
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT google_event_id
+            FROM calendar_events
+            WHERE id = %s
+              AND user_id = %s
+              AND deleted_at IS NULL
+            LIMIT 1
+            """,
+            (event_id, session["user_id"]),
+        )
+        row = cursor.fetchone()
+        cursor.close()
+
+    if row and row.get("google_event_id"):
+        try:
+            delete_event_from_google(session["user_id"], row["google_event_id"])
+        except Exception:
+            pass
+
     cursor = db.cursor()
     cursor.execute(
         """
@@ -5497,8 +5809,78 @@ def delete_calendar_event(event_id):
         (event_id, session["user_id"]),
     )
     cursor.close()
+
     invalidate_user_cached_data(session["user_id"])
     return jsonify({"ok": True})
+
+
+@app.route("/calendar/sync-google", methods=["POST"])
+@login_required
+def sync_google_calendar():
+    if not calendar_schema_available():
+        return jsonify({"ok": False, "error": "Calendar is not configured in the database yet."}), 503
+
+    user_id = session["user_id"]
+    ensure_calendar_google_sync_columns()
+
+    try:
+        google_events = pull_google_calendar_events(user_id)
+        imported = 0
+
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+
+        for ev in google_events:
+            google_id = str(ev.get("id") or "").strip()
+            if not google_id:
+                continue
+
+            title = str(ev.get("summary") or "Google Event").strip() or "Google Event"
+            start = ev.get("start") or {}
+            start_datetime = str(start.get("dateTime") or "").strip()
+            date_str = str(start.get("date") or "").strip()
+            time_str = "09:00"
+
+            if start_datetime:
+                date_str = start_datetime[:10]
+                if "T" in start_datetime and len(start_datetime) >= 16:
+                    time_str = start_datetime[11:16]
+
+            if not date_str:
+                continue
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM calendar_events
+                WHERE google_event_id = %s
+                  AND user_id = %s
+                LIMIT 1
+                """,
+                (google_id, user_id),
+            )
+            if cursor.fetchone():
+                continue
+
+            cursor2 = db.cursor()
+            cursor2.execute(
+                """
+                INSERT INTO calendar_events
+                    (user_id, title, event_date, event_time, category, color, google_event_id, created_at)
+                VALUES (%s, %s, %s, %s, 'personal', 'rgba(100,160,255,0.75)', %s, NOW())
+                """,
+                (user_id, title, date_str, time_str, google_id),
+            )
+            cursor2.close()
+            imported += 1
+
+        cursor.close()
+        if imported:
+            invalidate_user_cached_data(user_id)
+        return jsonify({"ok": True, "imported": imported})
+    except Exception as e:
+        app.logger.exception("Google Calendar pull sync failed for user %s.", user_id)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/focus")
@@ -5635,6 +6017,9 @@ def trash_page():
 
 @app.route("/login/google")
 def login_google():
+    is_calendar_connect_flow = "google_calendar_connect_user_id" in session and "user_id" in session
+    fallback_target = "settings_page" if is_calendar_connect_flow else "login_page"
+
     if google is None:
         return (
             "Google OAuth is not configured. Set real GOOGLE_CLIENT_ID and "
@@ -5646,16 +6031,93 @@ def login_google():
         return google.authorize_redirect(redirect_uri)
     except requests.RequestException:
         app.logger.exception("Google OAuth redirect failed because Google could not be reached.")
+        if is_calendar_connect_flow:
+            session.pop("google_calendar_connect_user_id", None)
+            session.pop("google_oauth_redirect", None)
         flash("Google sign-in is unavailable right now. Check your internet connection and try again.")
-        return redirect(url_for("login_page"))
+        return redirect(url_for(fallback_target))
     except OAuthError as exc:
         app.logger.exception("Google OAuth redirect failed.")
+        if is_calendar_connect_flow:
+            session.pop("google_calendar_connect_user_id", None)
+            session.pop("google_oauth_redirect", None)
         description = (getattr(exc, "description", "") or "").strip()
         flash(
             "Google sign-in could not start."
             + (f" {description}" if description else "")
         )
-        return redirect(url_for("login_page"))
+        return redirect(url_for(fallback_target))
+
+
+@app.route("/calendar/connect-google")
+@login_required
+def connect_google_calendar():
+    if google is None:
+        flash("Google OAuth is not configured.")
+        return redirect(url_for("settings_page"))
+
+    redirect_uri = url_for("google_calendar_callback", _external=True)
+    return google.authorize_redirect(
+        redirect_uri,
+        scope="openid email profile https://www.googleapis.com/auth/calendar",
+        access_type="offline",
+        prompt="consent",
+    )
+
+
+@app.route("/calendar/callback-google")
+@login_required
+def google_calendar_callback():
+    try:
+        ensure_google_oauth_token_columns()
+        token = google.authorize_access_token()
+        access_token = token.get("access_token")
+        refresh_token = token.get("refresh_token")
+        expires_at = token.get("expires_at")
+
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            UPDATE users
+            SET google_access_token = %s,
+                google_refresh_token = %s,
+                google_token_expiry = %s
+            WHERE id = %s
+            """,
+            (access_token, refresh_token, expires_at, session["user_id"]),
+        )
+        cursor.close()
+
+        invalidate_user_cached_data(session["user_id"])
+        flash("Google Calendar connected successfully.")
+    except Exception:
+        app.logger.exception("Google Calendar OAuth failed.")
+        flash("Could not connect Google Calendar. Please try again.")
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/calendar/disconnect-google")
+@login_required
+def disconnect_google_calendar():
+    ensure_google_oauth_token_columns()
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE users
+        SET google_access_token = NULL,
+            google_refresh_token = NULL,
+            google_token_expiry = NULL
+        WHERE id = %s
+        """,
+        (session["user_id"],),
+    )
+    cursor.close()
+
+    invalidate_user_cached_data(session["user_id"])
+    flash("Google Calendar disconnected.")
+    return redirect(url_for("settings_page"))
 
 
 @app.route("/auth/google/callback")
@@ -5671,20 +6133,38 @@ def google_callback():
             500,
         )
 
+    pending_google_connect_user_id = session.pop("google_calendar_connect_user_id", None)
+    pending_google_redirect = session.pop("google_oauth_redirect", None)
+    failure_target = pending_google_redirect or url_for("settings_page" if pending_google_connect_user_id else "login_page")
+
     if request.args.get("error"):
         description = (request.args.get("error_description") or "").strip()
         flash(
-            "Google sign-in was canceled or denied."
+            ("Google Calendar connection was canceled or denied." if pending_google_connect_user_id else "Google sign-in was canceled or denied.")
             + (f" {description}" if description else "")
         )
-        return redirect(url_for("login_page"))
+        return redirect(failure_target)
 
     try:
         token = google.authorize_access_token()
+        access_token = token.get("access_token")
+        refresh_token = token.get("refresh_token")
+        token_expiry = token.get("expires_at")
         user_info = token.get("userinfo")
         if not user_info and token.get("id_token"):
             user_info = google.parse_id_token(token)
         user_info = user_info or {}
+
+        if pending_google_connect_user_id:
+            save_google_oauth_tokens(
+                pending_google_connect_user_id,
+                access_token,
+                refresh_token,
+                token_expiry,
+            )
+            invalidate_user_cached_data(pending_google_connect_user_id)
+            flash("Google Calendar connected.")
+            return redirect(pending_google_redirect or url_for("settings_page"))
 
         email = user_info.get("email")
         name = user_info.get("name") or "TaskFlow User"
@@ -5692,7 +6172,7 @@ def google_callback():
 
         if not email or not google_id:
             flash("Google sign-in failed because Google did not return the required account details.")
-            return redirect(url_for("login_page"))
+            return redirect(failure_target)
 
         user = fetch_user_by_email(email)
 
@@ -5701,6 +6181,8 @@ def google_callback():
             username = user["username"]
         else:
             user_id, username = create_user_oauth(name, email, "google", google_id)
+
+        save_google_oauth_tokens(user_id, access_token, refresh_token, token_expiry)
     except OAuthError as exc:
         app.logger.exception("Google OAuth callback failed.")
         error_code = (getattr(exc, "error", "") or "").strip()
@@ -5719,15 +6201,15 @@ def google_callback():
             message = f"{message} {description}"
 
         flash(message)
-        return redirect(url_for("login_page"))
+        return redirect(failure_target)
     except requests.RequestException:
         app.logger.exception("Google user info lookup failed.")
         flash("Google sign-in failed because the app could not reach Google. Please try again.")
-        return redirect(url_for("login_page"))
+        return redirect(failure_target)
     except mysql.connector.Error:
         app.logger.exception("Google sign-in failed because the database is unavailable.")
         flash(AUTH_DB_ERROR_MESSAGE)
-        return redirect(url_for("login_page"))
+        return redirect(failure_target)
 
     session.update({
         "user_id": user_id,

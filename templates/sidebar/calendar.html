@@ -43,6 +43,30 @@
     .view-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 5px 11px; font-size: 11px; color: rgba(255,255,255,0.4); cursor: pointer; font-family: inherit; transition: all 0.15s; }
     .view-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
     .view-btn.active { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
+    .view-btn:disabled { opacity: 0.55; cursor: default; }
+    .sync-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.18s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sync-btn:hover {
+      background: rgba(255,255,255,0.09);
+      color: rgba(255,255,255,0.8);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .sync-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .add-ev-btn { background: #fff; color: #0A0A0A; border: none; border-radius: 7px; padding: 6px 14px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
     .add-ev-btn:hover { background: rgba(255,255,255,0.88); }
 
@@ -198,6 +222,11 @@
         <div class="cal-right-btns">
           <button class="view-btn active" id="btn-month" onclick="setView('month')">Month</button>
           <button class="view-btn" id="btn-week" onclick="setView('week')">Week</button>
+
+          {% if google_calendar_connected %}
+          <button class="sync-btn" id="sync-btn" onclick="syncGoogleCalendar()">↻ Sync Google</button>
+          {% endif %}
+
           <button class="add-ev-btn" onclick="openModal()">+ Add event</button>
         </div>
       </div>
@@ -554,6 +583,34 @@
       document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));
       el.classList.add('selected');
       document.getElementById('ev-color').value = color;
+    }
+
+    async function syncGoogleCalendar() {
+      const btn = document.getElementById('sync-btn');
+      if (!btn) return;
+      btn.textContent = '↻ Syncing...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/calendar/sync-google', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          btn.textContent = `✓ ${data.imported} imported`;
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          btn.textContent = '↻ Sync failed';
+          setTimeout(() => {
+            btn.textContent = '↻ Sync Google';
+            btn.disabled = false;
+          }, 2000);
+        }
+      } catch {
+        btn.textContent = '↻ Sync failed';
+        setTimeout(() => {
+          btn.textContent = '↻ Sync Google';
+          btn.disabled = false;
+        }, 2000);
+      }
     }
 
     // ── INIT
