@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='js/sidebar_profile_menu.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/sidebar_mobile_nav.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/voice_input.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/voice_output.js') }}"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; overflow: hidden; }
@@ -41,8 +43,10 @@
     .chat-clear-btn:hover { color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.07); }
 
     /* QUICK ACTIONS */
-    .quick-actions { display: flex; gap: 7px; padding: 12px 24px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.04); scrollbar-width: none; }
-    .quick-actions::-webkit-scrollbar { display: none; }
+    .quick-actions { display: flex; gap: 7px; padding: 12px 24px 10px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.04); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; scroll-behavior: smooth; overscroll-behavior-x: contain; }
+    .quick-actions::-webkit-scrollbar { height: 6px; }
+    .quick-actions::-webkit-scrollbar-track { background: transparent; }
+    .quick-actions::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 999px; }
     .qa-btn { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 100px; padding: 6px 14px; font-size: 11px; color: rgba(255,255,255,0.52); cursor: pointer; white-space: nowrap; transition: all 0.18s; font-family: inherit; }
     .qa-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
     .qa-icon { font-size: 12px; }
@@ -73,6 +77,12 @@
     .msg-bubble.ai { background: #111; border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.78); border-radius: 4px 16px 16px 16px; }
     .msg-bubble.user { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.88); border-radius: 16px 16px 4px 16px; }
     .msg-time { font-size: 9px; color: rgba(255,255,255,0.2); margin-top: 4px; padding: 0 4px; }
+    .msg-actions { display: flex; align-items: center; gap: 6px; margin-top: 5px; padding: 0 2px; }
+    .msg-action-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: transparent; color: rgba(255,255,255,0.3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+    .msg-action-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.76); }
+    .msg-action-btn.active, .msg-action-btn.copied { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); }
+    .msg-action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .msg-action-btn svg { width: 14px; height: 14px; }
 
     .action-card { background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 12px 14px; }
     .action-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
@@ -104,6 +114,8 @@
     .input-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
     .mic-btn { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: rgba(255,255,255,0.28); transition: all 0.15s; }
     .mic-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.5); }
+    .mic-btn.listening { background: rgba(255,90,90,0.12); border-color: rgba(255,120,120,0.28); color: rgba(255,255,255,0.86); }
+    .mic-btn:disabled { opacity: 0.34; cursor: not-allowed; }
     .send-btn { width: 32px; height: 32px; border-radius: 9px; background: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #0A0A0A; flex-shrink: 0; transition: all 0.18s; }
     .send-btn:hover { background: rgba(255,255,255,0.88); transform: scale(1.06); }
     .send-btn:disabled { background: rgba(255,255,255,0.2); cursor: not-allowed; transform: none; }
@@ -115,11 +127,16 @@
     .cp-header { padding: 18px 18px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
     .cp-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.56); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 2px; }
     .cp-sub { font-size: 10px; color: rgba(255,255,255,0.24); }
-    .panel-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 12px 0; }
+    .panel-actions { padding: 12px 12px 0; }
     .panel-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.68); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
     .panel-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.88); }
     .panel-btn.primary { background: #fff; border-color: #fff; color: #0A0A0A; }
     .panel-btn.primary:hover { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
+    .project-create-btn { width: 100%; justify-content: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.84); font-size: 12px; font-weight: 600; letter-spacing: 0; }
+    .project-create-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.16); color: rgba(255,255,255,0.98); }
+    .project-create-btn-icon { width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.9); flex-shrink: 0; }
+    .project-create-btn-icon svg { width: 17px; height: 17px; }
+    .project-create-btn-label { display: inline-flex; align-items: center; min-width: 0; }
     .search-shell { padding: 12px 12px 0; }
     .search-box { display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 12px; }
     .search-icon { font-size: 12px; color: rgba(255,255,255,0.34); flex-shrink: 0; }
@@ -133,6 +150,27 @@
     .project-textarea { margin-top: 8px; min-height: 72px; resize: vertical; }
     .project-form-actions { display: flex; gap: 8px; margin-top: 10px; }
     .project-form-msg { margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.32); }
+    .project-context-menu, .thread-context-menu { position: fixed; z-index: 140; min-width: 230px; padding: 8px; border-radius: 18px; background: #232323; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 22px 50px rgba(0,0,0,0.42); display: none; }
+    .project-context-menu.open, .thread-context-menu.open { display: block; }
+    .project-context-btn, .thread-context-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: none; border-radius: 12px; background: transparent; color: rgba(255,255,255,0.86); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s; text-align: left; }
+    .project-context-btn:hover, .thread-context-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.98); }
+    .project-context-btn.primary, .thread-context-btn.primary { background: rgba(33, 105, 191, 0.95); color: #fff; }
+    .project-context-btn.primary:hover, .thread-context-btn.primary:hover { background: rgba(43, 118, 208, 1); }
+    .project-context-btn.danger, .thread-context-btn.danger { color: rgba(255,255,255,0.82); }
+    .project-context-btn.danger:hover, .thread-context-btn.danger:hover { background: rgba(255,255,255,0.07); }
+    .project-context-btn svg, .thread-context-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .context-divider { height: 1px; margin: 6px 10px; background: rgba(255,255,255,0.1); }
+    .project-edit-modal, .thread-edit-modal, .thread-project-modal { position: fixed; inset: 0; z-index: 150; display: none; align-items: center; justify-content: center; }
+    .project-edit-modal.open, .thread-edit-modal.open, .thread-project-modal.open { display: flex; }
+    .project-edit-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.62); }
+    .project-edit-dialog { position: relative; width: min(360px, calc(100vw - 24px)); padding: 18px; border-radius: 18px; background: #111; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 28px 60px rgba(0,0,0,0.46); }
+    .project-edit-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
+    .project-edit-sub { font-size: 12px; color: rgba(255,255,255,0.36); line-height: 1.6; margin-bottom: 14px; }
+    .project-edit-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .project-edit-msg { margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.32); min-height: 16px; }
+    .project-delete-inline { margin-top: 14px; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,80,80,0.18); background: rgba(255,60,60,0.08); color: rgba(255,150,150,0.86); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .project-delete-inline:hover { background: rgba(255,60,60,0.12); border-color: rgba(255,80,80,0.28); color: rgba(255,185,185,0.95); }
+    .project-delete-inline svg { width: 15px; height: 15px; }
     .saved-section { padding: 16px 18px 8px; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.22); }
     .saved-list { padding: 0 10px 14px; display: flex; flex-direction: column; gap: 6px; }
     .project-link, .thread-link { display: block; text-decoration: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 10px 12px; transition: all 0.15s; }
@@ -142,9 +180,12 @@
     .project-top, .thread-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .project-name, .thread-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.82); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .project-count, .thread-time { font-size: 10px; color: rgba(255,255,255,0.28); flex-shrink: 0; }
+    .thread-status { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .thread-pin-mark { font-size: 10px; line-height: 1; color: rgba(255,255,255,0.55); }
     .project-desc, .thread-preview { font-size: 11px; color: rgba(255,255,255,0.38); line-height: 1.55; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .thread-meta { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 10px; color: rgba(255,255,255,0.24); }
     .thread-pill { display: inline-flex; align-items: center; justify-content: center; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-project-select { appearance: none; }
     .saved-empty { margin: 0 12px 16px; padding: 12px 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); font-size: 11px; color: rgba(255,255,255,0.32); line-height: 1.6; }
 
     @media (max-width: 1100px) {
@@ -203,21 +244,13 @@
     </div>
 
     <!-- QUICK ACTIONS -->
-    <div class="quick-actions">
-      <button class="qa-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now based on my tasks and habits.')"><span class="qa-icon">☀️</span>Plan My Day</button>
-      <button class="qa-btn" onclick="sendQuick('Review my day with me. What went well and what should I improve tomorrow?')"><span class="qa-icon">📊</span>Review My Day</button>
-      <button class="qa-btn" onclick="sendQuick('Analyze my habits. Tell me exactly which ones I need to fix and why based on my streaks.')"><span class="qa-icon">🔁</span>Fix My Habits</button>
-      <button class="qa-btn" onclick="sendQuick('I feel completely unmotivated right now. I need real coaching, not generic advice.')"><span class="qa-icon">⚡</span>Unmotivated</button>
-      <button class="qa-btn" onclick="sendQuick('Analyze my progress this week. Be honest — what patterns are holding me back?')"><span class="qa-icon">🧠</span>Analyze Progress</button>
-      <button class="qa-btn" onclick="sendQuick('Build me an optimized morning routine based on my habits and goals.')"><span class="qa-icon">🌅</span>Build My Routine</button>
-      <button class="qa-btn" onclick="sendQuick('I keep breaking my streaks. Why does this keep happening and how do I stop the cycle?')"><span class="qa-icon">🔥</span>Break The Cycle</button>
-    </div>
+    <div class="quick-actions" id="quick-actions" tabindex="0" aria-label="AI Coach quick actions"></div>
 
     <!-- MESSAGES -->
     <div class="messages" id="messages">
       {% if active_ai_chat_messages %}
         {% for message in active_ai_chat_messages %}
-        <div class="msg-row {{ 'user' if message.role == 'user' else 'ai' }}">
+        <div class="msg-row {{ 'user' if message.role == 'user' else 'ai' }}" {% if message.role != 'user' %}data-ai-message-text="{{ message.content | e }}"{% endif %}>
           {% if message.role == 'user' %}
           <div class="msg-col">
             <div class="msg-bubble user">{{ message.content | e | replace('\n', '<br>') | safe }}</div>
@@ -229,6 +262,33 @@
           <div class="msg-col">
             <div class="msg-bubble ai">{{ message.content | e | replace('\n', '<br>') | safe }}</div>
             <div class="msg-time">{{ message.time_label }}</div>
+            <div class="msg-actions">
+              <button type="button" class="msg-action-btn" data-msg-action="copy" title="Copy text" aria-label="Copy text">
+                <svg viewBox="0 0 16 16" fill="none">
+                  <rect x="5" y="3" width="8" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                  <path d="M10.5 3V2.5C10.5 1.95 10.05 1.5 9.5 1.5H4.5C3.95 1.5 3.5 1.95 3.5 2.5V9.5C3.5 10.05 3.95 10.5 4.5 10.5H5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button type="button" class="msg-action-btn" data-msg-action="speak" title="Read aloud" aria-label="Read aloud">
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path d="M6.2 5.1L8.9 3V13L6.2 10.9H4.6C4.05 10.9 3.6 10.45 3.6 9.9V6.1C3.6 5.55 4.05 5.1 4.6 5.1H6.2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                  <path d="M10.6 6.05C11.3 6.55 11.75 7.35 11.75 8C11.75 8.65 11.3 9.45 10.6 9.95" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  <path d="M11.8 4.45C12.95 5.35 13.65 6.62 13.65 8C13.65 9.38 12.95 10.65 11.8 11.55" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button type="button" class="msg-action-btn" data-msg-action="like" title="Like response" aria-label="Like response" aria-pressed="false">
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path d="M6.7 7L8.1 3.7C8.32 3.17 8.84 2.82 9.42 2.82C10.02 2.82 10.5 3.3 10.5 3.9V6H12.52C13.16 6 13.62 6.61 13.44 7.22L12.39 10.72C12.25 11.2 11.81 11.53 11.31 11.53H6.7V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                  <path d="M3 6.95H5.25V11.55H3.75C3.34 11.55 3 11.21 3 10.8V6.95Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button type="button" class="msg-action-btn" data-msg-action="dislike" title="Dislike response" aria-label="Dislike response" aria-pressed="false">
+                <svg viewBox="0 0 16 16" fill="none">
+                  <path d="M6.7 9L8.1 12.3C8.32 12.83 8.84 13.18 9.42 13.18C10.02 13.18 10.5 12.7 10.5 12.1V10H12.52C13.16 10 13.62 9.39 13.44 8.78L12.39 5.28C12.25 4.8 11.81 4.47 11.31 4.47H6.7V9Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                  <path d="M3 9.05H5.25V4.45H3.75C3.34 4.45 3 4.79 3 5.2V9.05Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
           {% endif %}
         </div>
@@ -238,11 +298,6 @@
         <div class="es-ai-icon">✦</div>
         <div class="es-title">Let's get your life<br>organized.</div>
         <div class="es-sub">I know your tasks, habits, streaks, and journal. I'm not a generic AI — I'm your personal growth coach. Tell me what you need.</div>
-        <div class="es-btns">
-          <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
-          <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
-          <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
-        </div>
       </div>
       {% endif %}
     </div>
@@ -258,7 +313,7 @@
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
           oninput="autoResize(this)"></textarea>
         <div class="input-btns">
-          <button class="mic-btn" title="Voice input — coming soon">🎙</button>
+          <button class="mic-btn" id="voice-btn" type="button" title="Start voice input" aria-label="Start voice input" onclick="toggleVoiceInput()">🎙</button>
           <button class="send-btn" id="send-btn" onclick="sendMessage()">
             <svg class="send-icon" viewBox="0 0 16 16" fill="none">
               <path d="M2 8L14 8M14 8L9 3M14 8L9 13" stroke="#0A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -275,11 +330,6 @@
       <div class="cp-title">Saved chats</div>
       <div class="cp-sub">Persistent AI conversations and projects</div>
     </div>
-    <div class="panel-actions">
-      <button type="button" class="panel-btn" onclick="focusSidebarSearch()">⌕ Search</button>
-      <button type="button" class="panel-btn primary" onclick="startNewChat()">＋ New chat</button>
-      <button type="button" class="panel-btn" onclick="toggleProjectComposer(true)">▣ Project</button>
-    </div>
 
     <div class="search-shell">
       <div class="search-box">
@@ -287,6 +337,21 @@
         <input id="chat-search-input" class="search-input" type="text" placeholder="Search saved chats and projects" oninput="applySidebarSearch()">
       </div>
     </div>
+
+    <div class="panel-actions">
+      <button type="button" class="panel-btn project-create-btn" onclick="toggleProjectComposer(true)">
+        <span class="project-create-btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M3.75 8.25C3.75 6.593 5.093 5.25 6.75 5.25H10.03C10.68 5.25 11.31 5.46 11.83 5.85L13.16 6.85C13.67 7.24 14.28 7.45 14.93 7.45H17.25C18.907 7.45 20.25 8.793 20.25 10.45V15.75C20.25 17.407 18.907 18.75 17.25 18.75H6.75C5.093 18.75 3.75 17.407 3.75 15.75V8.25Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M12 11V17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M9 14H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="project-create-btn-label">New project</span>
+      </button>
+    </div>
+
+
 
     <div class="project-form" id="project-form">
       <div class="project-form-title">Create new project</div>
@@ -301,15 +366,8 @@
 
     <div class="saved-section">Projects</div>
     <div class="saved-list" id="project-list">
-      <a href="/ai" class="project-link {{ 'active' if selected_ai_project_id is none else '' }}" data-project-item data-project-name="All chats">
-        <div class="project-top">
-          <div class="project-name">All chats</div>
-          <div class="project-count">{{ ai_total_threads_count }}</div>
-        </div>
-        <div class="project-desc">Every saved Taskflow AI conversation.</div>
-      </a>
       {% for project in ai_projects %}
-      <a href="/ai?project={{ project.id }}" class="project-link {{ 'active' if selected_ai_project_id == project.id else '' }}" data-project-item data-project-name="{{ project.name }}">
+      <a href="/ai?project={{ project.id }}" class="project-link {{ 'active' if selected_ai_project_id == project.id else '' }}" data-project-item data-project-id="{{ project.id }}" data-project-name="{{ project.name }}">
         <div class="project-top">
           <div class="project-name">{{ project.name }}</div>
           <div class="project-count">{{ project.chat_count }}</div>
@@ -317,9 +375,6 @@
         <div class="project-desc">{{ project.description if project.description else 'No description yet.' }}</div>
       </a>
       {% endfor %}
-      {% if not ai_projects %}
-      <div class="saved-empty" id="project-empty">Create a project to group related AI chats, plans, and ideas.</div>
-      {% endif %}
     </div>
 
     <div class="saved-section">Recent chats</div>
@@ -335,18 +390,9 @@
           data-thread-preview="{{ thread.preview }}"
           data-thread-project="{{ thread.project_name if thread.project_name else '' }}"
           data-thread-project-id="{{ thread.project_id if thread.project_id is not none else '' }}"
+          data-thread-pinned="{{ '1' if thread.is_pinned else '' }}"
         >
-          <div class="thread-top">
-            <div class="thread-title">{{ thread.title }}</div>
-            <div class="thread-time">{{ thread.activity_label }}</div>
-          </div>
-          <div class="thread-preview">{{ thread.preview if thread.preview else 'No messages yet.' }}</div>
-          <div class="thread-meta">
-            {% if thread.project_name %}
-            <span class="thread-pill">{{ thread.project_name }}</span>
-            {% endif %}
-            <span>{{ thread.message_count }} {{ 'message' if thread.message_count == 1 else 'messages' }}</span>
-          </div>
+          <div class="thread-title">{{ thread.title }}</div>
         </a>
         {% endfor %}
       {% else %}
@@ -356,13 +402,230 @@
 
   </div>
 
+  <div class="project-context-menu" id="project-context-menu">
+    <button type="button" class="project-context-btn primary" onclick="openProjectEditFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M10.95 2.45C11.34 2.06 11.98 2.06 12.37 2.45L13.55 3.63C13.94 4.02 13.94 4.66 13.55 5.05L6.15 12.45L3 13L3.55 9.85L10.95 2.45Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+      </svg>
+      <span>Edit project</span>
+    </button>
+    <button type="button" class="project-context-btn danger" onclick="deleteProjectFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M5.5 3.5H10.5M6 3.5V2.8C6 2.36 6.36 2 6.8 2H9.2C9.64 2 10 2.36 10 2.8V3.5M4.2 5.1L4.65 12.07C4.69 12.63 5.15 13.06 5.71 13.06H10.29C10.85 13.06 11.31 12.63 11.35 12.07L11.8 5.1M6.6 6.5V10.2M9.4 6.5V10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Delete project</span>
+    </button>
+  </div>
+
+  <div class="thread-context-menu" id="thread-context-menu">
+    <button type="button" class="thread-context-btn" onclick="openThreadProjectModalFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M3.25 5.5C3.25 4.67 3.92 4 4.75 4H6.42C6.8 4 7.17 4.13 7.47 4.37L8.12 4.88C8.41 5.11 8.76 5.24 9.13 5.24H11.25C12.08 5.24 12.75 5.91 12.75 6.74V10.25C12.75 11.08 12.08 11.75 11.25 11.75H4.75C3.92 11.75 3.25 11.08 3.25 10.25V5.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M8 6.9V10.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M6.4 8.5H9.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span>Add to project</span>
+    </button>
+    <div class="context-divider"></div>
+    <button type="button" class="thread-context-btn" onclick="toggleThreadPinFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M5.9 2.75H10.1C10.54 2.75 10.9 3.11 10.9 3.55V5.15L12.45 6.7V7.45H8.8V11.55L8 12.8L7.2 11.55V7.45H3.55V6.7L5.1 5.15V3.55C5.1 3.11 5.46 2.75 5.9 2.75Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+      </svg>
+      <span id="thread-pin-toggle-label">Pin</span>
+    </button>
+    <button type="button" class="thread-context-btn primary" onclick="openThreadEditFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M10.95 2.45C11.34 2.06 11.98 2.06 12.37 2.45L13.55 3.63C13.94 4.02 13.94 4.66 13.55 5.05L6.15 12.45L3 13L3.55 9.85L10.95 2.45Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+      </svg>
+      <span>Rename</span>
+    </button>
+    <button type="button" class="thread-context-btn" onclick="archiveThreadFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="3" y="4" width="10" height="8.5" rx="1.4" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M5.2 6.5H10.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span>Archive</span>
+    </button>
+    <button type="button" class="thread-context-btn danger" onclick="deleteThreadFromMenu()">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M5.5 3.5H10.5M6 3.5V2.8C6 2.36 6.36 2 6.8 2H9.2C9.64 2 10 2.36 10 2.8V3.5M4.2 5.1L4.65 12.07C4.69 12.63 5.15 13.06 5.71 13.06H10.29C10.85 13.06 11.31 12.63 11.35 12.07L11.8 5.1M6.6 6.5V10.2M9.4 6.5V10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Delete</span>
+    </button>
+  </div>
+
+  <div class="project-edit-modal" id="project-edit-modal">
+    <div class="project-edit-backdrop" onclick="closeProjectEditModal()"></div>
+    <div class="project-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="project-edit-title">
+      <div class="project-edit-title" id="project-edit-title">Edit project</div>
+      <div class="project-edit-sub">Update the project name or remove the project entirely.</div>
+      <input id="project-edit-name-input" class="project-input" type="text" maxlength="120" placeholder="Project name">
+      <div class="project-edit-actions">
+        <button type="button" class="panel-btn primary" onclick="saveProjectEdit()">Save changes</button>
+        <button type="button" class="panel-btn" onclick="closeProjectEditModal()">Cancel</button>
+      </div>
+      <div class="project-edit-msg" id="project-edit-msg"></div>
+      <button type="button" class="project-delete-inline" onclick="deleteProjectFromModal()">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M5.5 3.5H10.5M6 3.5V2.8C6 2.36 6.36 2 6.8 2H9.2C9.64 2 10 2.36 10 2.8V3.5M4.2 5.1L4.65 12.07C4.69 12.63 5.15 13.06 5.71 13.06H10.29C10.85 13.06 11.31 12.63 11.35 12.07L11.8 5.1M6.6 6.5V10.2M9.4 6.5V10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Delete project</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="thread-edit-modal" id="thread-edit-modal">
+    <div class="project-edit-backdrop" onclick="closeThreadEditModal()"></div>
+    <div class="project-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="thread-edit-title">
+      <div class="project-edit-title" id="thread-edit-title">Rename chat</div>
+      <div class="project-edit-sub">Give this conversation a clearer name.</div>
+      <input id="thread-edit-name-input" class="project-input" type="text" maxlength="255" placeholder="Chat name">
+      <div class="project-edit-actions">
+        <button type="button" class="panel-btn primary" onclick="saveThreadEdit()">Save changes</button>
+        <button type="button" class="panel-btn" onclick="closeThreadEditModal()">Cancel</button>
+      </div>
+      <div class="project-edit-msg" id="thread-edit-msg"></div>
+    </div>
+  </div>
+
+  <div class="thread-project-modal" id="thread-project-modal">
+    <div class="project-edit-backdrop" onclick="closeThreadProjectModal()"></div>
+    <div class="project-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="thread-project-title">
+      <div class="project-edit-title" id="thread-project-title">Add to project</div>
+      <div class="project-edit-sub">Choose a project for this chat, or leave it outside projects.</div>
+      <select id="thread-project-select" class="project-input thread-project-select"></select>
+      <div class="project-edit-actions">
+        <button type="button" class="panel-btn primary" onclick="saveThreadProject()">Save</button>
+        <button type="button" class="panel-btn" onclick="closeThreadProjectModal()">Cancel</button>
+      </div>
+      <div class="project-edit-msg" id="thread-project-msg"></div>
+    </div>
+  </div>
+
   <script>
     const SYSTEM_PROMPT = `You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`;
     const INITIAL_CHAT_HISTORY = {{ active_ai_chat_messages | tojson }};
+    const QUICK_ACTION_ROTATION_KEY = 'taskflow.aiCoach.quickActions.offset';
+    const QUICK_ACTION_ROTATION_STEP = 6;
+    const QUICK_ACTIONS = [
+      { icon: '☀️', label: 'Plan My Day', prompt: 'Plan my day using my current tasks, habits, and likely energy levels. Give me my top 3 priorities, time blocks, habit slots, and a fallback plan.' },
+      { icon: '🧭', label: 'Daily Briefing', prompt: "Give me a daily briefing from everything Taskflow knows right now. What's the one thing that matters most today and what should I not ignore?" },
+      { icon: '🎯', label: 'Top 3 Priorities', prompt: 'Look at my current workload and tell me the top 3 priorities I should protect today, with one sentence explaining each choice.' },
+      { icon: '🗓️', label: 'Time Block Today', prompt: 'Turn my tasks and habits into a practical time-blocked schedule for today, including recovery space and a realistic stopping point.' },
+      { icon: '🛟', label: 'Fallback Plan', prompt: 'If my day falls apart after lunch, build me a fallback plan that still helps me win today without trying to do everything.' },
+      { icon: '✅', label: 'Prioritize Tasks', prompt: 'Re-rank my tasks by actual importance, urgency, and momentum. Tell me what to do first, what to delay, and what to ignore.' },
+      { icon: '🧱', label: 'Break Down Goal', prompt: 'Take my biggest goal right now and break it into smaller tasks, milestones, and the very next step I can do today.' },
+      { icon: '🔁', label: 'Habit Rescue', prompt: 'Analyze my habits and tell me which one is at the highest risk of breaking next, why that is happening, and how to protect it.' },
+      { icon: '🔗', label: 'Habit Stack', prompt: 'Suggest 3 habit stacks based on my current routines. I want small chains that are easy to repeat consistently.' },
+      { icon: '📉', label: 'Fix Streak Slips', prompt: 'Look at my streak patterns and tell me exactly where I keep slipping, what triggers it, and what change would help most.' },
+      { icon: '🌅', label: 'Morning Routine', prompt: 'Build me an optimized morning routine based on my habits, goals, and the kind of day I need to have.' },
+      { icon: '🌙', label: 'Evening Reset', prompt: 'Design a short evening reset routine that helps me close the day well, review progress, and prepare for tomorrow.' },
+      { icon: '⏳', label: 'Beat Procrastination', prompt: 'Be honest with me about why I might be procrastinating right now and give me a practical way to get moving in the next 10 minutes.' },
+      { icon: '🧠', label: 'Deep Work Window', prompt: 'Based on how I work, tell me when I should schedule deep work and what kind of task belongs in that block.' },
+      { icon: '⚡', label: 'Motivation Reset', prompt: 'I feel unmotivated. Coach me directly using what Taskflow knows about me instead of giving generic advice.' },
+      { icon: '📊', label: 'Weekly Review', prompt: 'Review my week with me. What went well, where did I underperform, and what should I change next week?' },
+      { icon: '🔍', label: 'Pattern Insight', prompt: 'Surface the strongest pattern you see across my tasks, habits, calendar, and journal right now, and explain why it matters.' },
+      { icon: '📓', label: 'Journal Prompt', prompt: 'Give me a thoughtful journal prompt based on how my week is going and what I most need to reflect on.' },
+      { icon: '💭', label: 'Mood Pattern Scan', prompt: 'Use my journal and recent behavior to tell me what mood or motivation pattern you notice and what it might be connected to.' },
+      { icon: '🚫', label: 'Accountability Reset', prompt: 'Help me recover from a reset or relapse without spiraling. I want a calm, honest recovery plan for the next 24 hours.' },
+      { icon: '🚨', label: 'Trigger Analysis', prompt: 'Analyze what might be triggering my discipline failures lately and tell me how to prevent the next slip before it starts.' },
+      { icon: '📅', label: 'Calendar Strategy', prompt: 'Suggest how I should place my most important tasks and habits into my calendar based on energy, timing, and consistency.' },
+      { icon: '🚀', label: 'Builder System', prompt: 'I am building things and need structure. Design a simple weekly operating system for tasks, habits, planning, and reflection inside Taskflow.' },
+      { icon: '🎓', label: 'Student Reset', prompt: 'If I were a student trying to get my life together this week, what system would you recommend for classes, assignments, habits, and focus?' },
+      { icon: '🧹', label: 'Life Cleanup', prompt: 'Help me clean up my life system. Tell me what to simplify, what to stop tracking, and what Taskflow should become my source of truth for.' }
+    ];
     let chatHistory = Array.isArray(INITIAL_CHAT_HISTORY) ? [...INITIAL_CHAT_HISTORY] : [];
     let currentThread = {{ active_ai_chat | tojson }};
     let currentThreadId = currentThread ? currentThread.id : null;
     let currentProjectId = {{ selected_ai_project_id | tojson }};
+    let projectOptions = {{ ai_projects | tojson }};
+    const supportsVoiceOutput = Boolean(window.TaskflowVoiceOutput && window.TaskflowVoiceOutput.isSupported());
+    let activeSpeakButton = null;
+    let projectMenuState = { id: null, name: '' };
+    let threadMenuState = { id: null, title: '', projectId: null, isPinned: false };
+
+    function getRotatedQuickActions() {
+      const total = QUICK_ACTIONS.length;
+      if (!total) return [];
+
+      let offset = 0;
+      try {
+        offset = parseInt(window.localStorage.getItem(QUICK_ACTION_ROTATION_KEY) || '0', 10);
+      } catch (error) {
+        offset = 0;
+      }
+      offset = ((offset % total) + total) % total;
+
+      const nextOffset = (offset + QUICK_ACTION_ROTATION_STEP) % total;
+      try {
+        window.localStorage.setItem(QUICK_ACTION_ROTATION_KEY, String(nextOffset));
+      } catch (error) {
+        // no-op
+      }
+
+      return QUICK_ACTIONS.slice(offset).concat(QUICK_ACTIONS.slice(0, offset));
+    }
+
+    function renderQuickActions() {
+      const container = document.getElementById('quick-actions');
+      if (!container) return;
+
+      container.innerHTML = '';
+      getRotatedQuickActions().forEach((action) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'qa-btn';
+        button.innerHTML = `<span class="qa-icon">${action.icon}</span><span>${escapeHtml(action.label)}</span>`;
+        button.addEventListener('click', () => sendQuick(action.prompt));
+        container.appendChild(button);
+      });
+      container.scrollLeft = 0;
+    }
+
+    function enableQuickActionScroll() {
+      const container = document.getElementById('quick-actions');
+      if (!container || container.dataset.scrollBound === '1') return;
+
+      container.dataset.scrollBound = '1';
+      container.addEventListener('wheel', (event) => {
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+          return;
+        }
+        container.scrollLeft += event.deltaY;
+        event.preventDefault();
+      }, { passive: false });
+    }
+
+    function buildMessageActionsHtml() {
+      return `
+        <div class="msg-actions">
+          <button type="button" class="msg-action-btn" data-msg-action="copy" title="Copy text" aria-label="Copy text">
+            <svg viewBox="0 0 16 16" fill="none">
+              <rect x="5" y="3" width="8" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M10.5 3V2.5C10.5 1.95 10.05 1.5 9.5 1.5H4.5C3.95 1.5 3.5 1.95 3.5 2.5V9.5C3.5 10.05 3.95 10.5 4.5 10.5H5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="msg-action-btn" data-msg-action="speak" title="Read aloud" aria-label="Read aloud" ${supportsVoiceOutput ? '' : 'disabled'}>
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M6.2 5.1L8.9 3V13L6.2 10.9H4.6C4.05 10.9 3.6 10.45 3.6 9.9V6.1C3.6 5.55 4.05 5.1 4.6 5.1H6.2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M10.6 6.05C11.3 6.55 11.75 7.35 11.75 8C11.75 8.65 11.3 9.45 10.6 9.95" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M11.8 4.45C12.95 5.35 13.65 6.62 13.65 8C13.65 9.38 12.95 10.65 11.8 11.55" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="msg-action-btn" data-msg-action="like" title="Like response" aria-label="Like response" aria-pressed="false">
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M6.7 7L8.1 3.7C8.32 3.17 8.84 2.82 9.42 2.82C10.02 2.82 10.5 3.3 10.5 3.9V6H12.52C13.16 6 13.62 6.61 13.44 7.22L12.39 10.72C12.25 11.2 11.81 11.53 11.31 11.53H6.7V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M3 6.95H5.25V11.55H3.75C3.34 11.55 3 11.21 3 10.8V6.95Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button" class="msg-action-btn" data-msg-action="dislike" title="Dislike response" aria-label="Dislike response" aria-pressed="false">
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M6.7 9L8.1 12.3C8.32 12.83 8.84 13.18 9.42 13.18C10.02 13.18 10.5 12.7 10.5 12.1V10H12.52C13.16 10 13.62 9.39 13.44 8.78L12.39 5.28C12.25 4.8 11.81 4.47 11.31 4.47H6.7V9Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M3 9.05H5.25V4.45H3.75C3.34 4.45 3 4.79 3 5.2V9.05Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>`;
+    }
 
     function autoResize(el) {
       el.style.height = 'auto';
@@ -383,11 +646,6 @@
           <div class="es-ai-icon">✦</div>
           <div class="es-title">Let's get your life<br>organized.</div>
           <div class="es-sub">I know your tasks, habits, streaks, and journal. I'm not a generic AI — I'm your personal growth coach. Tell me what you need.</div>
-          <div class="es-btns">
-            <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
-            <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
-            <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
-          </div>
         </div>`;
     }
 
@@ -399,10 +657,119 @@
       return query ? `/ai?${query}` : '/ai';
     }
 
+    function setActiveProjectClasses(projectId) {
+      document.querySelectorAll('[data-project-item]').forEach((item) => {
+        item.classList.toggle('active', String(item.dataset.projectId) === String(projectId || ''));
+      });
+    }
+
     function setActiveThreadClasses(threadId) {
       document.querySelectorAll('[data-thread-item]').forEach((item) => {
         item.classList.toggle('active', String(item.dataset.threadId) === String(threadId || ''));
       });
+    }
+
+    function mergeThreadData(existingThread, incomingThread) {
+      const existing = existingThread && typeof existingThread === 'object' ? existingThread : {};
+      const incoming = incomingThread && typeof incomingThread === 'object' ? incomingThread : {};
+      const existingTitle = String(existing.title || '').trim();
+      const incomingTitle = String(incoming.title || '').trim();
+      const mergedTitle = (!incomingTitle || incomingTitle === 'New chat') && existingTitle && existingTitle !== 'New chat'
+        ? existingTitle
+        : (incomingTitle || existingTitle || 'New chat');
+
+      return {
+        ...existing,
+        ...incoming,
+        title: mergedTitle,
+        preview: incoming.preview || existing.preview || '',
+        message_count: Math.max(Number(existing.message_count || 0), Number(incoming.message_count || 0)),
+        activity_label: incoming.activity_label || existing.activity_label || '',
+        project_name: incoming.project_name || existing.project_name || '',
+        project_id: incoming.project_id ?? existing.project_id ?? null,
+        is_pinned: Boolean(incoming.is_pinned ?? existing.is_pinned),
+      };
+    }
+
+    function buildThreadCardHtml(thread) {
+      return `<div class="thread-title">${escapeHtml(thread.title || 'New chat')}</div>`;
+    }
+
+    function ensureThreadEmptyState() {
+      const list = document.getElementById('thread-list');
+      if (!list) return;
+
+      const hasItems = Boolean(list.querySelector('[data-thread-item]'));
+      let empty = document.getElementById('thread-empty');
+
+      if (hasItems) {
+        if (empty) empty.remove();
+        return;
+      }
+
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.id = 'thread-empty';
+        empty.className = 'saved-empty';
+        empty.textContent = 'Start a chat and it will show up here automatically.';
+        list.appendChild(empty);
+      }
+    }
+
+    function removeThreadItem(threadId) {
+      const item = document.querySelector(`[data-thread-item][data-thread-id="${threadId}"]`);
+      if (item) {
+        item.remove();
+      }
+      ensureThreadEmptyState();
+    }
+
+    function syncProjectOption(project) {
+      if (!project || !project.id) return;
+
+      const existingIndex = projectOptions.findIndex((item) => String(item.id) === String(project.id));
+      if (existingIndex >= 0) {
+        projectOptions[existingIndex] = { ...projectOptions[existingIndex], ...project };
+        return;
+      }
+
+      projectOptions.push(project);
+    }
+
+    function removeProjectOption(projectId) {
+      projectOptions = projectOptions.filter((project) => String(project.id) !== String(projectId));
+    }
+
+    function renderThreadProjectOptions(selectedProjectId = null) {
+      const select = document.getElementById('thread-project-select');
+      if (!select) return;
+
+      select.innerHTML = '';
+
+      const noneOption = document.createElement('option');
+      noneOption.value = '';
+      noneOption.textContent = 'No project';
+      select.appendChild(noneOption);
+
+      projectOptions.forEach((project) => {
+        const option = document.createElement('option');
+        option.value = String(project.id);
+        option.textContent = project.name || 'Untitled project';
+        select.appendChild(option);
+      });
+
+      select.value = selectedProjectId ? String(selectedProjectId) : '';
+    }
+
+    function adjustProjectCount(projectId, delta) {
+      if (!projectId || !delta) return;
+
+      const item = document.querySelector(`[data-project-item][data-project-id="${projectId}"]`);
+      const countEl = item?.querySelector('.project-count');
+      if (!countEl) return;
+
+      const nextCount = Math.max(0, (parseInt(countEl.textContent || '0', 10) || 0) + delta);
+      countEl.textContent = String(nextCount);
     }
 
     function upsertThreadItem(thread) {
@@ -410,11 +777,12 @@
 
       const list = document.getElementById('thread-list');
       if (!list) return;
+      const mergedThread = mergeThreadData(
+        currentThread && String(currentThread.id) === String(thread.id) ? currentThread : null,
+        thread,
+      );
 
-      const threadEmpty = document.getElementById('thread-empty');
-      if (threadEmpty) threadEmpty.remove();
-
-      let item = list.querySelector(`[data-thread-id="${thread.id}"]`);
+      let item = list.querySelector(`[data-thread-id="${mergedThread.id}"]`);
       if (!item) {
         item = document.createElement('a');
         item.dataset.threadItem = 'true';
@@ -423,26 +791,138 @@
         list.prepend(item);
       }
 
-      item.href = buildThreadHref(thread.id, currentProjectId || thread.project_id);
+      item.href = buildThreadHref(mergedThread.id, currentProjectId || mergedThread.project_id);
       item.className = 'thread-link active';
-      item.dataset.threadId = String(thread.id);
-      item.dataset.threadTitle = thread.title || 'New chat';
-      item.dataset.threadPreview = thread.preview || '';
-      item.dataset.threadProject = thread.project_name || '';
-      item.dataset.threadProjectId = thread.project_id ?? '';
-      item.innerHTML = `
-        <div class="thread-top">
-          <div class="thread-title">${escapeHtml(thread.title || 'New chat')}</div>
-          <div class="thread-time">${escapeHtml(thread.activity_label || '')}</div>
-        </div>
-        <div class="thread-preview">${escapeHtml(thread.preview || 'No messages yet.')}</div>
-        <div class="thread-meta">
-          ${thread.project_name ? `<span class="thread-pill">${escapeHtml(thread.project_name)}</span>` : ''}
-          <span>${Number(thread.message_count || 0)} ${Number(thread.message_count || 0) === 1 ? 'message' : 'messages'}</span>
-        </div>`;
+      item.dataset.threadId = String(mergedThread.id);
+      item.dataset.threadTitle = mergedThread.title || 'New chat';
+      item.dataset.threadPreview = mergedThread.preview || '';
+      item.dataset.threadProject = mergedThread.project_name || '';
+      item.dataset.threadProjectId = mergedThread.project_id ?? '';
+      item.dataset.threadPinned = mergedThread.is_pinned ? '1' : '';
+      item.innerHTML = buildThreadCardHtml(mergedThread);
 
-      setActiveThreadClasses(thread.id);
+      ensureThreadEmptyState();
+      if (String(currentThreadId || '') === String(mergedThread.id)) {
+        currentThread = mergedThread;
+      }
+      setActiveThreadClasses(mergedThread.id);
       applySidebarSearch();
+    }
+
+    async function createThreadSession() {
+      const response = await fetch('/ai/threads/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId })
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok || !data.thread) {
+        throw new Error(data.error || 'Could not create chat.');
+      }
+
+      const createdThread = data.thread;
+      const existingItem = document.querySelector(`[data-thread-item][data-thread-id="${createdThread.id}"]`);
+
+      currentThread = createdThread;
+      currentThreadId = createdThread.id;
+      history.replaceState({}, '', buildThreadHref(currentThreadId, currentProjectId || createdThread.project_id));
+      upsertThreadItem(createdThread);
+
+      if (!existingItem && createdThread.project_id) {
+        adjustProjectCount(createdThread.project_id, 1);
+      }
+
+      return createdThread;
+    }
+
+    async function copyText(text) {
+      const value = String(text || '');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+
+      const fallback = document.createElement('textarea');
+      fallback.value = value;
+      fallback.setAttribute('readonly', 'readonly');
+      fallback.style.position = 'absolute';
+      fallback.style.left = '-9999px';
+      document.body.appendChild(fallback);
+      fallback.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(fallback);
+      return copied;
+    }
+
+    function setFeedbackState(row, choice) {
+      row.querySelectorAll('[data-msg-action="like"], [data-msg-action="dislike"]').forEach((button) => {
+        const isActive = button.dataset.msgAction === choice && !button.classList.contains('active');
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+
+    function clearSpeakButtonState() {
+      if (!activeSpeakButton) {
+        return;
+      }
+      activeSpeakButton.classList.remove('active');
+      activeSpeakButton = null;
+    }
+
+    function handleMessageActionClick(event) {
+      const button = event.target.closest('[data-msg-action]');
+      if (!button) {
+        return;
+      }
+
+      const row = button.closest('.msg-row.ai');
+      if (!row) {
+        return;
+      }
+
+      const action = button.dataset.msgAction;
+      const text = row.dataset.aiMessageText || '';
+
+      if (action === 'copy') {
+        copyText(text).then(() => {
+          button.classList.add('copied');
+          window.setTimeout(() => button.classList.remove('copied'), 1200);
+        }).catch(() => {});
+        return;
+      }
+
+      if (action === 'speak') {
+        if (!supportsVoiceOutput || !text) {
+          return;
+        }
+
+        if (button === activeSpeakButton) {
+          window.TaskflowVoiceOutput.stop();
+          clearSpeakButtonState();
+          return;
+        }
+
+        clearSpeakButtonState();
+        window.TaskflowVoiceOutput.speak(text, {
+          onStart() {
+            activeSpeakButton = button;
+            button.classList.add('active');
+          },
+          onEnd() {
+            clearSpeakButtonState();
+          },
+          onError() {
+            clearSpeakButtonState();
+          },
+        });
+        return;
+      }
+
+      if (action === 'like' || action === 'dislike') {
+        setFeedbackState(row, action);
+      }
     }
 
     function focusSidebarSearch() {
@@ -480,6 +960,458 @@
       } else {
         document.getElementById('project-form-msg').textContent = '';
       }
+    }
+
+    function closeProjectContextMenu() {
+      const menu = document.getElementById('project-context-menu');
+      if (!menu) return;
+      menu.classList.remove('open');
+      menu.style.left = '-9999px';
+      menu.style.top = '-9999px';
+    }
+
+    function openProjectContextMenu(projectId, projectName, x, y) {
+      const menu = document.getElementById('project-context-menu');
+      if (!menu) return;
+
+      projectMenuState = { id: Number(projectId), name: projectName || '' };
+      menu.classList.add('open');
+
+      const margin = 10;
+      const width = menu.offsetWidth || 230;
+      const height = menu.offsetHeight || 108;
+      const left = Math.min(x, window.innerWidth - width - margin);
+      const top = Math.min(y, window.innerHeight - height - margin);
+
+      menu.style.left = `${Math.max(margin, left)}px`;
+      menu.style.top = `${Math.max(margin, top)}px`;
+    }
+
+    function openProjectEditModal(projectId = projectMenuState.id, projectName = projectMenuState.name) {
+      if (!projectId) return;
+
+      closeProjectContextMenu();
+      projectMenuState = { id: Number(projectId), name: projectName || '' };
+
+      const modal = document.getElementById('project-edit-modal');
+      const input = document.getElementById('project-edit-name-input');
+      const msg = document.getElementById('project-edit-msg');
+      if (!modal || !input || !msg) return;
+
+      input.value = projectMenuState.name;
+      msg.textContent = '';
+      modal.classList.add('open');
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+    }
+
+    function openProjectEditFromMenu() {
+      openProjectEditModal();
+    }
+
+    function closeProjectEditModal() {
+      const modal = document.getElementById('project-edit-modal');
+      const msg = document.getElementById('project-edit-msg');
+      if (!modal || !msg) return;
+
+      modal.classList.remove('open');
+      msg.textContent = '';
+    }
+
+    function updateProjectUi(project) {
+      if (!project || !project.id) return;
+
+      syncProjectOption(project);
+
+      const projectItem = document.querySelector(`[data-project-item][data-project-id="${project.id}"]`);
+      if (projectItem) {
+        projectItem.dataset.projectName = project.name || '';
+        const titleEl = projectItem.querySelector('.project-name');
+        if (titleEl) titleEl.textContent = project.name || '';
+      }
+
+      document.querySelectorAll(`[data-thread-item][data-thread-project-id="${project.id}"]`).forEach((item) => {
+        item.dataset.threadProject = project.name || '';
+        const pill = item.querySelector('.thread-pill');
+        if (pill) {
+          pill.textContent = project.name || '';
+        }
+      });
+
+      renderThreadProjectOptions(threadMenuState.projectId);
+    }
+
+    async function saveProjectEdit() {
+      if (!projectMenuState.id) return;
+
+      const input = document.getElementById('project-edit-name-input');
+      const msg = document.getElementById('project-edit-msg');
+      const name = (input?.value || '').trim();
+
+      if (!name) {
+        if (msg) msg.textContent = 'Project name is required.';
+        return;
+      }
+
+      if (msg) msg.textContent = 'Saving...';
+
+      try {
+        const response = await fetch(`/ai/projects/${projectMenuState.id}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok || !data.project) {
+          if (msg) msg.textContent = data.error || 'Could not update project.';
+          return;
+        }
+
+        projectMenuState.name = data.project.name || name;
+        updateProjectUi(data.project);
+        closeProjectEditModal();
+      } catch (error) {
+        if (msg) msg.textContent = 'Could not update project.';
+      }
+    }
+
+    async function performProjectDelete() {
+      if (!projectMenuState.id) return;
+
+      try {
+        const response = await fetch(`/ai/projects/${projectMenuState.id}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          return;
+        }
+
+        if (currentProjectId === projectMenuState.id) {
+          window.location.href = '/ai';
+          return;
+        }
+
+        const projectItem = document.querySelector(`[data-project-item][data-project-id="${projectMenuState.id}"]`);
+        if (projectItem) {
+          projectItem.remove();
+        }
+
+        removeProjectOption(projectMenuState.id);
+        renderThreadProjectOptions(threadMenuState.projectId);
+
+        document.querySelectorAll(`[data-thread-item][data-thread-project-id="${projectMenuState.id}"]`).forEach((item) => {
+          item.dataset.threadProject = '';
+          item.dataset.threadProjectId = '';
+          const pill = item.querySelector('.thread-pill');
+          if (pill) pill.remove();
+          if (item.dataset.threadId) {
+            item.href = buildThreadHref(item.dataset.threadId, null);
+          }
+        });
+
+        closeProjectContextMenu();
+        closeProjectEditModal();
+      } catch (error) {
+        // no-op
+      }
+    }
+
+    function deleteProjectFromMenu() {
+      if (!projectMenuState.id) return;
+      const confirmed = window.confirm(`Delete "${projectMenuState.name}"?`);
+      closeProjectContextMenu();
+      if (!confirmed) return;
+      performProjectDelete();
+    }
+
+    function closeThreadContextMenu() {
+      const menu = document.getElementById('thread-context-menu');
+      if (!menu) return;
+      menu.classList.remove('open');
+      menu.style.left = '-9999px';
+      menu.style.top = '-9999px';
+    }
+
+    function openThreadContextMenu(item, x, y) {
+      const menu = document.getElementById('thread-context-menu');
+      const pinLabel = document.getElementById('thread-pin-toggle-label');
+      if (!menu || !item) return;
+
+      threadMenuState = {
+        id: Number(item.dataset.threadId),
+        title: item.dataset.threadTitle || '',
+        projectId: item.dataset.threadProjectId ? Number(item.dataset.threadProjectId) : null,
+        isPinned: item.dataset.threadPinned === '1',
+      };
+
+      if (pinLabel) {
+        pinLabel.textContent = threadMenuState.isPinned ? 'Unpin' : 'Pin';
+      }
+
+      menu.classList.add('open');
+
+      const margin = 10;
+      const width = menu.offsetWidth || 230;
+      const height = menu.offsetHeight || 240;
+      const left = Math.min(x, window.innerWidth - width - margin);
+      const top = Math.min(y, window.innerHeight - height - margin);
+
+      menu.style.left = `${Math.max(margin, left)}px`;
+      menu.style.top = `${Math.max(margin, top)}px`;
+    }
+
+    function closeThreadEditModal() {
+      const modal = document.getElementById('thread-edit-modal');
+      const msg = document.getElementById('thread-edit-msg');
+      if (!modal || !msg) return;
+
+      modal.classList.remove('open');
+      msg.textContent = '';
+    }
+
+    function openThreadEditModal(threadId = threadMenuState.id, threadTitle = threadMenuState.title) {
+      if (!threadId) return;
+
+      closeThreadContextMenu();
+      threadMenuState.id = Number(threadId);
+      threadMenuState.title = threadTitle || '';
+
+      const modal = document.getElementById('thread-edit-modal');
+      const input = document.getElementById('thread-edit-name-input');
+      const msg = document.getElementById('thread-edit-msg');
+      if (!modal || !input || !msg) return;
+
+      input.value = threadMenuState.title;
+      msg.textContent = '';
+      modal.classList.add('open');
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+    }
+
+    function openThreadEditFromMenu() {
+      openThreadEditModal();
+    }
+
+    function closeThreadProjectModal() {
+      const modal = document.getElementById('thread-project-modal');
+      const msg = document.getElementById('thread-project-msg');
+      if (!modal || !msg) return;
+
+      modal.classList.remove('open');
+      msg.textContent = '';
+    }
+
+    function openThreadProjectModal(threadId = threadMenuState.id, projectId = threadMenuState.projectId) {
+      if (!threadId) return;
+
+      closeThreadContextMenu();
+      threadMenuState.id = Number(threadId);
+      threadMenuState.projectId = projectId ? Number(projectId) : null;
+
+      const modal = document.getElementById('thread-project-modal');
+      const msg = document.getElementById('thread-project-msg');
+      if (!modal || !msg) return;
+
+      renderThreadProjectOptions(threadMenuState.projectId);
+      msg.textContent = '';
+      modal.classList.add('open');
+      requestAnimationFrame(() => {
+        document.getElementById('thread-project-select')?.focus();
+      });
+    }
+
+    function openThreadProjectModalFromMenu() {
+      openThreadProjectModal();
+    }
+
+    async function saveThreadEdit() {
+      if (!threadMenuState.id) return;
+
+      const input = document.getElementById('thread-edit-name-input');
+      const msg = document.getElementById('thread-edit-msg');
+      const title = (input?.value || '').trim();
+
+      if (!title) {
+        if (msg) msg.textContent = 'Chat name is required.';
+        return;
+      }
+
+      if (msg) msg.textContent = 'Saving...';
+
+      try {
+        const response = await fetch(`/ai/threads/${threadMenuState.id}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok || !data.thread) {
+          if (msg) msg.textContent = data.error || 'Could not rename chat.';
+          return;
+        }
+
+        threadMenuState.title = data.thread.title || title;
+        upsertThreadItem(data.thread);
+        if (currentThreadId === data.thread.id) {
+          currentThread = data.thread;
+        }
+        closeThreadEditModal();
+      } catch (error) {
+        if (msg) msg.textContent = 'Could not rename chat.';
+      }
+    }
+
+    async function saveThreadProject() {
+      if (!threadMenuState.id) return;
+
+      const select = document.getElementById('thread-project-select');
+      const msg = document.getElementById('thread-project-msg');
+      const nextProjectId = select?.value ? Number(select.value) : null;
+      const previousProjectId = threadMenuState.projectId;
+
+      if (msg) msg.textContent = 'Saving...';
+
+      try {
+        const response = await fetch(`/ai/threads/${threadMenuState.id}/project`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: nextProjectId }),
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok || !data.thread) {
+          if (msg) msg.textContent = data.error || 'Could not update project.';
+          return;
+        }
+
+        threadMenuState.projectId = data.thread.project_id ?? null;
+
+        if (String(previousProjectId || '') !== String(data.thread.project_id || '')) {
+          adjustProjectCount(previousProjectId, -1);
+          adjustProjectCount(data.thread.project_id, 1);
+        }
+
+        if (currentProjectId && String(currentProjectId) !== String(data.thread.project_id || '')) {
+          removeThreadItem(data.thread.id);
+          closeThreadProjectModal();
+          if (currentThreadId === data.thread.id) {
+            window.location.href = buildThreadHref(data.thread.id, data.thread.project_id);
+          }
+          return;
+        }
+
+        upsertThreadItem(data.thread);
+        if (currentThreadId === data.thread.id) {
+          currentThread = data.thread;
+        }
+        closeThreadProjectModal();
+      } catch (error) {
+        if (msg) msg.textContent = 'Could not update project.';
+      }
+    }
+
+    async function toggleThreadPinFromMenu() {
+      if (!threadMenuState.id) return;
+
+      try {
+        const response = await fetch(`/ai/threads/${threadMenuState.id}/pin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok || !data.thread) {
+          return;
+        }
+
+        threadMenuState.isPinned = Boolean(data.thread.is_pinned);
+        upsertThreadItem(data.thread);
+        if (currentThreadId === data.thread.id) {
+          currentThread = data.thread;
+        }
+      } catch (error) {
+        // no-op
+      } finally {
+        closeThreadContextMenu();
+      }
+    }
+
+    async function archiveThreadFromMenu() {
+      if (!threadMenuState.id) return;
+
+      const confirmed = window.confirm(`Archive "${threadMenuState.title}"?`);
+      closeThreadContextMenu();
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(`/ai/threads/${threadMenuState.id}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          return;
+        }
+
+        adjustProjectCount(threadMenuState.projectId, -1);
+        removeThreadItem(threadMenuState.id);
+        closeThreadProjectModal();
+        closeThreadEditModal();
+
+        if (currentThreadId === threadMenuState.id) {
+          startNewChat();
+        }
+      } catch (error) {
+        // no-op
+      }
+    }
+
+    async function deleteThreadFromMenu() {
+      if (!threadMenuState.id) return;
+
+      const confirmed = window.confirm(`Delete "${threadMenuState.title}"? This cannot be undone.`);
+      closeThreadContextMenu();
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(`/ai/threads/${threadMenuState.id}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          return;
+        }
+
+        adjustProjectCount(threadMenuState.projectId, -1);
+        removeThreadItem(threadMenuState.id);
+        closeThreadProjectModal();
+        closeThreadEditModal();
+
+        if (currentThreadId === threadMenuState.id) {
+          startNewChat();
+        }
+      } catch (error) {
+        // no-op
+      }
+    }
+
+    function deleteProjectFromModal() {
+      if (!projectMenuState.id) return;
+      const confirmed = window.confirm(`Delete "${projectMenuState.name}"?`);
+      if (!confirmed) return;
+      performProjectDelete();
     }
 
     async function submitProject() {
@@ -524,11 +1456,86 @@
       document.getElementById('msg-input').focus();
     }
 
+    let activeVoiceSession = null;
+
+    function humanizeVoiceError(error) {
+      if (error === 'not-allowed' || error === 'service-not-allowed') {
+        return 'Microphone access was blocked. Allow microphone permission and try again.';
+      }
+      if (error === 'audio-capture') {
+        return 'No microphone was detected. Connect one and try again.';
+      }
+      if (error === 'no-speech') {
+        return 'I did not catch any speech. Try again.';
+      }
+      if (error === 'network') {
+        return 'Voice input could not connect right now. Try again.';
+      }
+      return 'Voice input is not available right now.';
+    }
+
+    function setVoiceButtonState(listening) {
+      const button = document.getElementById('voice-btn');
+      if (!button) return;
+      button.classList.toggle('listening', listening);
+      button.title = listening ? 'Stop voice input' : 'Start voice input';
+      button.setAttribute('aria-label', button.title);
+    }
+
+    function applyVoiceTranscript(baseText, transcript) {
+      const input = document.getElementById('msg-input');
+      if (!input) return;
+      const combined = [baseText, transcript].filter(Boolean).join(baseText && transcript ? ' ' : '');
+      input.value = combined;
+      autoResize(input);
+      input.focus();
+    }
+
+    function toggleVoiceInput() {
+      const voiceButton = document.getElementById('voice-btn');
+      const input = document.getElementById('msg-input');
+
+      if (!voiceButton || !input) return;
+
+      if (!window.TaskflowVoiceInput || !window.TaskflowVoiceInput.isSupported()) {
+        addMessage('ai', 'Voice input works on supported Chrome, Edge, and Safari browsers over HTTPS or localhost.');
+        return;
+      }
+
+      if (activeVoiceSession) {
+        activeVoiceSession.stop();
+        return;
+      }
+
+      const baseText = input.value.trim();
+      activeVoiceSession = window.TaskflowVoiceInput.start({
+        onStart() {
+          setVoiceButtonState(true);
+        },
+        onResult(result) {
+          applyVoiceTranscript(baseText, result.transcript || '');
+        },
+        onError(error) {
+          if (error !== 'aborted') {
+            addMessage('ai', humanizeVoiceError(error));
+          }
+        },
+        onComplete(transcript) {
+          applyVoiceTranscript(baseText, transcript || '');
+        },
+        onEnd() {
+          activeVoiceSession = null;
+          setVoiceButtonState(false);
+        },
+      });
+    }
+
     async function sendMessage() {
       const inp = document.getElementById('msg-input');
       const btn = document.getElementById('send-btn');
       const msg = inp.value.trim();
       if (!msg || btn.disabled) return;
+      const isFirstMessageForThread = !currentThreadId;
 
       inp.value = '';
       inp.style.height = 'auto';
@@ -541,7 +1548,12 @@
       const typing = addTyping();
 
       try {
-        const res = await fetch('/ai/chat', {
+        if (isFirstMessageForThread) {
+          await createThreadSession();
+        }
+
+        const activeThreadId = currentThreadId;
+        const chatPromise = fetch('/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -549,29 +1561,55 @@
             system: SYSTEM_PROMPT,
             active_page: 'ai',
             persist_chat: true,
-            thread_id: currentThreadId,
+            thread_id: activeThreadId,
             project_id: currentProjectId
           })
-        });
-        const data = await res.json();
-        const reply = data.reply || "I'm here — what do you need?";
-        typing.remove();
-        if (data.thread) {
-          currentThread = data.thread;
-          currentThreadId = data.thread.id;
-          history.replaceState({}, '', buildThreadHref(currentThreadId, currentProjectId || data.thread.project_id));
-          upsertThreadItem(data.thread);
-        }
-        chatHistory.push({ role: 'assistant', content: reply });
-        addMessage('ai', reply);
-        applyResolvedActionState(data.resolved_action_ids, data.ok === false ? 'Could not apply.' : 'Done.');
-        getPendingActions(data).forEach(addActionCard);
-      } catch(e) {
-        typing.remove();
-        addMessage('ai', "I'm here for you. What's on your mind?");
-      }
+        }).then(async (res) => {
+          const data = await res.json();
+          const reply = data.reply || "I'm here — what do you need?";
 
-      btn.disabled = false;
+          if (typing.isConnected) {
+            typing.remove();
+          }
+
+          if (data.thread) {
+            currentThreadId = data.thread.id;
+            currentThread = mergeThreadData(currentThread, data.thread);
+            history.replaceState({}, '', buildThreadHref(currentThreadId, currentProjectId || currentThread.project_id));
+            upsertThreadItem(currentThread);
+          }
+
+          chatHistory.push({ role: 'assistant', content: reply });
+          addMessage('ai', reply);
+          applyResolvedActionState(data.resolved_action_ids, data.ok === false ? 'Could not apply.' : 'Done.');
+          getPendingActions(data).forEach(addActionCard);
+          return data;
+        });
+
+        const titlePromise = isFirstMessageForThread
+          ? fetch(`/ai/threads/${activeThreadId}/generate-title`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ first_message: msg })
+            }).then(async (res) => {
+              const data = await res.json();
+              if (res.ok && data.ok && data.thread) {
+                currentThread = mergeThreadData(currentThread, data.thread);
+                upsertThreadItem(currentThread);
+              }
+              return data;
+            }).catch(() => null)
+          : Promise.resolve(null);
+
+        await Promise.all([chatPromise, titlePromise]);
+      } catch(e) {
+        if (typing.isConnected) {
+          typing.remove();
+        }
+        addMessage('ai', "I'm here for you. What's on your mind?");
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function sendQuick(text) {
@@ -586,6 +1624,9 @@
       const msgs = document.getElementById('messages');
       const row = document.createElement('div');
       row.className = 'msg-row ' + type;
+      if (type === 'ai') {
+        row.dataset.aiMessageText = text;
+      }
 
       const now = new Date();
       const h = now.getHours() % 12 || 12;
@@ -601,6 +1642,7 @@
           <div class="msg-col">
             <div class="msg-bubble ai">${escaped}</div>
             <div class="msg-time">${timeStr}</div>
+            ${buildMessageActionsHtml()}
           </div>`;
       } else {
         row.innerHTML = `
@@ -736,6 +1778,99 @@
       }
     });
 
+    document.getElementById('project-edit-name-input')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveProjectEdit();
+      } else if (event.key === 'Escape') {
+        closeProjectEditModal();
+      }
+    });
+
+    document.getElementById('thread-edit-name-input')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveThreadEdit();
+      } else if (event.key === 'Escape') {
+        closeThreadEditModal();
+      }
+    });
+
+    document.getElementById('thread-project-select')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveThreadProject();
+      } else if (event.key === 'Escape') {
+        closeThreadProjectModal();
+      }
+    });
+
+    document.addEventListener('contextmenu', (event) => {
+      const projectItem = event.target.closest('[data-project-item]');
+      if (projectItem) {
+        event.preventDefault();
+        closeThreadContextMenu();
+        openProjectContextMenu(projectItem.dataset.projectId, projectItem.dataset.projectName, event.clientX, event.clientY);
+        return;
+      }
+
+      const threadItem = event.target.closest('[data-thread-item]');
+      if (threadItem) {
+        event.preventDefault();
+        closeProjectContextMenu();
+        openThreadContextMenu(threadItem, event.clientX, event.clientY);
+        return;
+      }
+
+      closeProjectContextMenu();
+      closeThreadContextMenu();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('#project-context-menu')) {
+        closeProjectContextMenu();
+      }
+      if (!event.target.closest('#thread-context-menu')) {
+        closeThreadContextMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeProjectContextMenu();
+        closeProjectEditModal();
+        closeThreadContextMenu();
+        closeThreadEditModal();
+        closeThreadProjectModal();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      closeProjectContextMenu();
+      closeThreadContextMenu();
+    });
+
+    document.getElementById('messages')?.addEventListener('click', handleMessageActionClick);
+
+    if (!supportsVoiceOutput) {
+      document.querySelectorAll('[data-msg-action="speak"]').forEach((button) => {
+        button.disabled = true;
+        button.title = 'Voice output is unavailable in this browser';
+        button.setAttribute('aria-label', button.title);
+      });
+    }
+
+    if (!window.TaskflowVoiceInput || !window.TaskflowVoiceInput.isSupported()) {
+      const voiceButton = document.getElementById('voice-btn');
+      if (voiceButton) {
+        voiceButton.disabled = true;
+        voiceButton.title = 'Voice input is unavailable in this browser';
+        voiceButton.setAttribute('aria-label', voiceButton.title);
+      }
+    }
+
+    renderQuickActions();
+    enableQuickActionScroll();
     document.getElementById('msg-input').focus();
   </script>
 

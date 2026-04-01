@@ -929,6 +929,14 @@ def ensure_ai_support_schema() -> bool:
             )
             """
         )
+        cursor.execute("SHOW COLUMNS FROM ai_chat_threads LIKE 'pinned_at'")
+        if cursor.fetchone() is None:
+            cursor.execute(
+                """
+                ALTER TABLE ai_chat_threads
+                ADD COLUMN pinned_at DATETIME NULL DEFAULT NULL
+                """
+            )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_chat_messages (
@@ -976,6 +984,90 @@ def build_ai_chat_title(seed_text: str, fallback: str = "New chat") -> str:
     return cleaned[:72].rstrip() + ("..." if len(cleaned) > 72 else "")
 
 
+def extract_ai_chat_title_seed(message_text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", (message_text or "").strip()).strip("\"' ")
+    if not cleaned:
+        return ""
+
+    match = re.search(r"(.+?[.!?])(?:\s|$)", cleaned)
+    first_sentence = match.group(1) if match else cleaned.split("\n", 1)[0]
+    first_sentence = first_sentence.strip().strip("\"' ")
+
+    for separator in (" — ", " - ", ": "):
+        if separator in first_sentence:
+            leading_segment = first_sentence.split(separator, 1)[0].strip()
+            if leading_segment:
+                first_sentence = leading_segment
+                break
+
+    first_sentence = re.sub(
+        r"^(?:please\s+)?(?:can|could|would|will)\s+you\s+(?:help\s+me\s+)?",
+        "",
+        first_sentence,
+        flags=re.IGNORECASE,
+    )
+    first_sentence = re.sub(
+        r"^(?:please\s+)?help\s+me\s+(?:to\s+)?",
+        "",
+        first_sentence,
+        flags=re.IGNORECASE,
+    )
+    first_sentence = re.sub(
+        r"^(?:please\s+)?how\s+do\s+i\s+",
+        "",
+        first_sentence,
+        flags=re.IGNORECASE,
+    )
+    first_sentence = re.sub(
+        r"^(?:please\s+)?what\s+should\s+i\s+",
+        "",
+        first_sentence,
+        flags=re.IGNORECASE,
+    )
+    first_sentence = first_sentence.strip().strip("\"' ").rstrip(".!?")
+    return first_sentence
+
+
+def build_ai_chat_title_from_first_message(message_text: str, fallback: str = "New chat") -> str:
+    seed_text = extract_ai_chat_title_seed(message_text)
+    return build_ai_chat_title(seed_text, fallback=fallback)
+
+
+def generate_ai_chat_title_from_first_message(client, message_text: str, fallback: str = "New chat") -> str:
+    fallback_title = build_ai_chat_title_from_first_message(message_text, fallback=fallback)
+    seed_text = extract_ai_chat_title_seed(message_text)
+    if not seed_text:
+        return fallback_title
+
+    prompt = (
+        "Create a short saved-chat title based only on this first user sentence.\n"
+        "Requirements:\n"
+        "- 4 to 6 words.\n"
+        "- Summarize the topic instead of copying the sentence verbatim.\n"
+        "- No quotes.\n"
+        "- No ending punctuation.\n"
+        "- Return only the title text.\n\n"
+        f"First sentence: {seed_text}"
+    )
+
+    try:
+        response = call_anthropic_messages_api(
+            client,
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=ANTHROPIC_CHAT_TITLE_MAX_TOKENS,
+            system="You write concise chat titles for saved AI conversations.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        title = extract_anthropic_text(response)
+    except Exception:
+        app.logger.exception("AI chat title generation failed.")
+        return fallback_title
+
+    cleaned_title = re.sub(r"\s+", " ", (title or "").strip()).strip("\"' ")
+    cleaned_title = cleaned_title.rstrip(".!?")
+    return build_ai_chat_title(cleaned_title or fallback_title, fallback=fallback_title)
+
+
 def serialize_ai_chat_thread(thread_row):
     if not thread_row:
         return None
@@ -993,6 +1085,7 @@ def serialize_ai_chat_thread(thread_row):
         "title": build_ai_chat_title(thread_row.get("title") or "", fallback="New chat"),
         "preview": preview[:140],
         "message_count": int(thread_row.get("message_count") or 0),
+        "is_pinned": bool(thread_row.get("pinned_at")),
         "activity_label": format_note_timestamp(activity_at) if activity_at else "",
     }
 
@@ -1087,6 +1180,7 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
             t.created_at,
             t.updated_at,
             t.last_message_at,
+            t.pinned_at,
             p.name AS project_name,
             (
                 SELECT m.content
@@ -1106,7 +1200,11 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
          AND p.user_id = t.user_id
          AND p.archived_at IS NULL
         WHERE {' AND '.join(conditions)}
-        ORDER BY COALESCE(t.last_message_at, t.updated_at, t.created_at) DESC, t.id DESC
+        ORDER BY
+            CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+            t.pinned_at DESC,
+            COALESCE(t.last_message_at, t.updated_at, t.created_at) DESC,
+            t.id DESC
         LIMIT %s
         """,
         tuple(params + [limit]),
@@ -1131,6 +1229,7 @@ def fetch_ai_chat_thread(user_id: int, thread_id: int | None):
             t.created_at,
             t.updated_at,
             t.last_message_at,
+            t.pinned_at,
             p.name AS project_name,
             (
                 SELECT m.content
@@ -1215,6 +1314,86 @@ def create_ai_chat_project(user_id: int, name: str, description: str = ""):
     }
 
 
+def update_ai_chat_project(user_id: int, project_id: int, name: str):
+    if not ensure_ai_support_schema():
+        return None
+
+    project_name = re.sub(r"\s+", " ", (name or "").strip())[:120]
+    if not project_name:
+        return None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_projects
+        SET name = %s, updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (project_name, project_id, user_id),
+    )
+    updated = cursor.rowcount > 0
+    cursor.close()
+
+    if not updated:
+        return None
+
+    return {"id": project_id, "name": project_name}
+
+
+def touch_ai_chat_project(user_id: int, project_id: int | None):
+    if not project_id:
+        return
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_projects
+        SET updated_at = NOW()
+        WHERE id = %s AND user_id = %s
+        """,
+        (project_id, user_id),
+    )
+    cursor.close()
+
+
+def archive_ai_chat_project(user_id: int, project_id: int) -> bool:
+    if not ensure_ai_support_schema():
+        return False
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_projects
+        SET archived_at = NOW(), updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (project_id, user_id),
+    )
+    archived = cursor.rowcount > 0
+
+    if archived:
+        cursor.execute(
+            """
+            UPDATE ai_chat_threads
+            SET project_id = NULL, updated_at = NOW()
+            WHERE user_id = %s
+              AND project_id = %s
+              AND archived_at IS NULL
+            """,
+            (user_id, project_id),
+        )
+
+    cursor.close()
+    return archived
+
+
 def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int | None = None):
     if not ensure_ai_support_schema():
         return None
@@ -1235,11 +1414,175 @@ def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int
     thread_id = cursor.lastrowid
     if project_id is not None:
         cursor.execute(
-            "UPDATE ai_chat_projects SET updated_at = NOW() WHERE id = %s AND user_id = %s",
+            """
+            UPDATE ai_chat_projects
+            SET updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+            """,
             (project_id, user_id),
         )
     cursor.close()
     return fetch_ai_chat_thread(user_id, thread_id)
+
+
+def update_ai_chat_thread_title(user_id: int, thread_id: int, title: str):
+    if not ensure_ai_support_schema():
+        return None
+
+    thread_title = build_ai_chat_title(title, fallback="New chat")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_threads
+        SET title = %s, updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (thread_title, thread_id, user_id),
+    )
+    updated = cursor.rowcount > 0
+    cursor.close()
+
+    if not updated:
+        return None
+
+    return fetch_ai_chat_thread(user_id, thread_id)
+
+
+def assign_ai_chat_thread_project(user_id: int, thread_id: int, project_id: int | None):
+    if not ensure_ai_support_schema():
+        return None
+
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    if project_id is not None and not user_owns_ai_project(user_id, project_id):
+        return None
+
+    if thread.get("project_id") == project_id:
+        return thread
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_threads
+        SET project_id = %s, updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (project_id, thread_id, user_id),
+    )
+    updated = cursor.rowcount > 0
+    cursor.close()
+
+    if not updated:
+        return None
+
+    touch_ai_chat_project(user_id, thread.get("project_id"))
+    touch_ai_chat_project(user_id, project_id)
+    return fetch_ai_chat_thread(user_id, thread_id)
+
+
+def toggle_ai_chat_thread_pin(user_id: int, thread_id: int):
+    if not ensure_ai_support_schema():
+        return None
+
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    next_pin_value = datetime.utcnow() if not thread.get("pinned_at") else None
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_threads
+        SET pinned_at = %s, updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (next_pin_value, thread_id, user_id),
+    )
+    updated = cursor.rowcount > 0
+    cursor.close()
+
+    if not updated:
+        return None
+
+    return fetch_ai_chat_thread(user_id, thread_id)
+
+
+def archive_ai_chat_thread(user_id: int, thread_id: int):
+    if not ensure_ai_support_schema():
+        return None
+
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE ai_chat_threads
+        SET archived_at = NOW(), updated_at = NOW()
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (thread_id, user_id),
+    )
+    archived = cursor.rowcount > 0
+    cursor.close()
+
+    if not archived:
+        return None
+
+    touch_ai_chat_project(user_id, thread.get("project_id"))
+    return thread
+
+
+def delete_ai_chat_thread(user_id: int, thread_id: int):
+    if not ensure_ai_support_schema():
+        return None
+
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        DELETE FROM ai_chat_messages
+        WHERE thread_id = %s
+          AND user_id = %s
+        """,
+        (thread_id, user_id),
+    )
+    cursor.execute(
+        """
+        DELETE FROM ai_chat_threads
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        """,
+        (thread_id, user_id),
+    )
+    deleted = cursor.rowcount > 0
+    cursor.close()
+
+    if not deleted:
+        return None
+
+    touch_ai_chat_project(user_id, thread.get("project_id"))
+    return thread
 
 
 def save_ai_chat_message(user_id: int, thread_id: int, role: str, content: str):
@@ -3043,6 +3386,7 @@ def humanize_anthropic_error(exc, fallback: str):
 ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
 ANTHROPIC_CHAT_HISTORY_LIMIT = 10
 ANTHROPIC_CHAT_MAX_TOKENS = 350
+ANTHROPIC_CHAT_TITLE_MAX_TOKENS = 20
 ANTHROPIC_PLAN_MAX_TOKENS = 250
 ANTHROPIC_JOURNAL_MAX_TOKENS = 120
 
@@ -3292,8 +3636,6 @@ def ai_coach_page():
     if active_ai_chat and selected_project_id is not None and active_ai_chat.get("project_id") != selected_project_id:
         selected_project_id = active_ai_chat.get("project_id")
         ai_threads = fetch_ai_chat_threads(user_id, project_id=selected_project_id)
-    if active_ai_chat is None and ai_threads:
-        active_ai_chat = ai_threads[0]
     active_ai_chat_messages = (
         fetch_ai_chat_messages(user_id, active_ai_chat["id"])
         if active_ai_chat else
@@ -3398,7 +3740,7 @@ def ai_chat():
     if persist_chat and thread_id is None:
         active_thread = create_ai_chat_thread(
             session["user_id"],
-            title=latest_user_message,
+            title="New chat",
             project_id=project_id,
         )
         thread_id = active_thread["id"] if active_thread else None
@@ -3501,6 +3843,160 @@ def create_ai_project():
         return jsonify({"ok": False, "error": "Could not create that project right now."}), 503
 
     return jsonify({"ok": True, "project": project})
+
+
+@app.route("/ai/threads/create", methods=["POST"])
+@login_required
+def create_ai_thread():
+    data = request.get_json(silent=True) or {}
+    raw_project_id = data.get("project_id", request.form.get("project_id"))
+    project_id = parse_optional_int(raw_project_id)
+
+    if raw_project_id not in (None, "", False) and project_id is None:
+        return jsonify({"ok": False, "error": "Project selection is invalid."}), 400
+
+    if project_id is not None and not user_owns_ai_project(session["user_id"], project_id):
+        return jsonify({"ok": False, "error": "Project not found."}), 404
+
+    thread = create_ai_chat_thread(
+        session["user_id"],
+        title="New chat",
+        project_id=project_id,
+    )
+    if not thread:
+        return jsonify({"ok": False, "error": "Could not create chat."}), 503
+
+    return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+
+
+@app.route("/ai/threads/<int:thread_id>/generate-title", methods=["POST"])
+@login_required
+def generate_ai_thread_title(thread_id):
+    data = request.get_json(silent=True) or {}
+    first_message = (data.get("first_message") or request.form.get("first_message") or "").strip()
+
+    if not first_message:
+        return jsonify({"ok": False, "error": "First message is required."}), 400
+
+    thread = fetch_ai_chat_thread(session["user_id"], thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    current_title = build_ai_chat_title(thread.get("title") or "", fallback="New chat")
+    message_count = int(thread.get("message_count") or 0)
+    if current_title != "New chat" or message_count > 2:
+        return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        return jsonify({"ok": False, "error": "AI coaching requires an Anthropic API key."}), 503
+
+    try:
+        client = create_anthropic_client(anthropic_key)
+        title = generate_ai_chat_title_from_first_message(
+            client,
+            first_message,
+            fallback="New chat",
+        )
+        if title:
+            thread = update_ai_chat_thread_title(session["user_id"], thread_id, title) or thread
+        else:
+            thread = fetch_ai_chat_thread(session["user_id"], thread_id) or thread
+        return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+    except Exception as e:
+        app.logger.exception("AI chat title route failed: %s", e)
+        return jsonify({"ok": False, "error": "Could not generate chat title right now."}), 200
+
+
+@app.route("/ai/projects/<int:project_id>/update", methods=["POST"])
+@login_required
+def update_ai_project(project_id):
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or request.form.get("name") or "").strip()
+
+    if not name:
+        return jsonify({"ok": False, "error": "Project name is required."}), 400
+
+    project = update_ai_chat_project(session["user_id"], project_id, name)
+    if not project:
+        return jsonify({"ok": False, "error": "Project not found."}), 404
+
+    return jsonify({"ok": True, "project": project})
+
+
+@app.route("/ai/projects/<int:project_id>/delete", methods=["POST"])
+@login_required
+def delete_ai_project(project_id):
+    if not archive_ai_chat_project(session["user_id"], project_id):
+        return jsonify({"ok": False, "error": "Project not found."}), 404
+
+    return jsonify({"ok": True, "project_id": project_id})
+
+
+@app.route("/ai/threads/<int:thread_id>/update", methods=["POST"])
+@login_required
+def update_ai_thread(thread_id):
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or request.form.get("title") or "").strip()
+
+    if not title:
+        return jsonify({"ok": False, "error": "Chat name is required."}), 400
+
+    thread = update_ai_chat_thread_title(session["user_id"], thread_id, title)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+
+
+@app.route("/ai/threads/<int:thread_id>/project", methods=["POST"])
+@login_required
+def assign_ai_thread_project(thread_id):
+    data = request.get_json(silent=True) or {}
+    raw_project_id = data.get("project_id", request.form.get("project_id"))
+    project_id = parse_optional_int(raw_project_id)
+
+    if raw_project_id not in (None, "", False) and project_id is None:
+        return jsonify({"ok": False, "error": "Project selection is invalid."}), 400
+
+    if project_id is not None and not user_owns_ai_project(session["user_id"], project_id):
+        return jsonify({"ok": False, "error": "Project not found."}), 404
+
+    thread = assign_ai_chat_thread_project(session["user_id"], thread_id, project_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+
+
+@app.route("/ai/threads/<int:thread_id>/pin", methods=["POST"])
+@login_required
+def toggle_ai_thread_pin(thread_id):
+    thread = toggle_ai_chat_thread_pin(session["user_id"], thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
+
+
+@app.route("/ai/threads/<int:thread_id>/archive", methods=["POST"])
+@login_required
+def archive_ai_thread(thread_id):
+    thread = archive_ai_chat_thread(session["user_id"], thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    return jsonify({"ok": True, "thread_id": thread_id})
+
+
+@app.route("/ai/threads/<int:thread_id>/delete", methods=["POST"])
+@login_required
+def delete_ai_thread(thread_id):
+    thread = delete_ai_chat_thread(session["user_id"], thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+
+    return jsonify({"ok": True, "thread_id": thread_id})
 
 
 @app.route("/ai/actions/<int:action_id>/confirm", methods=["POST"])
