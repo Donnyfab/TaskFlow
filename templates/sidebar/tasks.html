@@ -55,6 +55,31 @@
     .list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .list-count { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); border-radius: 4px; padding: 1px 6px; }
     .list-pin { font-size: 10px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+    .inline-rename-input {
+      width: 100%;
+      min-width: 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 6px;
+      padding: 4px 8px;
+      color: #fff;
+      font: inherit;
+      outline: none;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    .inline-rename-input:focus {
+      border-color: rgba(255,255,255,0.28);
+      background: rgba(255,255,255,0.09);
+    }
+    .list-item.inline-renaming,
+    .task-item.inline-renaming {
+      background: rgba(255,255,255,0.05);
+    }
+    .list-name.inline-rename-host,
+    .t-title.inline-rename-host {
+      overflow: visible;
+      white-space: normal;
+    }
 
     .list-context-menu {
       position: fixed;
@@ -572,10 +597,583 @@
   </div>
 
   <script>
-    const activeListId = {{ active_list_id if active_list_id is not none else 'null' }};
+    let currentListId = {{ active_list_id if active_list_id is not none else 'null' }};
     const activeListName = {{ (active_list.name if active_list else 'All tasks')|tojson }};
     let listContextState = null;
     let taskContextState = null;
+    let currentActiveListName = activeListName;
+    let activeInlineRename = null;
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function capitalizeLabel(value) {
+      const text = String(value || '');
+      return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : '';
+    }
+
+    function insertAfter(node, referenceNode) {
+      if (!node || !referenceNode || !referenceNode.parentNode) return;
+      referenceNode.parentNode.insertBefore(node, referenceNode.nextSibling);
+    }
+
+    function clearInlineRenameState() {
+      if (!activeInlineRename) return;
+      activeInlineRename.row?.classList.remove('inline-renaming');
+      activeInlineRename.host?.classList.remove('inline-rename-host');
+      activeInlineRename = null;
+    }
+
+    function restoreInlineRenameHost(editor, textValue) {
+      if (!editor?.host) return;
+      editor.host.textContent = textValue;
+      editor.row?.classList.remove('inline-renaming');
+      editor.host.classList.remove('inline-rename-host');
+    }
+
+    function startInlineRename({ row, host, initialValue, save, onSaved, onError }) {
+      if (!row || !host) return;
+
+      if (activeInlineRename) {
+        restoreInlineRenameHost(activeInlineRename, activeInlineRename.originalValue);
+        clearInlineRenameState();
+      }
+
+      const originalValue = String(initialValue || '').trim();
+      row.classList.add('inline-renaming');
+      host.classList.add('inline-rename-host');
+      host.textContent = '';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = originalValue;
+      input.className = 'inline-rename-input';
+      input.maxLength = 120;
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.addEventListener('click', (event) => event.stopPropagation());
+      input.addEventListener('mousedown', (event) => event.stopPropagation());
+
+      host.appendChild(input);
+
+      const editor = {
+        row,
+        host,
+        input,
+        originalValue,
+        save,
+        onSaved,
+        onError,
+        settling: false
+      };
+      activeInlineRename = editor;
+
+      const finalize = async (shouldSave) => {
+        if (!activeInlineRename || activeInlineRename !== editor || editor.settling) return;
+        editor.settling = true;
+
+        const nextValue = input.value.trim();
+        if (!shouldSave || !nextValue || nextValue === originalValue) {
+          restoreInlineRenameHost(editor, originalValue);
+          clearInlineRenameState();
+          return;
+        }
+
+        input.disabled = true;
+
+        try {
+          const result = await save(nextValue);
+          restoreInlineRenameHost(editor, nextValue);
+          clearInlineRenameState();
+          if (typeof onSaved === 'function') onSaved(nextValue, result);
+        } catch (error) {
+          restoreInlineRenameHost(editor, originalValue);
+          clearInlineRenameState();
+          if (typeof onError === 'function') onError(error);
+        }
+      };
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finalize(true);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          finalize(false);
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        finalize(true);
+      });
+
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+    }
+
+    function getTaskListContainer() {
+      return document.getElementById('task-list');
+    }
+
+    function getTaskItems() {
+      return Array.from(document.querySelectorAll('#task-list [data-task-item]'));
+    }
+
+    function getAllTasksCountBadge() {
+      return document.querySelector('.lists-scroll .list-item[href="/tasks"] .list-count');
+    }
+
+    function getListLinkById(listId) {
+      if (listId === null || listId === undefined || listId === '') return null;
+      return Array.from(document.querySelectorAll('.lists-scroll .list-item[href*="list_id="]')).find((link) => {
+        try {
+          const href = link.getAttribute('href') || '';
+          return new URL(href, window.location.origin).searchParams.get('list_id') === String(listId);
+        } catch {
+          return false;
+        }
+      }) || null;
+    }
+
+    function getListNameById(listId) {
+      if (listId !== null && listId !== undefined && currentListId === Number(listId) && currentActiveListName) {
+        return currentActiveListName;
+      }
+      const listLink = getListLinkById(listId);
+      return listLink?.querySelector('.list-name')?.textContent?.trim() || 'Task';
+    }
+
+    function adjustCountBadge(badge, delta) {
+      if (!badge || !delta) return;
+      const currentValue = Number.parseInt(badge.textContent || '0', 10) || 0;
+      badge.textContent = String(Math.max(0, currentValue + delta));
+    }
+
+    function adjustAllTasksCount(delta) {
+      adjustCountBadge(getAllTasksCountBadge(), delta);
+    }
+
+    function adjustListTaskCount(listId, delta) {
+      const listLink = getListLinkById(listId);
+      adjustCountBadge(listLink?.querySelector('.list-count'), delta);
+    }
+
+    function updateTaskHeaderMeta() {
+      const meta = document.querySelector('.tc-meta');
+      if (!meta) return;
+      const tasks = getTaskItems();
+      const total = tasks.length;
+      const completed = tasks.filter((item) => item.classList.contains('completed-task')).length;
+      meta.textContent = `${total} task${total === 1 ? '' : 's'} · ${completed} completed`;
+    }
+
+    function getGroupLabel(groupName) {
+      return Array.from(document.querySelectorAll('#task-list .task-group-label')).find(
+        (label) => label.textContent.trim().toLowerCase() === groupName.toLowerCase()
+      ) || null;
+    }
+
+    function ensureGroupLabel(groupName) {
+      const list = getTaskListContainer();
+      if (!list) return null;
+
+      const existing = getGroupLabel(groupName);
+      if (existing) return existing;
+
+      const label = document.createElement('div');
+      label.className = 'task-group-label';
+      label.textContent = groupName;
+
+      if (groupName === 'Active') {
+        const completedLabel = getGroupLabel('Completed');
+        if (completedLabel) {
+          list.insertBefore(label, completedLabel);
+        } else {
+          const firstTask = list.querySelector('[data-task-item]');
+          if (firstTask) list.insertBefore(label, firstTask);
+          else list.appendChild(label);
+        }
+      } else {
+        list.appendChild(label);
+      }
+
+      return label;
+    }
+
+    function cleanupTaskGroupLabels() {
+      const activeLabel = getGroupLabel('Active');
+      const completedLabel = getGroupLabel('Completed');
+      const activeTasks = getTaskItems().filter((item) => !item.classList.contains('completed-task'));
+      const completedTasks = getTaskItems().filter((item) => item.classList.contains('completed-task'));
+      if (activeLabel && !activeTasks.length) activeLabel.remove();
+      if (completedLabel && !completedTasks.length) completedLabel.remove();
+    }
+
+    function updateTaskEmptyState() {
+      const list = getTaskListContainer();
+      if (!list) return;
+
+      const emptyState = list.querySelector('.empty-state');
+      if (getTaskItems().length) {
+        if (emptyState) emptyState.remove();
+        return;
+      }
+
+      document.querySelectorAll('#task-list .task-group-label').forEach((label) => label.remove());
+      if (emptyState) return;
+
+      const state = document.createElement('div');
+      state.className = 'empty-state';
+      state.innerHTML = `
+        <div class="es-icon">✓</div>
+        <div class="es-title">No tasks yet</div>
+        <div class="es-sub">Add your first task above and start building momentum.</div>
+      `;
+      list.appendChild(state);
+    }
+
+    function applyCurrentFilterToTask(taskItem) {
+      if (!taskItem) return;
+      const isDone = taskItem.classList.contains('completed-task');
+      if (currentFilter === 'all') taskItem.style.display = '';
+      else if (currentFilter === 'active') taskItem.style.display = isDone ? 'none' : '';
+      else taskItem.style.display = isDone ? '' : 'none';
+    }
+
+    function createTaskActionsHtml(taskId, completed) {
+      if (completed) {
+        return `
+          <div class="ta-btn del" onclick="event.stopPropagation();deleteTask(${taskId},this.closest('.task-item'))">✕</div>
+        `;
+      }
+      return `
+        <div class="ta-btn" onclick="event.stopPropagation();toggleTask(this.parentElement.previousElementSibling.previousElementSibling,${taskId})">✓</div>
+        <div class="ta-btn del" onclick="event.stopPropagation();deleteTask(${taskId},this.closest('.task-item'))">✕</div>
+      `;
+    }
+
+    function createTaskMetaHtml(taskData) {
+      const isPinned = Boolean(taskData.isPinned);
+      const priority = taskData.priority || 'medium';
+      const listName = taskData.listName || 'Task';
+      return `
+        ${isPinned ? '<span class="t-pin" aria-hidden="true">📌</span>' : ''}
+        <span class="t-priority ${escapeHtml(priority)}">${escapeHtml(capitalizeLabel(priority))}</span>
+        <span class="t-tag">${escapeHtml(listName)}</span>
+      `;
+    }
+
+    function createTaskItemElement(taskData) {
+      const taskItem = document.createElement('div');
+      const isCompleted = Boolean(taskData.completed);
+      const isPinned = Boolean(taskData.isPinned);
+      const listId = taskData.listId ?? '';
+      const listName = taskData.listName || 'Task';
+      const title = taskData.title || '';
+      const description = taskData.description || '';
+      const priority = taskData.priority || 'medium';
+
+      taskItem.className = `task-item${isCompleted ? ' completed-task' : ''}${isPinned ? ' pinned-task' : ''}`;
+      taskItem.id = `task-${taskData.id}`;
+      taskItem.dataset.taskItem = '';
+      taskItem.dataset.taskId = String(taskData.id);
+      taskItem.dataset.taskTitle = title;
+      taskItem.dataset.taskDescription = description;
+      taskItem.dataset.taskPriority = priority;
+      taskItem.dataset.taskListId = listId === null || listId === undefined || listId === '' ? '' : String(listId);
+      taskItem.dataset.taskListName = listName;
+      taskItem.dataset.taskIsPinned = isPinned ? '1' : '0';
+      taskItem.onclick = function() { openDetailFromTask(taskItem); };
+      taskItem.innerHTML = `
+        <div class="t-chk${isCompleted ? ' done' : ''}" onclick="event.stopPropagation();toggleTask(this, ${taskData.id})">${isCompleted ? '✓' : ''}</div>
+        <div class="t-body">
+          <div class="t-title${isCompleted ? ' done' : ''}">${escapeHtml(title)}</div>
+          <div class="t-meta">
+            ${createTaskMetaHtml({ isPinned, priority, listName })}
+          </div>
+        </div>
+        <div class="task-actions">
+          ${createTaskActionsHtml(taskData.id, isCompleted)}
+        </div>
+      `;
+      return taskItem;
+    }
+
+    function insertTaskIntoGroup(taskItem) {
+      const list = getTaskListContainer();
+      if (!list || !taskItem) return;
+
+      const isCompleted = taskItem.classList.contains('completed-task');
+      const isPinned = taskItem.dataset.taskIsPinned === '1';
+      const groupName = isCompleted ? 'Completed' : 'Active';
+      const label = ensureGroupLabel(groupName);
+      if (!label) return;
+
+      const groupItems = getTaskItems().filter(
+        (item) => item !== taskItem && item.classList.contains('completed-task') === isCompleted
+      );
+
+      taskItem.remove();
+
+      if (isPinned) {
+        const firstUnpinned = groupItems.find((item) => item.dataset.taskIsPinned !== '1');
+        if (firstUnpinned) {
+          list.insertBefore(taskItem, firstUnpinned);
+        } else if (groupItems.length) {
+          insertAfter(taskItem, groupItems[groupItems.length - 1]);
+        } else {
+          insertAfter(taskItem, label);
+        }
+      } else if (groupItems.length) {
+        insertAfter(taskItem, groupItems[groupItems.length - 1]);
+      } else {
+        insertAfter(taskItem, label);
+      }
+
+      applyCurrentFilterToTask(taskItem);
+      cleanupTaskGroupLabels();
+      updateTaskEmptyState();
+      updateTaskHeaderMeta();
+    }
+
+    function updateTaskElement(taskItem, updates = {}) {
+      if (!taskItem) return null;
+
+      const currentState = readTaskState(taskItem) || {};
+      const nextListId = Object.prototype.hasOwnProperty.call(updates, 'listId')
+        ? (updates.listId === null || updates.listId === undefined || updates.listId === '' ? null : Number(updates.listId))
+        : currentState.listId;
+      const nextState = {
+        id: currentState.id,
+        title: Object.prototype.hasOwnProperty.call(updates, 'title') ? (updates.title || '') : (currentState.title || ''),
+        description: Object.prototype.hasOwnProperty.call(updates, 'description') ? (updates.description || '') : (currentState.description || ''),
+        priority: Object.prototype.hasOwnProperty.call(updates, 'priority') ? (updates.priority || 'medium') : (currentState.priority || 'medium'),
+        listId: nextListId,
+        listName: Object.prototype.hasOwnProperty.call(updates, 'listName') ? (updates.listName || 'Task') : (currentState.listName || 'Task'),
+        isPinned: Object.prototype.hasOwnProperty.call(updates, 'isPinned') ? Boolean(updates.isPinned) : Boolean(currentState.isPinned),
+        completed: Object.prototype.hasOwnProperty.call(updates, 'completed') ? Boolean(updates.completed) : taskItem.classList.contains('completed-task')
+      };
+
+      taskItem.dataset.taskTitle = nextState.title;
+      taskItem.dataset.taskDescription = nextState.description;
+      taskItem.dataset.taskPriority = nextState.priority;
+      taskItem.dataset.taskListId = nextState.listId === null || nextState.listId === undefined ? '' : String(nextState.listId);
+      taskItem.dataset.taskListName = nextState.listName;
+      taskItem.dataset.taskIsPinned = nextState.isPinned ? '1' : '0';
+      taskItem.classList.toggle('completed-task', nextState.completed);
+      taskItem.classList.toggle('pinned-task', nextState.isPinned);
+
+      const checkbox = taskItem.querySelector('.t-chk');
+      if (checkbox) {
+        checkbox.classList.toggle('done', nextState.completed);
+        checkbox.textContent = nextState.completed ? '✓' : '';
+      }
+
+      const title = taskItem.querySelector('.t-title');
+      if (title) {
+        title.textContent = nextState.title;
+        title.classList.toggle('done', nextState.completed);
+      }
+
+      const meta = taskItem.querySelector('.t-meta');
+      if (meta) {
+        meta.innerHTML = createTaskMetaHtml(nextState);
+      }
+
+      const actions = taskItem.querySelector('.task-actions');
+      if (actions) {
+        actions.innerHTML = createTaskActionsHtml(nextState.id, nextState.completed);
+      }
+
+      applyCurrentFilterToTask(taskItem);
+      return nextState;
+    }
+
+    function updateActiveListTitle(listId, listName) {
+      if (currentListId !== Number(listId)) return;
+      currentActiveListName = listName;
+      const title = document.querySelector('.tc-list-name');
+      if (title) title.textContent = listName;
+    }
+
+    function getCurrentTasksViewUrl() {
+      return currentListId ? `/tasks?list_id=${encodeURIComponent(currentListId)}` : '/tasks';
+    }
+
+    function syncCurrentListStateFromDom() {
+      const activeCustomList = document.querySelector('.lists-scroll [data-list-link].active');
+      currentListId = activeCustomList ? Number(activeCustomList.dataset.listId) : null;
+      currentActiveListName = document.querySelector('.tc-list-name')?.textContent?.trim() || 'All tasks';
+    }
+
+    function applyTasksPageSnapshot(snapshotDocument) {
+      clearInlineRenameState();
+      const nextListsScroll = snapshotDocument.querySelector('.lists-scroll');
+      const nextTaskContent = snapshotDocument.querySelector('.task-content');
+      const nextListSelect = snapshotDocument.querySelector('#dp-list-select');
+      const currentListsScroll = document.querySelector('.lists-scroll');
+      const currentTaskContent = document.querySelector('.task-content');
+      const currentListSelect = document.querySelector('#dp-list-select');
+
+      if (!nextListsScroll || !nextTaskContent || !nextListSelect || !currentListsScroll || !currentTaskContent || !currentListSelect) {
+        throw new Error('Unable to refresh the list view right now.');
+      }
+
+      currentListsScroll.innerHTML = nextListsScroll.innerHTML;
+      currentTaskContent.innerHTML = nextTaskContent.innerHTML;
+      currentListSelect.innerHTML = nextListSelect.innerHTML;
+      document.title = snapshotDocument.title || document.title;
+      currentFilter = 'all';
+      closeDetail();
+      closeListContextMenu();
+      closeTaskContextMenu();
+      syncCurrentListStateFromDom();
+    }
+
+    async function loadTasksView(url, { pushHistory = true } = {}) {
+      const response = await fetch(url, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'text/html'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to load that list right now.');
+      }
+
+      const html = await response.text();
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      applyTasksPageSnapshot(parsed);
+
+      if (pushHistory) {
+        history.pushState({}, '', response.url || url);
+      }
+    }
+
+    async function submitNewListForm(form) {
+      const input = form?.querySelector('#new-list-inp') || document.getElementById('new-list-inp');
+      const button = form?.querySelector('.ls-add-btn');
+      if (!form || !input) return;
+
+      const name = input.value.trim();
+      if (!name) {
+        input.focus();
+        return;
+      }
+
+      if (button) button.disabled = true;
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'text/html'
+          },
+          body: new URLSearchParams(new FormData(form)).toString()
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to create this list right now.');
+        }
+
+        const html = await response.text();
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        input.value = '';
+        applyTasksPageSnapshot(parsed);
+        history.pushState({}, '', response.url || form.action);
+      } catch (error) {
+        alert(error.message || 'Unable to create this list right now.');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    function updateTasksForRenamedList(listId, listName) {
+      getTaskItems().forEach((taskItem) => {
+        if (String(taskItem.dataset.taskListId || '') === String(listId)) {
+          updateTaskElement(taskItem, { listName });
+        }
+      });
+    }
+
+    function renderListPinState(listLink, isPinned) {
+      if (!listLink) return;
+      listLink.dataset.listIsPinned = isPinned ? '1' : '0';
+      const existingPin = listLink.querySelector('.list-pin');
+      if (isPinned && !existingPin) {
+        const pin = document.createElement('span');
+        pin.className = 'list-pin';
+        pin.setAttribute('aria-hidden', 'true');
+        pin.textContent = '📌';
+        const count = listLink.querySelector('.list-count');
+        if (count) listLink.insertBefore(pin, count);
+        else listLink.appendChild(pin);
+      }
+      if (!isPinned && existingPin) {
+        existingPin.remove();
+      }
+    }
+
+    function reorderCustomLists() {
+      const container = document.querySelector('.lists-scroll');
+      if (!container) return;
+      const customLists = Array.from(container.querySelectorAll('[data-list-link]'));
+      const pinned = customLists.filter((item) => item.dataset.listIsPinned === '1');
+      const unpinned = customLists.filter((item) => item.dataset.listIsPinned !== '1');
+      [...pinned, ...unpinned].forEach((item) => container.appendChild(item));
+    }
+
+    function removeTaskFromDom(taskItem, options = {}) {
+      if (!taskItem) return;
+      const { adjustAllTasks = true, adjustListCounts = true } = options;
+      const taskState = readTaskState(taskItem);
+      taskItem.remove();
+      if (adjustAllTasks) adjustAllTasksCount(-1);
+      if (adjustListCounts && taskState?.listId) adjustListTaskCount(taskState.listId, -1);
+      cleanupTaskGroupLabels();
+      updateTaskEmptyState();
+      updateTaskHeaderMeta();
+    }
+
+    function applyTaskUpdateFromResponse(taskItem, taskData) {
+      if (!taskItem || !taskData) return null;
+
+      const previousState = readTaskState(taskItem);
+      const nextListId = taskData.list_id === null || taskData.list_id === undefined || taskData.list_id === ''
+        ? null
+        : Number(taskData.list_id);
+      const nextListName = taskData.list_name || getListNameById(nextListId);
+      const nextState = updateTaskElement(taskItem, {
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority,
+        listId: nextListId,
+        listName: nextListName
+      });
+
+      if (previousState && previousState.listId !== nextListId) {
+        if (previousState.listId) adjustListTaskCount(previousState.listId, -1);
+        if (nextListId) adjustListTaskCount(nextListId, 1);
+        if (currentListId !== null && currentListId === previousState.listId && currentListId !== nextListId) {
+          removeTaskFromDom(taskItem, { adjustAllTasks: false, adjustListCounts: false });
+          return null;
+        }
+      }
+
+      updateTaskHeaderMeta();
+      return nextState;
+    }
 
     function handleNewListButtonClick() {
       const form = document.getElementById('new-list-form');
@@ -711,9 +1309,12 @@
 
     async function togglePinnedList() {
       if (!listContextState) return;
+      const currentList = { ...listContextState };
       try {
-        await postListAction(`/lists/pin/${listContextState.id}`);
-        window.location.reload();
+        const result = await postListAction(`/lists/pin/${currentList.id}`);
+        const listLink = getListLinkById(currentList.id);
+        renderListPinState(listLink, Boolean(result.is_pinned));
+        reorderCustomLists();
       } catch (error) {
         alert(error.message || 'Unable to pin this list right now.');
       } finally {
@@ -723,20 +1324,28 @@
 
     async function renameListFromMenu() {
       if (!listContextState) return;
-      const nextName = window.prompt('Rename list', listContextState.name);
-      if (nextName === null) {
-        closeListContextMenu();
-        return;
-      }
+      const currentList = { ...listContextState };
+      closeListContextMenu();
+      const listLink = getListLinkById(currentList.id);
+      const listNameLabel = listLink?.querySelector('.list-name');
+      if (!listLink || !listNameLabel) return;
 
-      try {
-        await postListAction(`/lists/rename/${listContextState.id}`, { name: nextName });
-        window.location.reload();
-      } catch (error) {
-        alert(error.message || 'Unable to rename this list right now.');
-      } finally {
-        closeListContextMenu();
-      }
+      startInlineRename({
+        row: listLink,
+        host: listNameLabel,
+        initialValue: currentList.name,
+        save: (nextName) => postListAction(`/lists/rename/${currentList.id}`, { name: nextName }),
+        onSaved: (nextName, result) => {
+          const listName = result?.name || nextName;
+          listNameLabel.textContent = listName;
+          listLink.dataset.listName = listName;
+          updateActiveListTitle(currentList.id, listName);
+          updateTasksForRenamedList(currentList.id, listName);
+        },
+        onError: (error) => {
+          alert(error.message || 'Unable to rename this list right now.');
+        }
+      });
     }
 
     async function archiveListFromMenu() {
@@ -748,7 +1357,9 @@
 
       try {
         await postListAction(`/lists/archive/${listContextState.id}`);
-        window.location.href = '/tasks';
+        await loadTasksView(currentListId === listContextState.id ? '/tasks' : getCurrentTasksViewUrl(), {
+          pushHistory: currentListId === listContextState.id
+        });
       } catch (error) {
         alert(error.message || 'Unable to archive this list right now.');
       } finally {
@@ -765,7 +1376,10 @@
 
       try {
         const result = await postListAction(`/lists/delete/${listContextState.id}`);
-        window.location.href = result.redirect_url || '/tasks';
+        const shouldNavigateAway = currentListId === listContextState.id;
+        await loadTasksView(shouldNavigateAway ? (result.redirect_url || '/tasks') : getCurrentTasksViewUrl(), {
+          pushHistory: shouldNavigateAway
+        });
       } catch (error) {
         alert(error.message || 'Unable to delete this list right now.');
       } finally {
@@ -775,9 +1389,14 @@
 
     async function togglePinnedTaskFromMenu() {
       if (!taskContextState) return;
+      const currentTask = { ...taskContextState };
       try {
-        await postTaskAction(`/tasks/pin/${taskContextState.id}`);
-        window.location.reload();
+        const result = await postTaskAction(`/tasks/pin/${currentTask.id}`);
+        const taskItem = currentTask.element || document.getElementById(`task-${currentTask.id}`);
+        if (taskItem) {
+          updateTaskElement(taskItem, { isPinned: Boolean(result.is_pinned) });
+          insertTaskIntoGroup(taskItem);
+        }
       } catch (error) {
         alert(error.message || 'Unable to pin this task right now.');
       } finally {
@@ -787,43 +1406,55 @@
 
     async function renameTaskFromMenu() {
       if (!taskContextState) return;
-      const nextTitle = window.prompt('Rename task', taskContextState.title);
-      if (nextTitle === null) {
-        closeTaskContextMenu();
-        return;
-      }
+      const currentTask = { ...taskContextState };
+      closeTaskContextMenu();
+      const taskItem = currentTask.element || document.getElementById(`task-${currentTask.id}`);
+      const titleHost = taskItem?.querySelector('.t-title');
+      if (!taskItem || !titleHost) return;
 
-      try {
-        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
+      startInlineRename({
+        row: taskItem,
+        host: titleHost,
+        initialValue: currentTask.title,
+        save: (nextTitle) => postTaskAction(`/tasks/update/${currentTask.id}`, {
           title: nextTitle,
-          description: taskContextState.description,
-          priority: taskContextState.priority,
-          list_id: taskContextState.listId
-        });
-        window.location.reload();
-      } catch (error) {
-        alert(error.message || 'Unable to rename this task right now.');
-      } finally {
-        closeTaskContextMenu();
-      }
+          description: currentTask.description,
+          priority: currentTask.priority,
+          list_id: currentTask.listId
+        }),
+        onSaved: (nextTitle, result) => {
+          applyTaskUpdateFromResponse(taskItem, result.task);
+          const detailTaskId = document.getElementById('dp-task-id')?.value;
+          if (detailTaskId && Number(detailTaskId) === currentTask.id) {
+            const detailTitle = document.getElementById('dp-title');
+            if (detailTitle) detailTitle.value = result?.task?.title || nextTitle;
+          }
+        },
+        onError: (error) => {
+          alert(error.message || 'Unable to rename this task right now.');
+        }
+      });
     }
 
     function openTaskNotesFromMenu() {
       if (!taskContextState?.element) return;
+      const taskElement = taskContextState.element;
       closeTaskContextMenu();
-      openDetailFromTask(taskContextState.element, 'notes');
+      openDetailFromTask(taskElement, 'notes');
     }
 
     async function setTaskPriorityFromMenu(priority) {
       if (!taskContextState) return;
+      const currentTask = { ...taskContextState };
       try {
-        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
-          title: taskContextState.title,
-          description: taskContextState.description,
+        const result = await postTaskAction(`/tasks/update/${currentTask.id}`, {
+          title: currentTask.title,
+          description: currentTask.description,
           priority,
-          list_id: taskContextState.listId
+          list_id: currentTask.listId
         });
-        window.location.reload();
+        const taskItem = currentTask.element || document.getElementById(`task-${currentTask.id}`);
+        if (taskItem) applyTaskUpdateFromResponse(taskItem, result.task);
       } catch (error) {
         alert(error.message || 'Unable to update this task priority right now.');
       } finally {
@@ -837,14 +1468,16 @@
       const nextListId = listSelect?.value ? Number(listSelect.value) : null;
       if (!nextListId) return;
 
+      const currentTask = { ...taskContextState };
       try {
-        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
-          title: taskContextState.title,
-          description: taskContextState.description,
-          priority: taskContextState.priority,
+        const result = await postTaskAction(`/tasks/update/${currentTask.id}`, {
+          title: currentTask.title,
+          description: currentTask.description,
+          priority: currentTask.priority,
           list_id: nextListId
         });
-        window.location.reload();
+        const taskItem = currentTask.element || document.getElementById(`task-${currentTask.id}`);
+        if (taskItem) applyTaskUpdateFromResponse(taskItem, result.task);
       } catch (error) {
         alert(error.message || 'Unable to move this task right now.');
       } finally {
@@ -906,79 +1539,85 @@
       fetch('/tasks/quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: val, list_id: activeListId })
+        body: JSON.stringify({ title: val, list_id: currentListId })
       })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.id) return;
-        const list = document.getElementById('task-list');
-
-        // Remove empty state if present
-        const empty = list.querySelector('.empty-state');
-        if (empty) empty.remove();
-
-        // Ensure Active group label exists
-        let label = list.querySelector('.task-group-label');
-        if (!label) {
-          label = document.createElement('div');
-          label.className = 'task-group-label';
-          label.textContent = 'Active';
-          list.insertBefore(label, list.firstChild);
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || 'Unable to add this task right now.');
         }
-
-        const d = document.createElement('div');
-        d.className = 'task-item';
-        d.id = 'task-' + data.id;
-        d.dataset.taskItem = '';
-        d.dataset.taskId = String(data.id);
-        d.dataset.taskTitle = val;
-        d.dataset.taskDescription = '';
-        d.dataset.taskPriority = 'medium';
-        d.dataset.taskListId = String(data.list_id || activeListId || '');
-        d.dataset.taskListName = activeListId ? activeListName : 'Inbox';
-        d.dataset.taskIsPinned = '0';
-        d.onclick = function() { openDetailFromTask(d); };
-        d.innerHTML = `
-          <div class="t-chk" onclick="event.stopPropagation();toggleTask(this,${data.id})"></div>
-          <div class="t-body">
-            <div class="t-title">${val}</div>
-            <div class="t-meta">
-              <span class="t-priority medium">Medium</span>
-              <span class="t-tag">${activeListId ? activeListName : 'Inbox'}</span>
-            </div>
-          </div>
-          <div class="task-actions">
-            <div class="ta-btn" onclick="event.stopPropagation();toggleTask(this.parentElement.previousElementSibling.previousElementSibling,${data.id})">✓</div>
-            <div class="ta-btn del" onclick="event.stopPropagation();deleteTask(${data.id},this.closest('.task-item'))">✕</div>
-          </div>`;
-        list.insertBefore(d, label.nextSibling);
+        if (!data.id) return;
+        const listName = getListNameById(data.list_id) || currentActiveListName || 'Inbox';
+        const taskItem = createTaskItemElement({
+          id: data.id,
+          title: data.title || val,
+          description: '',
+          priority: 'medium',
+          listId: data.list_id || currentListId || null,
+          listName,
+          completed: false,
+          isPinned: false
+        });
+        insertTaskIntoGroup(taskItem);
+        adjustAllTasksCount(1);
+        adjustListTaskCount(data.list_id, 1);
         inp.value = '';
+      })
+      .catch((error) => {
+        alert(error.message || 'Unable to add this task right now.');
       });
     }
 
     // ── TOGGLE TASK (fetch → /tasks/toggle/<id>)
     function toggleTask(chkEl, taskId) {
-      const isDone = !chkEl.classList.contains('done');
-      chkEl.classList.toggle('done');
-      chkEl.textContent = isDone ? '✓' : '';
-      const title = chkEl.closest('.task-item').querySelector('.t-title');
-      if (title) title.classList.toggle('done', isDone);
-
+      const taskItem = chkEl.closest('.task-item');
+      if (!taskItem) return;
       fetch(`/tasks/toggle/${taskId}`, {
         method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
+      })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Unable to update this task right now.');
+        }
+        updateTaskElement(taskItem, { completed: Boolean(data.completed) });
+        insertTaskIntoGroup(taskItem);
+      })
+      .catch((error) => {
+        alert(error.message || 'Unable to update this task right now.');
       });
     }
 
     // ── DELETE TASK (fetch → /tasks/delete/<id>)
     function deleteTask(taskId, itemEl) {
+      if (!itemEl) return;
+      itemEl.style.pointerEvents = 'none';
       itemEl.style.opacity = '0';
       itemEl.style.transform = 'translateX(12px)';
       itemEl.style.transition = 'all 0.18s ease';
-      setTimeout(() => {
-        itemEl.remove();
-        fetch(`/tasks/delete/${taskId}`, { method: 'POST' });
-      }, 180);
+      fetch(`/tasks/delete/${taskId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Unable to delete this task right now.');
+        }
+        setTimeout(() => {
+          removeTaskFromDom(itemEl);
+        }, 180);
+      })
+      .catch((error) => {
+        itemEl.style.pointerEvents = '';
+        itemEl.style.opacity = '';
+        itemEl.style.transform = '';
+        itemEl.style.transition = '';
+        alert(error.message || 'Unable to delete this task right now.');
+      });
     }
 
     // ── DETAIL PANEL
@@ -1032,9 +1671,10 @@
         priority,
         list_id: listId
       })
-      .then(() => {
+      .then((result) => {
+        const taskItem = document.getElementById(`task-${taskId}`);
         closeDetail();
-        window.location.reload();
+        if (taskItem) applyTaskUpdateFromResponse(taskItem, result.task);
       })
       .catch((error) => {
         alert(error.message || 'Unable to save this task right now.');
@@ -1061,10 +1701,37 @@
     });
 
     document.addEventListener('click', function(e) {
+      const listLink = e.target.closest('.lists-scroll .list-item[href]');
+      if (listLink) {
+        if (
+          e.defaultPrevented ||
+          e.button !== 0 ||
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey ||
+          listLink.target === '_blank'
+        ) {
+          return;
+        }
+        e.preventDefault();
+        loadTasksView(listLink.href).catch((error) => {
+          alert(error.message || 'Unable to open that list right now.');
+        });
+        return;
+      }
+
       const menu = document.getElementById('list-context-menu');
       if (!menu || !menu.classList.contains('open')) return;
       if (menu.contains(e.target)) return;
       closeListContextMenu();
+    });
+
+    document.addEventListener('submit', function(e) {
+      const form = e.target.closest('#new-list-form');
+      if (!form) return;
+      e.preventDefault();
+      submitNewListForm(form);
     });
 
     document.addEventListener('click', function(e) {
@@ -1100,6 +1767,12 @@
         closeListContextMenu();
         closeTaskContextMenu();
       }
+    });
+
+    window.addEventListener('popstate', function() {
+      loadTasksView(window.location.href, { pushHistory: false }).catch(() => {
+        window.location.href = window.location.href;
+      });
     });
   </script>
 

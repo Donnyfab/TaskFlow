@@ -51,10 +51,9 @@ DB_CONFIG = {
     "autocommit": True,
 }
 
-DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 1)))
-DB_POOL_RETRY_AFTER = max(5, int(os.environ.get("DB_POOL_RETRY_AFTER", 30)))
+DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 5)))
 db_pool = None
-db_pool_unavailable_until = 0
+db_pool_initialized = False
 
 print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
@@ -72,6 +71,18 @@ cache = Cache(app)
 USER_READ_CACHE_TIMEOUT = int(os.environ.get("USER_READ_CACHE_TIMEOUT", 30))
 DASHBOARD_CACHE_TIMEOUT = int(os.environ.get("DASHBOARD_CACHE_TIMEOUT", 15))
 SCHEMA_CACHE_TIMEOUT = int(os.environ.get("SCHEMA_CACHE_TIMEOUT", 300))
+SCHEMA_STATUS_FLAGS = {
+    "google_oauth_token_columns_ready": False,
+    "task_list_metadata_columns_ready": False,
+    "task_metadata_columns_ready": False,
+    "habits_schema_available": False,
+    "notes_mood_column_available": False,
+    "calendar_schema_available": False,
+    "calendar_google_sync_columns_ready": False,
+    "focus_sessions_schema_available": False,
+    "ai_support_schema_ready": False,
+}
+SCHEMA_CHECKS_INITIALIZED = False
 
 # ============================================================
 # EMAIL (Gmail SMTP)
@@ -274,25 +285,33 @@ def inject_auth_flags():
 # ============================================================
 
 def get_db_pool():
-    global db_pool, db_pool_unavailable_until
+    return db_pool
 
-    now = time.time()
 
-    if db_pool is None:
-        if db_pool_unavailable_until > now:
-            return None
+def initialize_db_pool():
+    global db_pool, db_pool_initialized
 
-        try:
-            db_pool = MySQLConnectionPool(
-                pool_name=f"taskflow_pool_{os.getpid()}",
-                pool_size=DB_POOL_SIZE,
-                pool_reset_session=True,
-                **DB_CONFIG,
-            )
-        except mysql.connector.Error:
-            db_pool_unavailable_until = now + DB_POOL_RETRY_AFTER
-            app.logger.exception("MySQL pool unavailable; using direct connections temporarily.")
-            db_pool = None
+    if db_pool_initialized:
+        return db_pool
+
+    db_pool_initialized = True
+
+    try:
+        db_pool = MySQLConnectionPool(
+            pool_name=f"taskflow_pool_{os.getpid()}",
+            pool_size=DB_POOL_SIZE,
+            pool_reset_session=True,
+            **DB_CONFIG,
+        )
+        app.logger.warning(
+            "[STARTUP] MySQL connection pool initialized successfully (size=%s).",
+            DB_POOL_SIZE,
+        )
+    except mysql.connector.Error:
+        db_pool = None
+        app.logger.exception(
+            "[STARTUP] MySQL connection pool initialization failed; falling back to direct connections."
+        )
 
     return db_pool
 
@@ -325,10 +344,22 @@ def close_db(error=None):
         db.close()
 
 
+initialize_db_pool()
+
+
+def _get_schema_flag(name: str) -> bool:
+    return bool(SCHEMA_STATUS_FLAGS.get(name, False))
+
+
+def _set_schema_flag(name: str, value) -> bool:
+    normalized = bool(value)
+    SCHEMA_STATUS_FLAGS[name] = normalized
+    return normalized
+
+
 def ensure_google_oauth_token_columns():
-    columns_ready = getattr(g, "_google_oauth_token_columns_ready", None)
-    if columns_ready is not None:
-        return columns_ready
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("google_oauth_token_columns_ready")
 
     cursor = None
     try:
@@ -346,8 +377,10 @@ def ensure_google_oauth_token_columns():
                     f"ALTER TABLE users ADD COLUMN {column_name} {column_definition}"
                 )
 
-        g._google_oauth_token_columns_ready = True
-        return True
+        return _set_schema_flag("google_oauth_token_columns_ready", True)
+    except mysql.connector.Error:
+        app.logger.exception("Failed to ensure Google OAuth token columns.")
+        return _set_schema_flag("google_oauth_token_columns_ready", False)
     finally:
         if cursor is not None:
             cursor.close()
@@ -692,9 +725,8 @@ Message:
 # ============================================================
 
 def ensure_task_list_metadata_columns():
-    columns_ready = getattr(g, "_task_list_metadata_columns_ready", None)
-    if columns_ready is not None:
-        return columns_ready
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("task_list_metadata_columns_ready")
 
     cursor = None
     try:
@@ -712,17 +744,18 @@ def ensure_task_list_metadata_columns():
                     f"ALTER TABLE task_lists ADD COLUMN {column_name} {column_definition}"
                 )
 
-        g._task_list_metadata_columns_ready = True
-        return True
+        return _set_schema_flag("task_list_metadata_columns_ready", True)
+    except mysql.connector.Error:
+        app.logger.exception("Failed to ensure task list metadata columns.")
+        return _set_schema_flag("task_list_metadata_columns_ready", False)
     finally:
         if cursor is not None:
             cursor.close()
 
 
 def ensure_task_metadata_columns():
-    columns_ready = getattr(g, "_task_metadata_columns_ready", None)
-    if columns_ready is not None:
-        return columns_ready
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("task_metadata_columns_ready")
 
     cursor = None
     try:
@@ -740,8 +773,10 @@ def ensure_task_metadata_columns():
                     f"ALTER TABLE tasks ADD COLUMN {column_name} {column_definition}"
                 )
 
-        g._task_metadata_columns_ready = True
-        return True
+        return _set_schema_flag("task_metadata_columns_ready", True)
+    except mysql.connector.Error:
+        app.logger.exception("Failed to ensure task metadata columns.")
+        return _set_schema_flag("task_metadata_columns_ready", False)
     finally:
         if cursor is not None:
             cursor.close()
@@ -830,8 +865,7 @@ def fetch_task_for_user(task_id: int, user_id: int):
     return task
 
 
-@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
-def _cached_habits_schema_available() -> bool:
+def _query_habits_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
@@ -852,16 +886,12 @@ def _cached_habits_schema_available() -> bool:
             cursor.close()
 
 def habits_schema_available() -> bool:
-    cached = getattr(g, "_habits_schema_available", None)
-    if cached is not None:
-        return cached
-
-    g._habits_schema_available = _cached_habits_schema_available()
-    return g._habits_schema_available
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("habits_schema_available")
+    return _set_schema_flag("habits_schema_available", _query_habits_schema_available())
 
 
-@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
-def _cached_notes_mood_column_available() -> bool:
+def _query_notes_mood_column_available() -> bool:
     cursor = None
     try:
         db = get_db()
@@ -876,16 +906,12 @@ def _cached_notes_mood_column_available() -> bool:
             cursor.close()
 
 def notes_mood_column_available() -> bool:
-    cached = getattr(g, "_notes_mood_column_available", None)
-    if cached is not None:
-        return cached
-
-    g._notes_mood_column_available = _cached_notes_mood_column_available()
-    return g._notes_mood_column_available
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("notes_mood_column_available")
+    return _set_schema_flag("notes_mood_column_available", _query_notes_mood_column_available())
 
 
-@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
-def _cached_calendar_schema_available() -> bool:
+def _query_calendar_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
@@ -900,22 +926,17 @@ def _cached_calendar_schema_available() -> bool:
             cursor.close()
 
 def calendar_schema_available() -> bool:
-    cached = getattr(g, "_calendar_schema_available", None)
-    if cached is not None:
-        return cached
-
-    g._calendar_schema_available = _cached_calendar_schema_available()
-    return g._calendar_schema_available
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("calendar_schema_available")
+    return _set_schema_flag("calendar_schema_available", _query_calendar_schema_available())
 
 
 def ensure_calendar_google_sync_columns():
-    columns_ready = getattr(g, "_calendar_google_sync_columns_ready", None)
-    if columns_ready is not None:
-        return columns_ready
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("calendar_google_sync_columns_ready")
 
     if not calendar_schema_available():
-        g._calendar_google_sync_columns_ready = False
-        return False
+        return _set_schema_flag("calendar_google_sync_columns_ready", False)
 
     cursor = None
     try:
@@ -929,12 +950,10 @@ def ensure_calendar_google_sync_columns():
                 ADD COLUMN google_event_id VARCHAR(255) NULL DEFAULT NULL
                 """
             )
-        g._calendar_google_sync_columns_ready = True
-        return True
+        return _set_schema_flag("calendar_google_sync_columns_ready", True)
     except mysql.connector.Error:
         app.logger.exception("Failed to ensure calendar Google sync columns.")
-        g._calendar_google_sync_columns_ready = False
-        return False
+        return _set_schema_flag("calendar_google_sync_columns_ready", False)
     finally:
         if cursor is not None:
             cursor.close()
@@ -1080,8 +1099,7 @@ def pull_google_calendar_events(user_id: int):
     return result.get("items", [])
 
 
-@cache.memoize(timeout=SCHEMA_CACHE_TIMEOUT)
-def _cached_focus_sessions_schema_available() -> bool:
+def _query_focus_sessions_schema_available() -> bool:
     cursor = None
     try:
         db = get_db()
@@ -1096,12 +1114,9 @@ def _cached_focus_sessions_schema_available() -> bool:
             cursor.close()
 
 def focus_sessions_schema_available() -> bool:
-    cached = getattr(g, "_focus_sessions_schema_available", None)
-    if cached is not None:
-        return cached
-
-    g._focus_sessions_schema_available = _cached_focus_sessions_schema_available()
-    return g._focus_sessions_schema_available
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("focus_sessions_schema_available")
+    return _set_schema_flag("focus_sessions_schema_available", _query_focus_sessions_schema_available())
 
 
 def parse_optional_int(value):
@@ -1182,9 +1197,8 @@ MONTH_LOOKUP = {
 
 
 def ensure_ai_support_schema() -> bool:
-    cached = getattr(g, "_ai_support_schema_ready", None)
-    if cached is not None:
-        return cached
+    if SCHEMA_CHECKS_INITIALIZED:
+        return _get_schema_flag("ai_support_schema_ready")
 
     cursor = None
     try:
@@ -1285,15 +1299,46 @@ def ensure_ai_support_schema() -> bool:
             )
             """
         )
-        g._ai_support_schema_ready = True
+        return _set_schema_flag("ai_support_schema_ready", True)
     except mysql.connector.Error:
         app.logger.exception("Failed to ensure AI support schema.")
-        g._ai_support_schema_ready = False
+        return _set_schema_flag("ai_support_schema_ready", False)
     finally:
         if cursor is not None:
             cursor.close()
 
-    return g._ai_support_schema_ready
+
+def initialize_schema_status_flags():
+    global SCHEMA_CHECKS_INITIALIZED
+    if SCHEMA_CHECKS_INITIALIZED:
+        return
+
+    startup_checks = [
+        ensure_google_oauth_token_columns,
+        ensure_task_list_metadata_columns,
+        ensure_task_metadata_columns,
+        habits_schema_available,
+        notes_mood_column_available,
+        calendar_schema_available,
+        ensure_calendar_google_sync_columns,
+        focus_sessions_schema_available,
+        ensure_ai_support_schema,
+    ]
+
+    try:
+        with app.app_context():
+            for check_fn in startup_checks:
+                try:
+                    check_fn()
+                except Exception:
+                    app.logger.exception("Startup schema check failed for %s.", check_fn.__name__)
+    except Exception:
+        app.logger.exception("Startup schema initialization failed.")
+    finally:
+        SCHEMA_CHECKS_INITIALIZED = True
+
+
+initialize_schema_status_flags()
 
 
 def safe_json_dumps(value):

@@ -22,6 +22,7 @@
     inset: 0;
     z-index: 9999;
     pointer-events: none;
+    --tf-aiw-conversation-height: 320px;
   }
 
   .tf-aiw-fab,
@@ -60,19 +61,24 @@
 
   .tf-aiw-panel {
     position: fixed;
-    width: min(380px, calc(100vw - 24px));
-    height: min(520px, calc(100vh - 24px));
-    background: #0F0F0F;
+    right: 24px;
+    bottom: 24px;
+    width: min(360px, calc(100vw - 48px));
+    max-height: min(440px, calc(100vh - 48px));
+    background: #111;
     border: 1px solid rgba(255,255,255,0.09);
     border-radius: 18px;
-    box-shadow: 0 26px 60px rgba(0,0,0,0.42);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.44);
     display: flex;
     flex-direction: column;
+    gap: 0;
+    padding: 8px;
     overflow: hidden;
     opacity: 0;
     visibility: hidden;
     transform: translateY(10px) scale(0.96);
     transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+    backdrop-filter: none;
   }
 
   .tf-aiw-root.is-open .tf-aiw-panel {
@@ -88,92 +94,98 @@
   }
 
   .tf-aiw-panel.dragging,
-  .tf-aiw-panel.dragging .tf-aiw-topbar {
+  .tf-aiw-panel.dragging .tf-aiw-drag-bar {
     cursor: grabbing;
     user-select: none;
   }
 
-  .tf-aiw-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 14px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+  .tf-aiw-drag-bar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 40px;
     cursor: grab;
-    background: rgba(255,255,255,0.01);
   }
 
-  .tf-aiw-title {
+  .tf-aiw-topbar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 0;
+    background: transparent;
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .tf-aiw-root.has-conversation .tf-aiw-topbar {
+    display: flex;
+  }
+
+  .tf-aiw-topbar-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
+    pointer-events: auto;
   }
 
-  .tf-aiw-title-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
-    background: rgba(255,255,255,0.07);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255,255,255,0.88);
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  .tf-aiw-title-copy {
-    min-width: 0;
-  }
-
-  .tf-aiw-title-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.88);
-    line-height: 1.2;
-  }
-
-  .tf-aiw-title-sub {
-    font-size: 10px;
-    color: rgba(255,255,255,0.28);
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .tf-aiw-close {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.42);
+  .tf-aiw-topbar-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    border: 0;
+    background: transparent;
+    color: rgba(255,255,255,0.35);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease;
+    pointer-events: auto;
+    font-size: 13px;
+    padding: 0;
   }
 
-  .tf-aiw-close:hover {
-    background: rgba(255,255,255,0.08);
+  .tf-aiw-topbar-btn:hover {
+    background: rgba(255,255,255,0.06);
     color: rgba(255,255,255,0.7);
-    border-color: rgba(255,255,255,0.12);
+  }
+
+  .tf-aiw-topbar-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .tf-aiw-conversation {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: height 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .tf-aiw-root.has-conversation .tf-aiw-conversation {
+    height: min(var(--tf-aiw-conversation-height), 320px);
+    max-height: 320px;
+    opacity: 1;
+  }
+
+  .tf-aiw-conversation-frame {
+    height: 100%;
+    border-radius: 12px 12px 10px 10px;
+    overflow: hidden;
   }
 
   .tf-aiw-messages {
-    flex: 1;
+    height: 100%;
+    max-height: 320px;
     overflow-y: auto;
-    padding: 16px;
+    padding: 12px 6px 4px 6px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     min-height: 0;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.08) transparent;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
   }
 
   .tf-aiw-messages::-webkit-scrollbar {
@@ -181,173 +193,129 @@
   }
 
   .tf-aiw-messages::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.1);
     border-radius: 999px;
   }
 
   .tf-aiw-empty {
-    margin: auto 0;
-    text-align: center;
-    padding: 12px 8px;
-  }
-
-  .tf-aiw-empty-icon {
-    width: 52px;
-    height: 52px;
-    margin: 0 auto 14px;
-    border-radius: 16px;
-    background: rgba(255,255,255,0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: rgba(255,255,255,0.88);
-  }
-
-  .tf-aiw-empty-title {
-    font-size: 19px;
-    line-height: 1.15;
-    letter-spacing: -0.6px;
-    font-weight: 800;
-    color: rgba(255,255,255,0.9);
-    margin-bottom: 8px;
-  }
-
-  .tf-aiw-empty-sub {
-    max-width: 280px;
-    margin: 0 auto;
-    font-size: 12px;
-    line-height: 1.7;
-    color: rgba(255,255,255,0.34);
+    display: none;
   }
 
   .tf-aiw-row {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
     gap: 8px;
   }
 
   .tf-aiw-row.user {
-    justify-content: flex-end;
-  }
-
-  .tf-aiw-avatar {
-    width: 26px;
-    height: 26px;
-    border-radius: 9px;
-    background: rgba(255,255,255,0.07);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.54);
-    flex-shrink: 0;
+    align-items: flex-end;
   }
 
   .tf-aiw-message-wrap {
-    max-width: 80%;
+    max-width: 86%;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
   }
 
   .tf-aiw-row.user .tf-aiw-message-wrap {
     align-items: flex-end;
+    max-width: 70%;
   }
 
   .tf-aiw-bubble {
-    padding: 11px 14px;
-    border-radius: 16px;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.65;
     word-break: break-word;
   }
 
   .tf-aiw-bubble.ai {
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    border: 0;
     color: rgba(255,255,255,0.78);
-    border-radius: 4px 16px 16px 16px;
+    padding: 0;
   }
 
   .tf-aiw-bubble.user {
-    background: rgba(255,255,255,0.11);
-    color: rgba(255,255,255,0.88);
-    border-radius: 16px 16px 4px 16px;
+    display: inline-flex;
+    align-self: flex-end;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.85);
+    border: 0;
+    border-radius: 16px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
-  .tf-aiw-time {
-    font-size: 9px;
-    color: rgba(255,255,255,0.2);
-    padding: 0 4px;
+  .tf-aiw-time,
+  .tf-aiw-avatar {
+    display: none;
   }
 
   .tf-aiw-message-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 0 2px;
+    gap: 10px;
   }
 
   .tf-aiw-message-action {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.08);
+    width: 20px;
+    height: 20px;
+    border-radius: 0;
+    border: 0;
     background: transparent;
-    color: rgba(255,255,255,0.28);
+    color: rgba(255,255,255,0.3);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+    padding: 0;
+    font-size: 12px;
   }
 
   .tf-aiw-message-action:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.14);
-    color: rgba(255,255,255,0.76);
+    background: transparent;
+    color: rgba(255,255,255,0.9);
+    transform: translateY(-1px);
   }
 
   .tf-aiw-message-action.active,
   .tf-aiw-message-action.copied {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.18);
-    color: rgba(255,255,255,0.9);
+    color: rgba(255,255,255,0.78);
   }
 
   .tf-aiw-message-action:disabled {
-    opacity: 0.3;
+    opacity: 0.24;
     cursor: not-allowed;
   }
 
   .tf-aiw-message-action svg {
-    width: 13px;
-    height: 13px;
+    width: 12px;
+    height: 12px;
   }
 
   .tf-aiw-typing {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    padding-top: 2px;
   }
 
   .tf-aiw-typing-bubble {
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 4px 16px 16px 16px;
-    padding: 10px 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
   }
 
   .tf-aiw-typing-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.48);
     animation: tf-aiw-typing 1.2s infinite;
   }
 
@@ -360,16 +328,16 @@
   }
 
   .tf-aiw-typing-label {
-    font-size: 10px;
-    color: rgba(255,255,255,0.24);
-    margin-left: 3px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.78);
+    margin-left: 5px;
   }
 
   .tf-aiw-action-card {
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 12px;
+    padding: 12px 13px;
   }
 
   .tf-aiw-action-label {
@@ -377,35 +345,36 @@
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.24);
+    color: rgba(255,255,255,0.78);
     margin-bottom: 6px;
   }
 
   .tf-aiw-action-title {
     font-size: 12px;
     font-weight: 700;
-    color: rgba(255,255,255,0.86);
+    color: rgba(255,255,255,0.78);
     margin-bottom: 6px;
   }
 
   .tf-aiw-action-copy {
     font-size: 12px;
     line-height: 1.6;
-    color: rgba(255,255,255,0.58);
+    color: rgba(255,255,255,0.78);
   }
 
   .tf-aiw-action-controls {
     display: flex;
     gap: 8px;
     margin-top: 10px;
+    flex-wrap: wrap;
   }
 
   .tf-aiw-action-btn {
-    border-radius: 10px;
+    border-radius: 999px;
     padding: 8px 11px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.09);
     background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.78);
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
@@ -437,7 +406,7 @@
   .tf-aiw-action-status {
     margin-top: 10px;
     font-size: 11px;
-    color: rgba(255,255,255,0.34);
+    color: rgba(255,255,255,0.78);
   }
 
   @keyframes tf-aiw-typing {
@@ -446,66 +415,42 @@
   }
 
   .tf-aiw-footer {
-    border-top: 1px solid rgba(255,255,255,0.06);
-    padding: 12px 14px 14px;
-    background: rgba(15,15,15,0.98);
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    margin-top: 0;
+    transition: margin-top 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .tf-aiw-chips {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    scrollbar-width: none;
-  }
-
-  .tf-aiw-chips::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tf-aiw-chip {
-    white-space: nowrap;
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.54);
-    padding: 6px 12px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .tf-aiw-chip:hover {
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.82);
-    border-color: rgba(255,255,255,0.14);
+  .tf-aiw-root.has-conversation .tf-aiw-footer {
+    margin-top: 8px;
   }
 
   .tf-aiw-composer {
     border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 16px;
-    background: rgba(255,255,255,0.03);
-    padding: 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    padding: 10px 10px 9px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
   .tf-aiw-input {
     width: 100%;
-    min-height: 68px;
-    max-height: 140px;
+    min-height: 28px;
+    max-height: 96px;
     resize: none;
     border: 0;
     outline: none;
     background: transparent;
-    color: rgba(255,255,255,0.86);
+    color: rgba(255,255,255,0.78);
     font: inherit;
     font-size: 13px;
-    line-height: 1.6;
-    margin-bottom: 10px;
+    line-height: 1.45;
+    margin-bottom: 8px;
   }
 
   .tf-aiw-input::placeholder {
-    color: rgba(255,255,255,0.22);
+    color: rgba(255,255,255,0.25);
   }
 
   .tf-aiw-actions {
@@ -515,37 +460,37 @@
     gap: 12px;
   }
 
+  .tf-aiw-actions-left,
   .tf-aiw-actions-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .tf-aiw-icon-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.48);
+    border: 0;
+    background: transparent;
+    color: rgba(255,255,255,0.35);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
     flex-shrink: 0;
   }
 
   .tf-aiw-icon-btn:hover {
     background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.76);
-    border-color: rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.78);
+    transform: translateY(-1px);
   }
 
   .tf-aiw-icon-btn.listening {
-    background: rgba(255,90,90,0.12);
-    color: rgba(255,255,255,0.88);
-    border-color: rgba(255,120,120,0.28);
+    background: rgba(255,90,90,0.14);
+    color: rgba(255,255,255,0.98);
   }
 
   .tf-aiw-icon-btn:disabled {
@@ -553,9 +498,20 @@
     cursor: not-allowed;
   }
 
+  .tf-aiw-icon-letter {
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 500;
+  }
+
+  .tf-aiw-icon-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
   .tf-aiw-send {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border-radius: 999px;
     border: 0;
     background: #fff;
@@ -569,12 +525,17 @@
   }
 
   .tf-aiw-send:hover {
-    background: rgba(255,255,255,0.9);
+    background: rgba(255,255,255,0.92);
     transform: translateY(-1px);
   }
 
+  .tf-aiw-send svg {
+    width: 14px;
+    height: 14px;
+  }
+
   .tf-aiw-send:disabled {
-    opacity: 0.36;
+    opacity: 0.42;
     cursor: not-allowed;
     transform: none;
   }
@@ -588,21 +549,34 @@
       border-radius: 15px;
     }
 
-    .tf-aiw-panel {
-      width: calc(100vw - 16px);
-      height: min(500px, calc(100vh - 16px));
+    .tf-aiw-root {
+      --tf-aiw-conversation-height: 280px;
     }
 
-    .tf-aiw-topbar {
-      padding: 13px 14px;
+    .tf-aiw-panel {
+      right: 24px;
+      bottom: 24px;
+      width: min(360px, calc(100vw - 48px));
+      max-height: min(440px, calc(100vh - 48px));
+      border-radius: 18px;
+      padding: 8px;
     }
 
     .tf-aiw-messages {
-      padding: 14px;
+      padding: 12px 6px 4px 6px;
     }
 
-    .tf-aiw-footer {
-      padding: 12px;
+    .tf-aiw-message-wrap {
+      max-width: 90%;
+    }
+
+    .tf-aiw-row.user .tf-aiw-message-wrap {
+      max-width: 78%;
+    }
+
+    .tf-aiw-composer {
+      border-radius: 12px;
+      padding: 10px 10px 9px;
     }
   }
 </style>
@@ -613,50 +587,66 @@
   </button>
 
   <section class="tf-aiw-panel" data-tf-aiw-panel aria-label="Taskflow AI widget">
-    <div class="tf-aiw-topbar" data-tf-aiw-drag>
-      <div class="tf-aiw-title">
-        <div class="tf-aiw-title-icon">✦</div>
-        <div class="tf-aiw-title-copy">
-          <div class="tf-aiw-title-label">Taskflow AI</div>
-          <div class="tf-aiw-title-sub">Your personal coach, anywhere in TaskFlow</div>
+    <div class="tf-aiw-drag-bar" data-tf-aiw-drag aria-hidden="true"></div>
+    <div class="tf-aiw-topbar">
+      <button type="button" class="tf-aiw-topbar-btn tf-aiw-close" data-tf-aiw-close aria-label="Close AI coach">✕</button>
+      <div class="tf-aiw-topbar-actions">
+        <button type="button" class="tf-aiw-topbar-btn" data-tf-aiw-open-full aria-label="Open full AI coach">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M6 4.25H4.75C4.06 4.25 3.5 4.81 3.5 5.5V11.25C3.5 11.94 4.06 12.5 4.75 12.5H10.5C11.19 12.5 11.75 11.94 11.75 11.25V10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 4H12V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.75 8.25L12 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button type="button" class="tf-aiw-topbar-btn" data-tf-aiw-new-chat aria-label="Start new chat">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M10.75 2.75H4.75C4.06 2.75 3.5 3.31 3.5 4V12C3.5 12.69 4.06 13.25 4.75 13.25H11.25C11.94 13.25 12.5 12.69 12.5 12V6.5L10.75 2.75Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M9.75 2.75V5.25H12.25" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6 10.75L10.25 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M5.6 11.2L6.55 10.95L5.85 10.25L5.6 11.2Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="tf-aiw-conversation" data-tf-aiw-conversation>
+      <div class="tf-aiw-conversation-frame">
+        <div class="tf-aiw-messages" data-tf-aiw-messages>
+          <div class="tf-aiw-empty" data-tf-aiw-empty></div>
         </div>
       </div>
-      <button type="button" class="tf-aiw-close" data-tf-aiw-close aria-label="Close AI coach">✕</button>
     </div>
 
-    <div class="tf-aiw-messages" data-tf-aiw-messages>
-      <div class="tf-aiw-empty" data-tf-aiw-empty>
-        <div class="tf-aiw-empty-icon">✦</div>
-        <div class="tf-aiw-empty-title">Ask for guidance<br>without leaving the page.</div>
-        <div class="tf-aiw-empty-sub">I can help you plan, refocus, and coach you through what matters right now.</div>
-      </div>
-    </div>
-
-    <div class="tf-aiw-footer">
-      <div class="tf-aiw-chips">
-        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="Plan my day. Tell me what I should do first on this page.">Plan my day</button>
-        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="I need motivation. Give me direct coaching based on what I should be doing here.">I need motivation</button>
-        <button type="button" class="tf-aiw-chip" data-tf-aiw-quick="What should I focus on right now? Be specific.">What should I focus on?</button>
-      </div>
-
+    <div class="tf-aiw-footer" data-tf-aiw-footer>
       <div class="tf-aiw-composer">
         <textarea
           class="tf-aiw-input"
           data-tf-aiw-input
-          rows="3"
-          placeholder="Ask Taskflow AI anything…"
+          rows="1"
+          placeholder="Ask anything"
         ></textarea>
 
         <div class="tf-aiw-actions">
-          <button type="button" class="tf-aiw-icon-btn" title="More tools coming soon" aria-label="More tools">
-            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
-              <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <div class="tf-aiw-actions-left">
+            <button type="button" class="tf-aiw-icon-btn" title="Attach" aria-label="Attach">
+              <svg viewBox="0 0 16 16" fill="none" width="18" height="18">
+                <path d="M8 2.5V13.5M2.5 8H13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button type="button" class="tf-aiw-icon-btn" title="Browse the web" aria-label="Browse the web">
+              <svg viewBox="0 0 16 16" fill="none" width="18" height="18">
+                <circle cx="8" cy="8" r="5.75" stroke="currentColor" stroke-width="1.35"/>
+                <path d="M2.5 8H13.5M8 2.25C9.33 3.69 10.08 5.76 10.08 8C10.08 10.24 9.33 12.31 8 13.75C6.67 12.31 5.92 10.24 5.92 8C5.92 5.76 6.67 3.69 8 2.25Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" class="tf-aiw-icon-btn" title="Apps" aria-label="Apps">
+              <span class="tf-aiw-icon-letter">A</span>
+            </button>
+          </div>
 
           <div class="tf-aiw-actions-right">
             <button type="button" class="tf-aiw-icon-btn" title="Start voice input" aria-label="Start voice input" data-tf-aiw-voice>
-              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <svg viewBox="0 0 16 16" fill="none" width="18" height="18">
                 <path d="M8 10.5C6.62 10.5 5.5 9.38 5.5 8V4.75C5.5 3.37 6.62 2.25 8 2.25C9.38 2.25 10.5 3.37 10.5 4.75V8C10.5 9.38 9.38 10.5 8 10.5Z" stroke="currentColor" stroke-width="1.4"/>
                 <path d="M3.5 7.75V8C3.5 10.49 5.51 12.5 8 12.5C10.49 12.5 12.5 10.49 12.5 8V7.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
                 <path d="M8 12.5V14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -664,8 +654,8 @@
             </button>
 
             <button type="button" class="tf-aiw-send" data-tf-aiw-send aria-label="Send message">
-              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
-                <path d="M8 3V13M8 3L4.5 6.5M8 3L11.5 6.5" stroke="#0A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg viewBox="0 0 16 16" fill="none" width="18" height="18">
+                <path d="M8 12.5V3.5M8 3.5L4.8 6.7M8 3.5L11.2 6.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
@@ -689,11 +679,15 @@
     const openButton = root.querySelector('[data-tf-aiw-open]');
     const closeButton = root.querySelector('[data-tf-aiw-close]');
     const dragHandle = root.querySelector('[data-tf-aiw-drag]');
+    const conversationEl = root.querySelector('[data-tf-aiw-conversation]');
+    const footerEl = root.querySelector('[data-tf-aiw-footer]');
     const messagesEl = root.querySelector('[data-tf-aiw-messages]');
     const emptyEl = root.querySelector('[data-tf-aiw-empty]');
     const inputEl = root.querySelector('[data-tf-aiw-input]');
     const sendButton = root.querySelector('[data-tf-aiw-send]');
     const voiceButton = root.querySelector('[data-tf-aiw-voice]');
+    const openFullButton = root.querySelector('[data-tf-aiw-open-full]');
+    const newChatButton = root.querySelector('[data-tf-aiw-new-chat]');
     const quickButtons = root.querySelectorAll('[data-tf-aiw-quick]');
     const supportsVoiceOutput = Boolean(window.TaskflowVoiceOutput && window.TaskflowVoiceOutput.isSupported());
 
@@ -701,7 +695,6 @@
     const OPEN_KEY = 'taskflow.aiWidget.open';
     const systemPrompt = "You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the {{ active_page }} page right now.";
     const activePage = "{{ active_page }}";
-    const userInitials = "{{ user_initials if user_initials else 'TF' }}";
 
     const state = {
       open: localStorage.getItem(OPEN_KEY) === '1',
@@ -712,6 +705,7 @@
       drag: null,
       voiceSession: null,
       activeSpeakButton: null,
+      expanded: false,
     };
 
     function readStoredPosition() {
@@ -742,6 +736,7 @@
       root.classList.toggle('is-open', nextOpen);
       localStorage.setItem(OPEN_KEY, nextOpen ? '1' : '0');
       if (nextOpen) {
+        applyConversationHeight();
         ensurePosition();
         requestAnimationFrame(() => {
           inputEl.focus();
@@ -756,6 +751,17 @@
 
     function panelHeight() {
       return panel.offsetHeight || Math.min(520, window.innerHeight - 24);
+    }
+
+    function conversationTargetHeight() {
+      const maxHeight = window.innerWidth <= 640 ? 296 : 344;
+      const footerHeight = footerEl ? footerEl.offsetHeight : 120;
+      const viewportAllowance = window.innerHeight - footerHeight - (window.innerWidth <= 640 ? 180 : 210);
+      return Math.max(180, Math.min(maxHeight, viewportAllowance));
+    }
+
+    function applyConversationHeight() {
+      root.style.setProperty('--tf-aiw-conversation-height', `${conversationTargetHeight()}px`);
     }
 
     function defaultPosition() {
@@ -792,20 +798,46 @@
       savePosition();
     }
 
+    function setConversationExpanded(nextExpanded) {
+      applyConversationHeight();
+      if (state.expanded === nextExpanded) {
+        return;
+      }
+
+      const previousHeight = panel.getBoundingClientRect().height;
+      state.expanded = nextExpanded;
+      root.classList.toggle('has-conversation', nextExpanded);
+
+      const nextHeight = panel.scrollHeight;
+      const delta = nextHeight - previousHeight;
+      if (state.position && delta) {
+        state.position = clampPosition({
+          x: state.position.x,
+          y: state.position.y - delta,
+        });
+        applyPosition(state.position);
+        savePosition();
+      }
+
+      if (nextExpanded) {
+        requestAnimationFrame(scrollMessagesToBottom);
+      } else if (conversationEl) {
+        conversationEl.scrollTop = 0;
+      }
+    }
+
+    function ensureConversationExpanded() {
+      if (!state.expanded) {
+        setConversationExpanded(true);
+      }
+    }
+
     function escapeHtml(text) {
       return text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/\n/g, '<br>');
-    }
-
-    function currentTimeLabel() {
-      const now = new Date();
-      const hours = now.getHours() % 12 || 12;
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const suffix = now.getHours() >= 12 ? 'PM' : 'AM';
-      return `${hours}:${minutes} ${suffix}`;
     }
 
     function scrollMessagesToBottom() {
@@ -818,30 +850,29 @@
       }
     }
 
-    function addMessage(role, text) {
+    function addMessage(role, text, options = {}) {
+      ensureConversationExpanded();
       removeEmptyState();
       const row = document.createElement('div');
       row.className = `tf-aiw-row ${role}`;
       if (role === 'ai') {
         row.dataset.aiMessageText = text;
+        row.dataset.promptText = options.promptText || '';
       }
 
       if (role === 'ai') {
         row.innerHTML = `
-          <div class="tf-aiw-avatar">✦</div>
           <div class="tf-aiw-message-wrap">
             <div class="tf-aiw-bubble ai">${escapeHtml(text)}</div>
-            <div class="tf-aiw-time">${currentTimeLabel()}</div>
-            ${buildMessageActionsHtml()}
+            ${buildMessageActionsHtml(Boolean(row.dataset.promptText))}
           </div>
         `;
       } else {
+        row.dataset.userMessageText = text;
         row.innerHTML = `
           <div class="tf-aiw-message-wrap">
             <div class="tf-aiw-bubble user">${escapeHtml(text)}</div>
-            <div class="tf-aiw-time">${currentTimeLabel()}</div>
           </div>
-          <div class="tf-aiw-avatar">${userInitials}</div>
         `;
       }
 
@@ -850,7 +881,7 @@
       return row;
     }
 
-    function buildMessageActionsHtml() {
+    function buildMessageActionsHtml(canRegenerate) {
       return `
         <div class="tf-aiw-message-actions">
           <button type="button" class="tf-aiw-message-action" data-aiw-msg-action="copy" title="Copy text" aria-label="Copy text">
@@ -876,6 +907,13 @@
             <svg viewBox="0 0 16 16" fill="none">
               <path d="M6.7 9L8.1 12.3C8.32 12.83 8.84 13.18 9.42 13.18C10.02 13.18 10.5 12.7 10.5 12.1V10H12.52C13.16 10 13.62 9.39 13.44 8.78L12.39 5.28C12.25 4.8 11.81 4.47 11.31 4.47H6.7V9Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
               <path d="M3 9.05H5.25V4.45H3.75C3.34 4.45 3 4.79 3 5.2V9.05Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button" class="tf-aiw-message-action" data-aiw-msg-action="regenerate" title="Regenerate response" aria-label="Regenerate response" ${canRegenerate ? '' : 'disabled'}>
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M13 8A5 5 0 0 1 4.46 11.54M3 8A5 5 0 0 1 11.54 4.46" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M11.6 2.9V4.7H13.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.4 13.1V11.3H2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
         </div>
@@ -909,12 +947,59 @@
       });
     }
 
+    function resolveRegeneratePrompt(row) {
+      if (row.dataset.promptText) {
+        return row.dataset.promptText;
+      }
+
+      const historyMatch = [...state.history].reverse().find((entry) => entry.role === 'user' && entry.content);
+      return historyMatch ? historyMatch.content : '';
+    }
+
     function clearSpeakButtonState() {
       if (!state.activeSpeakButton) {
         return;
       }
       state.activeSpeakButton.classList.remove('active');
       state.activeSpeakButton = null;
+    }
+
+    function persistWidgetHistoryForFullPage() {
+      try {
+        sessionStorage.setItem('widget_chat_history', JSON.stringify(state.history));
+      } catch (error) {
+        // no-op
+      }
+    }
+
+    function openFullAiCoach() {
+      persistWidgetHistoryForFullPage();
+      window.location.href = '/ai';
+    }
+
+    function resetConversationState() {
+      if (state.pending) {
+        return;
+      }
+
+      if (state.voiceSession) {
+        state.voiceSession.stop();
+      }
+      if (supportsVoiceOutput && window.TaskflowVoiceOutput) {
+        window.TaskflowVoiceOutput.stop();
+      }
+      clearSpeakButtonState();
+      state.history = [];
+      state.threadId = null;
+      messagesEl.replaceChildren();
+      if (emptyEl) {
+        messagesEl.appendChild(emptyEl);
+      }
+      setConversationExpanded(false);
+      inputEl.value = '';
+      autoResize();
+      updateSendState();
+      inputEl.focus();
     }
 
     function handleMessageActionClick(event) {
@@ -968,15 +1053,24 @@
 
       if (action === 'like' || action === 'dislike') {
         setFeedbackState(row, action);
+        return;
+      }
+
+      if (action === 'regenerate') {
+        const promptText = resolveRegeneratePrompt(row);
+        if (!promptText) {
+          return;
+        }
+        submitMessage(promptText, { showUserMessage: false });
       }
     }
 
     function addTyping() {
+      ensureConversationExpanded();
       removeEmptyState();
       const row = document.createElement('div');
       row.className = 'tf-aiw-typing';
       row.innerHTML = `
-        <div class="tf-aiw-avatar">✦</div>
         <div class="tf-aiw-typing-bubble">
           <div class="tf-aiw-typing-dot"></div>
           <div class="tf-aiw-typing-dot"></div>
@@ -994,12 +1088,12 @@
         return null;
       }
 
+      ensureConversationExpanded();
       removeEmptyState();
       const row = document.createElement('div');
       row.className = 'tf-aiw-row ai';
       row.dataset.actionId = String(action.id);
       row.innerHTML = `
-        <div class="tf-aiw-avatar">✦</div>
         <div class="tf-aiw-message-wrap">
           <div class="tf-aiw-action-card">
             <div class="tf-aiw-action-label">Needs confirmation</div>
@@ -1011,7 +1105,6 @@
             </div>
             <div class="tf-aiw-action-status" data-aiw-action-status hidden></div>
           </div>
-          <div class="tf-aiw-time">${currentTimeLabel()}</div>
         </div>
       `;
 
@@ -1190,11 +1283,12 @@
       });
     }
 
-    async function submitMessage(explicitText) {
+    async function submitMessage(explicitText, options = {}) {
       const message = (explicitText || inputEl.value || '').trim();
       if (!message || state.pending) {
         return;
       }
+      const showUserMessage = options.showUserMessage !== false;
       const isFirstMessageForThread = !state.threadId;
 
       setOpen(true);
@@ -1203,7 +1297,9 @@
       autoResize();
       updateSendState();
 
-      addMessage('user', message);
+      if (showUserMessage) {
+        addMessage('user', message);
+      }
       state.history.push({ role: 'user', content: message });
       trimHistory();
 
@@ -1237,7 +1333,7 @@
             state.threadId = data.thread.id;
           }
 
-          addMessage('ai', reply);
+          addMessage('ai', reply, { promptText: message });
           state.history.push({ role: 'assistant', content: reply });
           trimHistory();
           applyResolvedActionState(data && data.resolved_action_ids, data && data.ok === false ? 'Could not apply.' : 'Done.');
@@ -1258,7 +1354,7 @@
         if (typingRow.isConnected) {
           typingRow.remove();
         }
-        addMessage('ai', "I'm here for you. What's on your mind?");
+        addMessage('ai', "I'm here for you. What's on your mind?", { promptText: message });
       } finally {
         state.pending = false;
         updateSendState();
@@ -1320,7 +1416,15 @@
     }
 
     openButton.addEventListener('click', () => setOpen(true));
-    closeButton.addEventListener('click', () => setOpen(false));
+    if (closeButton) {
+      closeButton.addEventListener('click', () => setOpen(false));
+    }
+    if (openFullButton) {
+      openFullButton.addEventListener('click', openFullAiCoach);
+    }
+    if (newChatButton) {
+      newChatButton.addEventListener('click', resetConversationState);
+    }
     sendButton.addEventListener('click', () => submitMessage());
     if (voiceButton) {
       voiceButton.addEventListener('click', toggleVoiceInput);
@@ -1348,15 +1452,42 @@
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', endDrag);
+    document.addEventListener('pointerdown', (event) => {
+      if (!state.open || state.drag) {
+        return;
+      }
+      if (panel.contains(event.target) || openButton.contains(event.target)) {
+        return;
+      }
+      setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && state.open) {
+        setOpen(false);
+      }
+    });
     window.addEventListener('resize', () => {
+      const previousHeight = panel.getBoundingClientRect().height;
+      applyConversationHeight();
       if (!state.position) {
         return;
+      }
+      if (state.expanded) {
+        const nextHeight = panel.scrollHeight;
+        const delta = nextHeight - previousHeight;
+        if (delta) {
+          state.position = {
+            x: state.position.x,
+            y: state.position.y - delta,
+          };
+        }
       }
       state.position = clampPosition(state.position);
       applyPosition(state.position);
       savePosition();
     });
 
+    applyConversationHeight();
     ensurePosition();
     autoResize();
     updateSendState();
