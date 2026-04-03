@@ -93,11 +93,32 @@ mail = Mail(app)
 # Secret key is used to protect session cookies (login sessions).
 # In production, ALWAYS store this in .env
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "DEV_ONLY_CHANGE_ME")
+SESSION_LIFETIME_DAYS = max(1, int(os.environ.get("SESSION_LIFETIME_DAYS", "30")))
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=SESSION_LIFETIME_DAYS)
+app.config["SESSION_COOKIE_NAME"] = os.environ.get("SESSION_COOKIE_NAME", "taskflow_session")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower() in {"1", "true", "yes", "on"}
+)
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
 EMAIL_VERIFY_MAX_AGE = int(os.environ.get("EMAIL_VERIFY_MAX_AGE", "86400"))
 EMAIL_VERIFY_SALT = os.environ.get("EMAIL_VERIFY_SALT", "taskflow-email-verify")
 
 def get_email_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(app.secret_key)
+
+
+def begin_user_session(user_id: int, user_name: str, username: str):
+    session.clear()
+    session.permanent = True
+    session.update(
+        {
+            "user_id": user_id,
+            "user_name": user_name,
+            "username": username,
+        }
+    )
 
 def format_note_timestamp(dt):
     if dt is None:
@@ -401,6 +422,12 @@ def login_required(route_func):
     return wrapper
 
 
+@app.before_request
+def refresh_logged_in_session():
+    if "user_id" in session:
+        session.permanent = True
+
+
 def allowed_file(filename: str) -> bool:
     """Checks if a file extension is allowed (png/jpg/jpeg/gif)."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -664,6 +691,78 @@ Message:
 # 9) LIST + TASK HELPERS
 # ============================================================
 
+def ensure_task_list_metadata_columns():
+    columns_ready = getattr(g, "_task_list_metadata_columns_ready", None)
+    if columns_ready is not None:
+        return columns_ready
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        required_columns = {
+            "pinned_at": "DATETIME NULL DEFAULT NULL",
+            "archived_at": "DATETIME NULL DEFAULT NULL",
+        }
+
+        for column_name, column_definition in required_columns.items():
+            cursor.execute("SHOW COLUMNS FROM task_lists LIKE %s", (column_name,))
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    f"ALTER TABLE task_lists ADD COLUMN {column_name} {column_definition}"
+                )
+
+        g._task_list_metadata_columns_ready = True
+        return True
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+
+def ensure_task_metadata_columns():
+    columns_ready = getattr(g, "_task_metadata_columns_ready", None)
+    if columns_ready is not None:
+        return columns_ready
+
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        required_columns = {
+            "priority": "VARCHAR(16) NOT NULL DEFAULT 'medium'",
+            "pinned_at": "DATETIME NULL DEFAULT NULL",
+        }
+
+        for column_name, column_definition in required_columns.items():
+            cursor.execute("SHOW COLUMNS FROM tasks LIKE %s", (column_name,))
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    f"ALTER TABLE tasks ADD COLUMN {column_name} {column_definition}"
+                )
+
+        g._task_metadata_columns_ready = True
+        return True
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+
+def request_wants_json_action() -> bool:
+    requested_with = (request.headers.get("X-Requested-With") or "").strip().lower()
+    accept_header = (request.headers.get("Accept") or "").lower()
+    return requested_with == "xmlhttprequest" or "application/json" in accept_header
+
+
+def task_list_action_wants_json() -> bool:
+    return request_wants_json_action()
+
+
+def normalize_task_priority(value) -> str:
+    priority = (value or "").strip().lower()
+    if priority in {"high", "medium", "low"}:
+        return priority
+    return "medium"
+
 def user_owns_list(user_id: int, list_id: int) -> bool:
     cache_key = (user_id, list_id)
     cache = get_request_cache("user_owns_list")
@@ -690,8 +789,16 @@ def get_inbox_list_id(user_id: int) -> int:
 
     db = get_db()
     cursor = db.cursor(dictionary=True)
+    ensure_task_list_metadata_columns()
     cursor.execute(
-        "SELECT id FROM task_lists WHERE user_id=%s AND name='Inbox' LIMIT 1",
+        """
+        SELECT id
+        FROM task_lists
+        WHERE user_id=%s
+          AND name='Inbox'
+          AND archived_at IS NULL
+        LIMIT 1
+        """,
         (user_id,)
     )
     row = cursor.fetchone()
@@ -714,6 +821,7 @@ def get_inbox_list_id(user_id: int) -> int:
 
 
 def fetch_task_for_user(task_id: int, user_id: int):
+    ensure_task_metadata_columns()
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT * FROM tasks WHERE id=%s AND user_id=%s", (task_id, user_id))
@@ -2608,6 +2716,8 @@ def ping():
 
 @app.route("/")
 def landing_page():
+    if logged_in():
+        return redirect(url_for("home_page"))
     return render_template("landing_page.html")
 
 
@@ -2732,6 +2842,8 @@ def about_page():
 
 @app.route("/register", methods=["GET", "POST"])
 def register_page():
+    if logged_in():
+        return redirect(url_for("home_page"))
     if request.method == "POST":
         first = request.form.get("first_name", "").strip().capitalize()
         last = request.form.get("last_name", "").strip().capitalize()
@@ -2793,6 +2905,8 @@ def register_page():
 
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
+    if logged_in():
+        return redirect(url_for("home_page"))
     error_identifier = None
     error_password = None
     info_message = None
@@ -2844,11 +2958,7 @@ def login_page():
             elif not user[3] or not check_password_hash(user[3], password):
                 error_password = "Invalid username/email or password."
             else:
-                session.update({
-                    "user_id": user[0],
-                    "user_name": user[1],
-                    "username": user[2]
-                })
+                begin_user_session(user[0], user[1], user[2])
                 return redirect(url_for("home_page"))
 
     return render_template("auth/login.html",
@@ -4370,9 +4480,10 @@ def ai_plan_for_day():
 @app.route("/lists/create", methods=["POST"])
 @login_required
 def create_list():
+    ensure_task_list_metadata_columns()
     name = (request.form.get("name") or "").strip()
     if not name:
-        return redirect(url_for("home_page"))
+        return redirect(url_for("tasks_page"))
 
     db = get_db()
     cursor = db.cursor()
@@ -4388,6 +4499,7 @@ def create_list():
 @app.route("/lists/reorder", methods=["POST"])
 @login_required
 def reorder_lists():
+    ensure_task_list_metadata_columns()
     order = request.json["order"]
 
     db = get_db()
@@ -4408,11 +4520,32 @@ def reorder_lists():
 @app.route("/lists/rename/<int:list_id>", methods=["POST"])
 @login_required
 def rename_list(list_id):
+    ensure_task_list_metadata_columns()
     name = (request.form.get("name") or "").strip()
     if not name:
+        if task_list_action_wants_json():
+            return jsonify({"ok": False, "error": "List name is required."}), 400
         return redirect(url_for("tasks_page", list_id=list_id))
 
     db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id, name FROM task_lists WHERE id=%s AND user_id=%s AND archived_at IS NULL",
+        (list_id, session["user_id"])
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    if not row:
+        if task_list_action_wants_json():
+            return jsonify({"ok": False, "error": "List not found."}), 404
+        return redirect(url_for("tasks_page"))
+
+    if row["name"] == "Inbox":
+        if task_list_action_wants_json():
+            return jsonify({"ok": False, "error": "Inbox cannot be renamed."}), 400
+        return redirect(url_for("tasks_page", list_id=list_id))
+
     cursor = db.cursor()
     cursor.execute(
         "UPDATE task_lists SET name=%s WHERE id=%s AND user_id=%s",
@@ -4421,6 +4554,9 @@ def rename_list(list_id):
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
+    if task_list_action_wants_json():
+        return jsonify({"ok": True, "id": list_id, "name": name})
+
     return redirect(url_for("tasks_page", list_id=list_id))
 
 
@@ -4428,16 +4564,19 @@ def rename_list(list_id):
 @app.route("/lists/delete/<int:list_id>", methods=["POST"])
 @login_required
 def delete_list(list_id):
+    ensure_task_list_metadata_columns()
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
-        "SELECT name FROM task_lists WHERE id=%s AND user_id=%s",
+        "SELECT name FROM task_lists WHERE id=%s AND user_id=%s AND archived_at IS NULL",
         (list_id, session["user_id"])
     )
     row = cursor.fetchone()
     cursor.close()
 
     if not row or row["name"] == "Inbox":
+        if task_list_action_wants_json():
+            return jsonify({"ok": False, "error": "This list cannot be deleted."}), 400
         return redirect(url_for("tasks_page"))
 
     cursor = db.cursor()
@@ -4449,7 +4588,90 @@ def delete_list(list_id):
     invalidate_user_cached_data(session["user_id"])
 
     inbox_id = get_inbox_list_id(session["user_id"])
+    if task_list_action_wants_json():
+        return jsonify({"ok": True, "redirect_url": url_for("tasks_page", list_id=inbox_id)})
     return redirect(url_for("tasks_page", list_id=inbox_id))
+
+
+@app.route("/lists/pin/<int:list_id>", methods=["POST"])
+@login_required
+def toggle_list_pin(list_id):
+    ensure_task_list_metadata_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, name, pinned_at
+        FROM task_lists
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        LIMIT 1
+        """,
+        (list_id, session["user_id"]),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    if not row or row["name"] == "Inbox":
+        return jsonify({"ok": False, "error": "This list cannot be pinned."}), 400
+
+    next_pin_value = None if row.get("pinned_at") else datetime.utcnow()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE task_lists
+        SET pinned_at = %s
+        WHERE id = %s
+          AND user_id = %s
+        """,
+        (next_pin_value, list_id, session["user_id"]),
+    )
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    return jsonify({"ok": True, "is_pinned": bool(next_pin_value)})
+
+
+@app.route("/lists/archive/<int:list_id>", methods=["POST"])
+@login_required
+def archive_list(list_id):
+    ensure_task_list_metadata_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, name
+        FROM task_lists
+        WHERE id = %s
+          AND user_id = %s
+          AND archived_at IS NULL
+        LIMIT 1
+        """,
+        (list_id, session["user_id"]),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+
+    if not row or row["name"] == "Inbox":
+        return jsonify({"ok": False, "error": "This list cannot be archived."}), 400
+
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE task_lists
+        SET archived_at = NOW(),
+            pinned_at = NULL
+        WHERE id = %s
+          AND user_id = %s
+        """,
+        (list_id, session["user_id"]),
+    )
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    inbox_id = get_inbox_list_id(session["user_id"])
+    return jsonify({"ok": True, "redirect_url": url_for("tasks_page", list_id=inbox_id)})
 
 
 
@@ -4460,6 +4682,7 @@ def delete_list(list_id):
 @app.route("/tasks/create", methods=["POST"])
 @login_required
 def create_task():
+    ensure_task_metadata_columns()
     list_id = request.form.get("list_id", type=int)
     title = (request.form.get("title") or "").strip()
     description = (request.form.get("description") or "").strip()
@@ -4491,6 +4714,7 @@ def create_task():
 @app.route("/tasks/quick", methods=["POST"])
 @login_required
 def create_quick_task():
+    ensure_task_metadata_columns()
     payload = request.get_json(silent=True) or {}
     title = (payload.get("title") or "").strip()
 
@@ -4535,6 +4759,7 @@ def view_task(task_id):
 @app.route("/tasks/edit/<int:task_id>", methods=["GET", "POST"])
 @login_required
 def edit_task(task_id):
+    ensure_task_metadata_columns()
     task = fetch_task_for_user(task_id, session["user_id"])
     if not task:
         return redirect(url_for("home_page"))
@@ -4542,22 +4767,136 @@ def edit_task(task_id):
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()
         description = (request.form.get("description") or "").strip()
+        priority = normalize_task_priority(request.form.get("priority") or task.get("priority"))
+        next_list_id = request.form.get("list_id", type=int) or task.get("list_id")
 
         if not title:
             return render_template("task_edit.html", task=task, error="Title is required.")
 
+        if not next_list_id or not user_owns_list(session["user_id"], next_list_id):
+            next_list_id = get_inbox_list_id(session["user_id"])
+
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
-            "UPDATE tasks SET title=%s, description=%s WHERE id=%s AND user_id=%s",
-            (title, description, task_id, session["user_id"])
+            """
+            UPDATE tasks
+            SET title=%s, description=%s, priority=%s, list_id=%s
+            WHERE id=%s AND user_id=%s
+            """,
+            (title, description, priority, next_list_id, task_id, session["user_id"])
         )
         cursor.close()
         invalidate_user_cached_data(session["user_id"])
 
-        return redirect(url_for("home_page", list_id=task["list_id"]))
+        return redirect(url_for("tasks_page", list_id=next_list_id))
 
     return render_template("task_edit.html", task=task)
+
+
+@app.route("/tasks/update/<int:task_id>", methods=["POST"])
+@login_required
+def update_task(task_id):
+    ensure_task_metadata_columns()
+    wants_json = request_wants_json_action()
+    task = fetch_task_for_user(task_id, session["user_id"])
+    if not task:
+        if wants_json:
+            return jsonify({"ok": False, "error": "Task not found."}), 404
+        return redirect(url_for("tasks_page"))
+
+    payload = request.get_json(silent=True) or {}
+    title = (payload.get("title") if "title" in payload else request.form.get("title") or task.get("title") or "").strip()
+    description = (payload.get("description") if "description" in payload else request.form.get("description") or task.get("description") or "").strip()
+    priority_input = payload.get("priority") if "priority" in payload else request.form.get("priority")
+    priority = normalize_task_priority(priority_input or task.get("priority"))
+    raw_list_id = payload.get("list_id") if "list_id" in payload else request.form.get("list_id")
+
+    try:
+        next_list_id = int(raw_list_id) if raw_list_id not in (None, "", "null") else task.get("list_id")
+    except (TypeError, ValueError):
+        next_list_id = task.get("list_id")
+
+    if not title:
+        if wants_json:
+            return jsonify({"ok": False, "error": "Task title is required."}), 400
+        return redirect(url_for("tasks_page", list_id=task.get("list_id")))
+
+    if not next_list_id or not user_owns_list(session["user_id"], next_list_id):
+        next_list_id = get_inbox_list_id(session["user_id"])
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE tasks
+        SET title = %s,
+            description = %s,
+            priority = %s,
+            list_id = %s
+        WHERE id = %s
+          AND user_id = %s
+        """,
+        (title, description, priority, next_list_id, task_id, session["user_id"]),
+    )
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    if wants_json:
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT id, name
+            FROM task_lists
+            WHERE id = %s
+              AND user_id = %s
+            LIMIT 1
+            """,
+            (next_list_id, session["user_id"]),
+        )
+        list_row = cursor.fetchone()
+        cursor.close()
+        return jsonify(
+            {
+                "ok": True,
+                "task": {
+                    "id": task_id,
+                    "title": title,
+                    "description": description,
+                    "priority": priority,
+                    "list_id": next_list_id,
+                    "list_name": (list_row or {}).get("name") or "Task",
+                },
+            }
+        )
+
+    return redirect(url_for("tasks_page", list_id=next_list_id))
+
+
+@app.route("/tasks/pin/<int:task_id>", methods=["POST"])
+@login_required
+def toggle_task_pin(task_id):
+    ensure_task_metadata_columns()
+    task = fetch_task_for_user(task_id, session["user_id"])
+    if not task:
+        return jsonify({"ok": False, "error": "Task not found."}), 404
+
+    next_pin_value = None if task.get("pinned_at") else datetime.utcnow()
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE tasks
+        SET pinned_at = %s
+        WHERE id = %s
+          AND user_id = %s
+        """,
+        (next_pin_value, task_id, session["user_id"]),
+    )
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    return jsonify({"ok": True, "is_pinned": bool(next_pin_value)})
 
 
 @app.route("/tasks/toggle/<int:task_id>", methods=["POST"])
@@ -6211,11 +6550,7 @@ def google_callback():
         flash(AUTH_DB_ERROR_MESSAGE)
         return redirect(failure_target)
 
-    session.update({
-        "user_id": user_id,
-        "user_name": name,
-        "username": username
-    })
+    begin_user_session(user_id, name, username)
 
     return redirect(url_for("home_page"))
 
@@ -6226,6 +6561,8 @@ def tasks_page():
     user_id = session["user_id"]
     requested_list_id = request.args.get("list_id", type=int)
 
+    ensure_task_list_metadata_columns()
+    ensure_task_metadata_columns()
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -6237,14 +6574,23 @@ def tasks_page():
             tl.id,
             tl.name,
             tl.created_at,
+            tl.pinned_at,
             COUNT(t.id) AS task_count
         FROM task_lists tl
         LEFT JOIN tasks t
           ON t.list_id = tl.id
          AND t.user_id = tl.user_id
         WHERE tl.user_id = %s
-        GROUP BY tl.id, tl.name, tl.created_at
-        ORDER BY CASE WHEN tl.id = %s THEN 0 ELSE 1 END, tl.created_at DESC
+          AND tl.archived_at IS NULL
+        GROUP BY tl.id, tl.name, tl.created_at, tl.pinned_at
+        ORDER BY
+          CASE
+            WHEN tl.id = %s THEN 0
+            WHEN tl.pinned_at IS NULL THEN 2
+            ELSE 1
+          END,
+          tl.pinned_at DESC,
+          tl.created_at DESC
         """,
         (user_id, inbox_id),
     )
@@ -6263,8 +6609,14 @@ def tasks_page():
             FROM tasks t
             LEFT JOIN task_lists tl
               ON tl.id = t.list_id
+             AND tl.user_id = t.user_id
             WHERE t.user_id = %s
-            ORDER BY t.completed ASC, t.created_at DESC
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            ORDER BY
+              t.completed ASC,
+              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+              t.pinned_at DESC,
+              t.created_at DESC
             """,
             (user_id,),
         )
@@ -6277,9 +6629,15 @@ def tasks_page():
             FROM tasks t
             LEFT JOIN task_lists tl
               ON tl.id = t.list_id
+             AND tl.user_id = t.user_id
             WHERE t.user_id = %s
               AND t.list_id = %s
-            ORDER BY t.completed ASC, t.created_at DESC
+              AND tl.archived_at IS NULL
+            ORDER BY
+              t.completed ASC,
+              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+              t.pinned_at DESC,
+              t.created_at DESC
             """,
             (user_id, active_list_id),
         )

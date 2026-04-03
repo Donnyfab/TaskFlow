@@ -30,21 +30,167 @@
     .main { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; min-width: 0; }
 
     /* ── LISTS SIDEBAR ── */
-    .lists-sidebar { border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto; min-width: 0; }
-    .ls-header { padding: 24px 20px 0; }
+    .lists-sidebar { border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; height: 100vh; max-height: 100vh; overflow: hidden; min-width: 0; }
+    .ls-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 24px 20px 16px;
+      background: #0A0A0A;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
     .ls-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 16px; }
-    .ls-add-form { display: flex; gap: 6px; margin-bottom: 20px; }
-    .ls-add-inp { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #fff; font-family: inherit; outline: none; }
+    .ls-add-form { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; width: 100%; }
+    .ls-add-inp { flex: 1 1 auto; min-width: 0; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #fff; font-family: inherit; outline: none; }
     .ls-add-inp::placeholder { color: rgba(255,255,255,0.2); }
     .ls-add-inp:focus { border-color: rgba(255,255,255,0.18); }
-    .ls-add-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 7px 11px; font-size: 12px; color: rgba(255,255,255,0.6); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; }
+    .ls-add-btn { flex: 0 0 auto; align-self: stretch; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0 12px; min-width: 74px; font-size: 12px; color: rgba(255,255,255,0.6); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; }
     .ls-add-btn:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.85); }
+    .lists-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 20px; }
     .ls-section { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.8px; padding: 0 20px; margin-bottom: 4px; margin-top: 12px; }
     .list-item { display: flex; align-items: center; gap: 8px; padding: 7px 20px; font-size: 13px; color: rgba(255,255,255,0.45); transition: all 0.15s; border-left: 2px solid transparent; text-decoration: none; }
     .list-item:hover { color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.03); }
     .list-item.active { color: rgba(255,255,255,0.88); background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.45); }
     .list-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .list-count { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); border-radius: 4px; padding: 1px 6px; }
+    .list-pin { font-size: 10px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+
+    .list-context-menu {
+      position: fixed;
+      z-index: 120;
+      min-width: 160px;
+      padding: 6px;
+      border-radius: 12px;
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.38);
+      display: none;
+    }
+    .list-context-menu.open { display: block; }
+    .list-context-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,0.72);
+      border-radius: 9px;
+      padding: 8px 10px;
+      font: inherit;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .list-context-btn:hover {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.9);
+    }
+    .list-context-btn.danger {
+      color: rgba(255,120,120,0.82);
+    }
+    .list-context-btn.danger:hover {
+      background: rgba(255,60,60,0.1);
+      color: rgba(255,150,150,0.95);
+    }
+    .list-context-btn-icon {
+      width: 14px;
+      text-align: center;
+      color: rgba(255,255,255,0.34);
+      flex-shrink: 0;
+    }
+    .list-context-btn.danger .list-context-btn-icon {
+      color: rgba(255,120,120,0.62);
+    }
+    .list-context-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 6px 2px;
+    }
+
+    .task-context-menu {
+      position: fixed;
+      z-index: 125;
+      width: 220px;
+      padding: 6px;
+      border-radius: 12px;
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.38);
+      display: none;
+    }
+    .task-context-menu.open { display: block; }
+    .task-context-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.28);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 4px 10px 6px;
+    }
+    .task-context-priority-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      padding: 0 4px 6px;
+    }
+    .task-context-pill {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.62);
+      border-radius: 8px;
+      padding: 7px 0;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .task-context-pill:hover {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.86);
+    }
+    .task-context-pill.active {
+      background: rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.95);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .task-context-select-row {
+      display: flex;
+      gap: 6px;
+      padding: 0 4px 4px;
+    }
+    .task-context-select {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.76);
+      font: inherit;
+      font-size: 11px;
+      padding: 7px 9px;
+      outline: none;
+    }
+    .task-context-select option {
+      background: #181818;
+      color: rgba(255,255,255,0.9);
+    }
+    .task-context-move-btn {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.8);
+      border-radius: 8px;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .task-context-move-btn:hover {
+      background: rgba(255,255,255,0.12);
+    }
 
     /* ── TASK CONTENT ── */
     .task-content { display: flex; flex-direction: column; min-height: 100vh; min-width: 0; }
@@ -89,6 +235,7 @@
     .t-title.done { text-decoration: line-through; color: rgba(255,255,255,0.25); }
     .t-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
     .t-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); }
+    .t-pin { font-size: 10px; color: rgba(255,255,255,0.32); }
     .t-priority { font-size: 9px; padding: 2px 7px; border-radius: 4px; }
     .t-priority.high { background: rgba(255,80,80,0.08); color: rgba(255,120,120,0.65); }
     .t-priority.medium { background: rgba(255,180,50,0.08); color: rgba(255,200,80,0.6); }
@@ -108,6 +255,7 @@
     /* DETAIL PANEL */
     .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 340px; background: #0F0F0F; border-left: 1px solid rgba(255,255,255,0.08); z-index: 50; transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; }
     .detail-panel.open { transform: translateX(0); }
+    body.task-detail-open [data-tf-aiw-root] { display: none; }
     .dp-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .dp-header-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); }
     .dp-close { width: 28px; height: 28px; border-radius: 7px; background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
@@ -170,27 +318,41 @@
     <div class="lists-sidebar">
       <div class="ls-header">
         <div class="ls-title">Tasks</div>
-        <form method="POST" action="/lists/create" class="ls-add-form">
-          <input class="ls-add-inp" name="name" placeholder="New list..." maxlength="40">
-          <button type="submit" class="ls-add-btn">+ Add</button>
+        <form method="POST" action="/lists/create" class="ls-add-form" id="new-list-form">
+          <input class="ls-add-inp" id="new-list-inp" name="name" placeholder="New list..." maxlength="40" required>
+          <button type="button" class="ls-add-btn" onclick="handleNewListButtonClick()">+ Add</button>
         </form>
       </div>
 
-      <div class="ls-section">My lists</div>
+      <div class="lists-scroll">
+        <div class="ls-section">My lists</div>
 
-      <a href="/tasks" class="list-item {{ 'active' if active_list_id is none else '' }}">
-        <div class="list-dot" style="background:rgba(255,255,255,0.3)"></div>
-        All tasks
-        <div class="list-count">{{ all_tasks_count }}</div>
-      </a>
+        <a href="/tasks" class="list-item {{ 'active' if active_list_id is none else '' }}">
+          <div class="list-dot" style="background:rgba(255,255,255,0.3)"></div>
+          <span class="list-name">All tasks</span>
+          <div class="list-count">{{ all_tasks_count }}</div>
+        </a>
 
-      {% for lst in lists %}
-      <a href="/tasks?list_id={{ lst.id }}" class="list-item {{ 'active' if active_list_id == lst.id else '' }}">
-        <div class="list-dot" style="background:rgba(100,160,255,0.5)"></div>
-        {{ lst.name }}
-        <div class="list-count">{{ lst.task_count }}</div>
-      </a>
-      {% endfor %}
+        {% for lst in lists %}
+        <a
+          href="/tasks?list_id={{ lst.id }}"
+          class="list-item {{ 'active' if active_list_id == lst.id else '' }}"
+          {% if lst.name != 'Inbox' %}
+          data-list-link
+          data-list-id="{{ lst.id }}"
+          data-list-name="{{ lst.name }}"
+          data-list-is-pinned="{{ '1' if lst.pinned_at else '0' }}"
+          {% endif %}
+        >
+          <div class="list-dot" style="background:rgba(100,160,255,0.5)"></div>
+          <span class="list-name">{{ lst.name }}</span>
+          {% if lst.pinned_at %}
+          <span class="list-pin" aria-hidden="true">📌</span>
+          {% endif %}
+          <div class="list-count">{{ lst.task_count }}</div>
+        </a>
+        {% endfor %}
+      </div>
     </div>
 
     <!-- TASK CONTENT -->
@@ -222,7 +384,7 @@
         <div class="add-task-form">
           <input class="add-task-input" id="quick-inp" placeholder="Add a new task — press Enter to save..."
                  onkeydown="if(event.key==='Enter')quickAdd()">
-          <button class="add-task-submit" onclick="quickAdd()">Add task</button>
+          <button class="add-task-submit" type="button" onclick="handleQuickAddButtonClick()">Add task</button>
         </div>
       </div>
 
@@ -235,11 +397,26 @@
         {% if incomplete %}
         <div class="task-group-label">Active</div>
         {% for task in incomplete %}
-        <div class="task-item" id="task-{{ task.id }}" onclick="openDetail({{ task.id }}, '{{ task.title|replace("'","\\'")|replace('"','\\"') }}', '{{ task.description|default('')|replace("'","\\'")|replace('"','\\"') }}')">
+        <div
+          class="task-item {{ 'pinned-task' if task.pinned_at else '' }}"
+          id="task-{{ task.id }}"
+          data-task-item
+          data-task-id="{{ task.id }}"
+          data-task-title="{{ task.title|e }}"
+          data-task-description="{{ (task.description or '')|e }}"
+          data-task-priority="{{ task.priority|default('medium') }}"
+          data-task-list-id="{{ task.list_id or '' }}"
+          data-task-list-name="{{ (task.list_name or 'Task')|e }}"
+          data-task-is-pinned="{{ '1' if task.pinned_at else '0' }}"
+          onclick="openDetailFromTask(this)"
+        >
           <div class="t-chk" onclick="event.stopPropagation(); toggleTask(this, {{ task.id }})"></div>
           <div class="t-body">
             <div class="t-title">{{ task.title }}</div>
             <div class="t-meta">
+              {% if task.pinned_at %}
+              <span class="t-pin" aria-hidden="true">📌</span>
+              {% endif %}
               <span class="t-priority {{ task.priority|default('medium') }}">{{ (task.priority|default('medium'))|capitalize }}</span>
               <span class="t-tag">{{ task.category|default(task.list_name)|default('Task') }}</span>
             </div>
@@ -255,11 +432,27 @@
         {% if complete %}
         <div class="task-group-label">Completed</div>
         {% for task in complete %}
-        <div class="task-item completed-task" id="task-{{ task.id }}" onclick="openDetail({{ task.id }}, '{{ task.title|replace("'","\\'")|replace('"','\\"') }}', '{{ task.description|default('')|replace("'","\\'")|replace('"','\\"') }}')">
+        <div
+          class="task-item completed-task {{ 'pinned-task' if task.pinned_at else '' }}"
+          id="task-{{ task.id }}"
+          data-task-item
+          data-task-id="{{ task.id }}"
+          data-task-title="{{ task.title|e }}"
+          data-task-description="{{ (task.description or '')|e }}"
+          data-task-priority="{{ task.priority|default('medium') }}"
+          data-task-list-id="{{ task.list_id or '' }}"
+          data-task-list-name="{{ (task.list_name or 'Task')|e }}"
+          data-task-is-pinned="{{ '1' if task.pinned_at else '0' }}"
+          onclick="openDetailFromTask(this)"
+        >
           <div class="t-chk done" onclick="event.stopPropagation(); toggleTask(this, {{ task.id }})">✓</div>
           <div class="t-body">
             <div class="t-title done">{{ task.title }}</div>
             <div class="t-meta">
+              {% if task.pinned_at %}
+              <span class="t-pin" aria-hidden="true">📌</span>
+              {% endif %}
+              <span class="t-priority {{ task.priority|default('medium') }}">{{ (task.priority|default('medium'))|capitalize }}</span>
               <span class="t-tag">{{ task.category|default(task.list_name)|default('Task') }}</span>
             </div>
           </div>
@@ -321,9 +514,356 @@
     </div>
   </div>
 
+  <div class="list-context-menu" id="list-context-menu">
+    <button type="button" class="list-context-btn" id="list-context-pin" onclick="togglePinnedList()">
+      <span class="list-context-btn-icon">📌</span>
+      <span id="list-context-pin-label">Pin</span>
+    </button>
+    <button type="button" class="list-context-btn" onclick="renameListFromMenu()">
+      <span class="list-context-btn-icon">✎</span>
+      <span>Rename</span>
+    </button>
+    <button type="button" class="list-context-btn" onclick="archiveListFromMenu()">
+      <span class="list-context-btn-icon">🗄</span>
+      <span>Archive</span>
+    </button>
+    <div class="list-context-divider"></div>
+    <button type="button" class="list-context-btn danger" onclick="deleteListFromMenu()">
+      <span class="list-context-btn-icon">✕</span>
+      <span>Delete</span>
+    </button>
+  </div>
+
+  <div class="task-context-menu" id="task-context-menu">
+    <button type="button" class="list-context-btn" onclick="togglePinnedTaskFromMenu()">
+      <span class="list-context-btn-icon">📌</span>
+      <span id="task-context-pin-label">Pin to top</span>
+    </button>
+    <button type="button" class="list-context-btn" onclick="renameTaskFromMenu()">
+      <span class="list-context-btn-icon">✎</span>
+      <span>Rename</span>
+    </button>
+    <button type="button" class="list-context-btn" onclick="openTaskNotesFromMenu()">
+      <span class="list-context-btn-icon">📝</span>
+      <span>Add notes</span>
+    </button>
+    <div class="list-context-divider"></div>
+    <div class="task-context-label">Priority</div>
+    <div class="task-context-priority-grid">
+      <button type="button" class="task-context-pill" data-task-priority-option="high" onclick="setTaskPriorityFromMenu('high')">High</button>
+      <button type="button" class="task-context-pill" data-task-priority-option="medium" onclick="setTaskPriorityFromMenu('medium')">Medium</button>
+      <button type="button" class="task-context-pill" data-task-priority-option="low" onclick="setTaskPriorityFromMenu('low')">Low</button>
+    </div>
+    <div class="list-context-divider"></div>
+    <div class="task-context-label">Add to list</div>
+    <div class="task-context-select-row">
+      <select class="task-context-select" id="task-context-list-select">
+        {% for lst in lists %}
+        <option value="{{ lst.id }}">{{ lst.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="button" class="task-context-move-btn" onclick="moveTaskToSelectedList()">Move</button>
+    </div>
+    <div class="list-context-divider"></div>
+    <button type="button" class="list-context-btn danger" onclick="deleteTaskFromMenu()">
+      <span class="list-context-btn-icon">✕</span>
+      <span>Delete</span>
+    </button>
+  </div>
+
   <script>
     const activeListId = {{ active_list_id if active_list_id is not none else 'null' }};
     const activeListName = {{ (active_list.name if active_list else 'All tasks')|tojson }};
+    let listContextState = null;
+    let taskContextState = null;
+
+    function handleNewListButtonClick() {
+      const form = document.getElementById('new-list-form');
+      const input = document.getElementById('new-list-inp');
+      if (!form || !input) return;
+
+      if (!input.value.trim()) {
+        input.focus();
+        return;
+      }
+
+      form.requestSubmit();
+    }
+
+    function openListContextMenu(event, listId, listName, isPinned) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeTaskContextMenu();
+
+      const menu = document.getElementById('list-context-menu');
+      const pinLabel = document.getElementById('list-context-pin-label');
+      if (!menu || !pinLabel) return;
+
+      listContextState = { id: listId, name: listName, isPinned: Boolean(isPinned) };
+      pinLabel.textContent = isPinned ? 'Unpin' : 'Pin';
+
+      menu.classList.add('open');
+      menu.style.left = '0px';
+      menu.style.top = '0px';
+
+      const rect = menu.getBoundingClientRect();
+      const left = Math.min(event.clientX, window.innerWidth - rect.width - 12);
+      const top = Math.min(event.clientY, window.innerHeight - rect.height - 12);
+      menu.style.left = `${Math.max(12, left)}px`;
+      menu.style.top = `${Math.max(12, top)}px`;
+    }
+
+    function closeListContextMenu() {
+      const menu = document.getElementById('list-context-menu');
+      if (!menu) return;
+      menu.classList.remove('open');
+      listContextState = null;
+    }
+
+    function readTaskState(taskItem) {
+      if (!taskItem) return null;
+      return {
+        element: taskItem,
+        id: Number(taskItem.dataset.taskId),
+        title: taskItem.dataset.taskTitle || '',
+        description: taskItem.dataset.taskDescription || '',
+        priority: taskItem.dataset.taskPriority || 'medium',
+        listId: taskItem.dataset.taskListId ? Number(taskItem.dataset.taskListId) : null,
+        listName: taskItem.dataset.taskListName || 'Task',
+        isPinned: taskItem.dataset.taskIsPinned === '1'
+      };
+    }
+
+    function setTaskPriorityButtonState(priority) {
+      document.querySelectorAll('[data-task-priority-option]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.taskPriorityOption === priority);
+      });
+    }
+
+    function openTaskContextMenu(event, taskItem) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeListContextMenu();
+
+      const menu = document.getElementById('task-context-menu');
+      const pinLabel = document.getElementById('task-context-pin-label');
+      const listSelect = document.getElementById('task-context-list-select');
+      if (!menu || !pinLabel || !listSelect) return;
+
+      taskContextState = readTaskState(taskItem);
+      if (!taskContextState) return;
+
+      pinLabel.textContent = taskContextState.isPinned ? 'Unpin from top' : 'Pin to top';
+      listSelect.value = taskContextState.listId ? String(taskContextState.listId) : '';
+      setTaskPriorityButtonState(taskContextState.priority);
+
+      menu.classList.add('open');
+      menu.style.left = '0px';
+      menu.style.top = '0px';
+
+      const rect = menu.getBoundingClientRect();
+      const left = Math.min(event.clientX, window.innerWidth - rect.width - 12);
+      const top = Math.min(event.clientY, window.innerHeight - rect.height - 12);
+      menu.style.left = `${Math.max(12, left)}px`;
+      menu.style.top = `${Math.max(12, top)}px`;
+    }
+
+    function closeTaskContextMenu() {
+      const menu = document.getElementById('task-context-menu');
+      if (!menu) return;
+      menu.classList.remove('open');
+      taskContextState = null;
+    }
+
+    async function postListAction(path, body) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        },
+        body: body ? new URLSearchParams(body).toString() : ''
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Unable to update this list right now.');
+      }
+      return result;
+    }
+
+    async function postTaskAction(path, body) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(body || {})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Unable to update this task right now.');
+      }
+      return result;
+    }
+
+    async function togglePinnedList() {
+      if (!listContextState) return;
+      try {
+        await postListAction(`/lists/pin/${listContextState.id}`);
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to pin this list right now.');
+      } finally {
+        closeListContextMenu();
+      }
+    }
+
+    async function renameListFromMenu() {
+      if (!listContextState) return;
+      const nextName = window.prompt('Rename list', listContextState.name);
+      if (nextName === null) {
+        closeListContextMenu();
+        return;
+      }
+
+      try {
+        await postListAction(`/lists/rename/${listContextState.id}`, { name: nextName });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to rename this list right now.');
+      } finally {
+        closeListContextMenu();
+      }
+    }
+
+    async function archiveListFromMenu() {
+      if (!listContextState) return;
+      if (!window.confirm(`Archive "${listContextState.name}"?`)) {
+        closeListContextMenu();
+        return;
+      }
+
+      try {
+        await postListAction(`/lists/archive/${listContextState.id}`);
+        window.location.href = '/tasks';
+      } catch (error) {
+        alert(error.message || 'Unable to archive this list right now.');
+      } finally {
+        closeListContextMenu();
+      }
+    }
+
+    async function deleteListFromMenu() {
+      if (!listContextState) return;
+      if (!window.confirm(`Delete "${listContextState.name}"?`)) {
+        closeListContextMenu();
+        return;
+      }
+
+      try {
+        const result = await postListAction(`/lists/delete/${listContextState.id}`);
+        window.location.href = result.redirect_url || '/tasks';
+      } catch (error) {
+        alert(error.message || 'Unable to delete this list right now.');
+      } finally {
+        closeListContextMenu();
+      }
+    }
+
+    async function togglePinnedTaskFromMenu() {
+      if (!taskContextState) return;
+      try {
+        await postTaskAction(`/tasks/pin/${taskContextState.id}`);
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to pin this task right now.');
+      } finally {
+        closeTaskContextMenu();
+      }
+    }
+
+    async function renameTaskFromMenu() {
+      if (!taskContextState) return;
+      const nextTitle = window.prompt('Rename task', taskContextState.title);
+      if (nextTitle === null) {
+        closeTaskContextMenu();
+        return;
+      }
+
+      try {
+        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
+          title: nextTitle,
+          description: taskContextState.description,
+          priority: taskContextState.priority,
+          list_id: taskContextState.listId
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to rename this task right now.');
+      } finally {
+        closeTaskContextMenu();
+      }
+    }
+
+    function openTaskNotesFromMenu() {
+      if (!taskContextState?.element) return;
+      closeTaskContextMenu();
+      openDetailFromTask(taskContextState.element, 'notes');
+    }
+
+    async function setTaskPriorityFromMenu(priority) {
+      if (!taskContextState) return;
+      try {
+        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
+          title: taskContextState.title,
+          description: taskContextState.description,
+          priority,
+          list_id: taskContextState.listId
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to update this task priority right now.');
+      } finally {
+        closeTaskContextMenu();
+      }
+    }
+
+    async function moveTaskToSelectedList() {
+      if (!taskContextState) return;
+      const listSelect = document.getElementById('task-context-list-select');
+      const nextListId = listSelect?.value ? Number(listSelect.value) : null;
+      if (!nextListId) return;
+
+      try {
+        await postTaskAction(`/tasks/update/${taskContextState.id}`, {
+          title: taskContextState.title,
+          description: taskContextState.description,
+          priority: taskContextState.priority,
+          list_id: nextListId
+        });
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'Unable to move this task right now.');
+      } finally {
+        closeTaskContextMenu();
+      }
+    }
+
+    function deleteTaskFromMenu() {
+      if (!taskContextState?.element) return;
+      if (!window.confirm(`Delete "${taskContextState.title}"?`)) {
+        closeTaskContextMenu();
+        return;
+      }
+
+      const taskId = taskContextState.id;
+      const item = taskContextState.element;
+      closeTaskContextMenu();
+      deleteTask(taskId, item);
+    }
 
     // ── FILTER TABS
     let currentFilter = 'all';
@@ -340,6 +880,24 @@
     }
 
     // ── QUICK ADD (JS fetch → /tasks/quick)
+    function focusQuickAdd() {
+      const inp = document.getElementById('quick-inp');
+      if (!inp) return;
+      inp.focus();
+      const valueLength = inp.value.length;
+      inp.setSelectionRange(valueLength, valueLength);
+    }
+
+    function handleQuickAddButtonClick() {
+      const inp = document.getElementById('quick-inp');
+      if (!inp) return;
+      if (inp.value.trim()) {
+        quickAdd();
+        return;
+      }
+      focusQuickAdd();
+    }
+
     function quickAdd() {
       const inp = document.getElementById('quick-inp');
       const val = inp.value.trim();
@@ -371,7 +929,15 @@
         const d = document.createElement('div');
         d.className = 'task-item';
         d.id = 'task-' + data.id;
-        d.onclick = function() { openDetail(data.id, val, ''); };
+        d.dataset.taskItem = '';
+        d.dataset.taskId = String(data.id);
+        d.dataset.taskTitle = val;
+        d.dataset.taskDescription = '';
+        d.dataset.taskPriority = 'medium';
+        d.dataset.taskListId = String(data.list_id || activeListId || '');
+        d.dataset.taskListName = activeListId ? activeListName : 'Inbox';
+        d.dataset.taskIsPinned = '0';
+        d.onclick = function() { openDetailFromTask(d); };
         d.innerHTML = `
           <div class="t-chk" onclick="event.stopPropagation();toggleTask(this,${data.id})"></div>
           <div class="t-body">
@@ -416,37 +982,63 @@
     }
 
     // ── DETAIL PANEL
-    function openDetail(taskId, title, notes) {
-      document.getElementById('dp-task-id').value = taskId;
-      document.getElementById('dp-title').value = title;
-      document.getElementById('dp-notes').value = notes || '';
+    function focusDetailField(fieldName) {
+      const target = fieldName === 'notes'
+        ? document.getElementById('dp-notes')
+        : document.getElementById('dp-title');
+      if (!target) return;
+      requestAnimationFrame(() => {
+        target.focus();
+        const valueLength = target.value.length;
+        if (typeof target.setSelectionRange === 'function') {
+          target.setSelectionRange(valueLength, valueLength);
+        }
+      });
+    }
+
+    function openDetail(taskData, focusField = 'title') {
+      document.getElementById('dp-task-id').value = taskData.id;
+      document.getElementById('dp-title').value = taskData.title || '';
+      document.getElementById('dp-notes').value = taskData.description || '';
+      document.getElementById('dp-priority').value = taskData.priority || 'medium';
+      document.getElementById('dp-list-select').value = taskData.listId ? String(taskData.listId) : '';
       document.getElementById('detail-panel').classList.add('open');
+      document.body.classList.add('task-detail-open');
+      focusDetailField(focusField);
+    }
+
+    function openDetailFromTask(taskItem, focusField = 'title') {
+      const taskData = readTaskState(taskItem);
+      if (!taskData) return;
+      openDetail(taskData, focusField);
     }
 
     function closeDetail() {
       document.getElementById('detail-panel').classList.remove('open');
+      document.body.classList.remove('task-detail-open');
     }
 
     function saveDetail() {
       const taskId = document.getElementById('dp-task-id').value;
       const title = document.getElementById('dp-title').value.trim();
       const notes = document.getElementById('dp-notes').value.trim();
+      const priority = document.getElementById('dp-priority').value;
+      const listId = document.getElementById('dp-list-select').value;
       if (!taskId || !title) return;
 
-      // Update title in the list visually
-      const item = document.getElementById('task-' + taskId);
-      if (item) {
-        const t = item.querySelector('.t-title');
-        if (t) t.textContent = title;
-      }
-
-      // Submit edit via form POST
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `/tasks/edit/${taskId}`;
-      form.innerHTML = `<input name="title" value="${title}"><input name="description" value="${notes}">`;
-      document.body.appendChild(form);
-      form.submit();
+      postTaskAction(`/tasks/update/${taskId}`, {
+        title,
+        description: notes,
+        priority,
+        list_id: listId
+      })
+      .then(() => {
+        closeDetail();
+        window.location.reload();
+      })
+      .catch((error) => {
+        alert(error.message || 'Unable to save this task right now.');
+      });
     }
 
     function deleteFromDetail() {
@@ -457,9 +1049,57 @@
       if (item) deleteTask(taskId, item);
     }
 
-    // Close detail panel on backdrop click
+    document.addEventListener('click', function(e) {
+      const panel = document.getElementById('detail-panel');
+      if (!panel.classList.contains('open')) return;
+      if (panel.contains(e.target)) return;
+      if (e.target.closest('.task-context-menu')) return;
+      if (e.target.closest('.task-item')) return;
+      if (e.target.closest('.ta-btn')) return;
+      if (e.target.closest('.t-chk')) return;
+      closeDetail();
+    });
+
+    document.addEventListener('click', function(e) {
+      const menu = document.getElementById('list-context-menu');
+      if (!menu || !menu.classList.contains('open')) return;
+      if (menu.contains(e.target)) return;
+      closeListContextMenu();
+    });
+
+    document.addEventListener('click', function(e) {
+      const menu = document.getElementById('task-context-menu');
+      if (!menu || !menu.classList.contains('open')) return;
+      if (menu.contains(e.target)) return;
+      closeTaskContextMenu();
+    });
+
+    document.addEventListener('contextmenu', function(e) {
+      const listLink = e.target.closest('[data-list-link]');
+      if (listLink) {
+        openListContextMenu(
+          e,
+          Number(listLink.dataset.listId),
+          listLink.dataset.listName || '',
+          listLink.dataset.listIsPinned === '1'
+        );
+        return;
+      }
+      const taskItem = e.target.closest('[data-task-item]');
+      if (taskItem) {
+        openTaskContextMenu(e, taskItem);
+        return;
+      }
+      closeTaskContextMenu();
+      closeListContextMenu();
+    });
+
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeDetail();
+      if (e.key === 'Escape') {
+        closeDetail();
+        closeListContextMenu();
+        closeTaskContextMenu();
+      }
     });
   </script>
 
