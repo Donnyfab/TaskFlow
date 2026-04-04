@@ -288,6 +288,43 @@ def get_db_pool():
     return db_pool
 
 
+def create_db_connection():
+    return mysql.connector.connect(**DB_CONFIG)
+
+
+def close_db_connection_quietly(db):
+    if db is None:
+        return
+    try:
+        db.close()
+    except mysql.connector.Error:
+        app.logger.warning("Failed to close MySQL connection cleanly.", exc_info=True)
+
+
+def discard_db_connection_quietly(db):
+    if db is None:
+        return
+    try:
+        db.disconnect()
+    except mysql.connector.Error:
+        app.logger.warning("Failed to disconnect stale MySQL connection cleanly.", exc_info=True)
+    close_db_connection_quietly(db)
+
+
+def ensure_db_connection_ready(db, source: str):
+    try:
+        db.ping(reconnect=True, attempts=1, delay=0)
+        return db
+    except mysql.connector.Error:
+        discard_db_connection_quietly(db)
+        app.logger.warning(
+            "MySQL %s connection was stale or unavailable during request setup.",
+            source,
+            exc_info=True,
+        )
+        raise
+
+
 def initialize_db_pool():
     global db_pool, db_pool_initialized
 
@@ -324,12 +361,17 @@ def get_db():
         pool = get_db_pool()
         if pool is not None:
             try:
-                g.db = pool.get_connection()
+                g.db = ensure_db_connection_ready(pool.get_connection(), "pooled")
             except mysql.connector.Error:
                 app.logger.exception("MySQL pooled connection failed; falling back to direct connection.")
-                g.db = mysql.connector.connect(**DB_CONFIG)
+                g.db = ensure_db_connection_ready(create_db_connection(), "direct")
         else:
-            g.db = mysql.connector.connect(**DB_CONFIG)
+            g.db = ensure_db_connection_ready(create_db_connection(), "direct")
+    else:
+        try:
+            ensure_db_connection_ready(g.db, "request")
+        except mysql.connector.Error:
+            g.db = ensure_db_connection_ready(create_db_connection(), "direct")
     return g.db
 
 
@@ -341,7 +383,7 @@ def close_db(error=None):
     """
     db = g.pop("db", None)
     if db is not None:
-        db.close()
+        close_db_connection_quietly(db)
 
 
 initialize_db_pool()
