@@ -42,6 +42,11 @@ from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
 # Load environment variables from .env FIRST (so os.environ works)
 load_dotenv()
 
+DB_CONNECT_TIMEOUT = max(1, int(os.environ.get("DB_CONNECT_TIMEOUT", "10")))
+DB_USE_POOL = os.environ.get("DB_USE_POOL", "").strip().lower() in {"1", "true", "yes", "on"}
+DB_CONNECT_RETRIES = max(1, int(os.environ.get("DB_CONNECT_RETRIES", "5")))
+DB_CONNECT_RETRY_DELAY = max(0.0, float(os.environ.get("DB_CONNECT_RETRY_DELAY", "2")))
+
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
     "port": int(os.environ.get("DB_PORT", 3306)),
@@ -49,6 +54,7 @@ DB_CONFIG = {
     "password": os.environ.get("DB_PASSWORD", ""),
     "database": os.environ.get("DB_NAME", "todo_list"),
     "autocommit": True,
+    "connection_timeout": DB_CONNECT_TIMEOUT,
 }
 
 DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 5)))
@@ -285,11 +291,40 @@ def inject_auth_flags():
 # ============================================================
 
 def get_db_pool():
+    if not DB_USE_POOL:
+        return None
+    if db_pool is None and not db_pool_initialized:
+        return initialize_db_pool()
     return db_pool
 
 
-def create_db_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+def reset_db_pool():
+    global db_pool, db_pool_initialized
+    db_pool = None
+    db_pool_initialized = False
+
+
+def create_db_connection(source: str = "direct"):
+    last_error = None
+
+    for attempt in range(1, DB_CONNECT_RETRIES + 1):
+        try:
+            db = mysql.connector.connect(**DB_CONFIG)
+            db.ping(reconnect=True, attempts=1, delay=0)
+            return db
+        except mysql.connector.Error as exc:
+            last_error = exc
+            app.logger.warning(
+                "MySQL %s connection attempt %s/%s failed.",
+                source,
+                attempt,
+                DB_CONNECT_RETRIES,
+                exc_info=True,
+            )
+            if attempt < DB_CONNECT_RETRIES and DB_CONNECT_RETRY_DELAY > 0:
+                time.sleep(DB_CONNECT_RETRY_DELAY)
+
+    raise last_error
 
 
 def close_db_connection_quietly(db):
@@ -331,7 +366,11 @@ def initialize_db_pool():
     if db_pool_initialized:
         return db_pool
 
-    db_pool_initialized = True
+    if not DB_USE_POOL:
+        db_pool = None
+        db_pool_initialized = True
+        app.logger.warning("[STARTUP] MySQL connection pooling disabled; using direct connections.")
+        return db_pool
 
     try:
         db_pool = MySQLConnectionPool(
@@ -340,12 +379,14 @@ def initialize_db_pool():
             pool_reset_session=True,
             **DB_CONFIG,
         )
+        db_pool_initialized = True
         app.logger.warning(
             "[STARTUP] MySQL connection pool initialized successfully (size=%s).",
             DB_POOL_SIZE,
         )
     except mysql.connector.Error:
         db_pool = None
+        db_pool_initialized = False
         app.logger.exception(
             "[STARTUP] MySQL connection pool initialization failed; falling back to direct connections."
         )
@@ -363,15 +404,16 @@ def get_db():
             try:
                 g.db = ensure_db_connection_ready(pool.get_connection(), "pooled")
             except mysql.connector.Error:
+                reset_db_pool()
                 app.logger.exception("MySQL pooled connection failed; falling back to direct connection.")
-                g.db = ensure_db_connection_ready(create_db_connection(), "direct")
+                g.db = ensure_db_connection_ready(create_db_connection("direct fallback"), "direct")
         else:
             g.db = ensure_db_connection_ready(create_db_connection(), "direct")
     else:
         try:
             ensure_db_connection_ready(g.db, "request")
         except mysql.connector.Error:
-            g.db = ensure_db_connection_ready(create_db_connection(), "direct")
+            g.db = ensure_db_connection_ready(create_db_connection("direct retry"), "direct")
     return g.db
 
 
