@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import ConditionalSidebar from '@/components/ConditionalSidebar'
-import AIWidget from '@/components/AIWidget'
 
 export const metadata: Metadata = {
   title: 'TaskFlow',
@@ -17,9 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
         color: '#fff',
       }}>
-        <ConditionalSidebar />
         {children}
-        <AIWidget />
       </body>
     </html>
   )
