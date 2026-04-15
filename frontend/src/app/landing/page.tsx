@@ -312,6 +312,15 @@ export default function LandingPage() {
         .section-h2-lg { font-size:38px; font-weight:800; line-height:1.08; letter-spacing:-1.5px; }
         .bento-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
         .bento-span2 { grid-column:span 2; }
+        .landing-marketing { width:100%; }
+        .landing-marketing section, .landing-marketing footer { width:100%; }
+        .marketing-frame { width:min(100%,1280px); margin:0 auto; }
+        .marketing-flow { width:min(100%,1080px); margin:0 auto; }
+        .marketing-bento { width:min(100%,1120px); margin:0 auto; }
+        .marketing-split { width:min(100%,1100px); margin:0 auto; }
+        .marketing-compare { width:min(100%,1120px); margin:0 auto; }
+        .marketing-narrow-900 { width:min(100%,900px); margin:0 auto; }
+        .marketing-narrow-860 { width:min(100%,860px); margin:0 auto; }
         @media(max-width:768px) {
           .hero { padding:calc(var(--header-height) + 24px) 20px 48px; }
           .hero h1 { font-size:clamp(28px,7vw,40px); letter-spacing:-1px; }
@@ -326,6 +335,7 @@ export default function LandingPage() {
           .bento-grid { grid-template-columns:1fr!important; }
           .bento-span2 { grid-column:span 1!important; }
           .stats-bar { grid-template-columns:1fr 1fr!important; }
+          .marketing-flow, .marketing-bento, .marketing-split, .marketing-compare, .marketing-narrow-900, .marketing-narrow-860 { width:100%; }
         }
       `}</style>
 
@@ -490,15 +500,15 @@ export default function LandingPage() {
         <div className="feature-pill"><div className="pill-check">✓</div> AI Life Coach</div>
       </div>
 
-      <div dangerouslySetInnerHTML={{ __html: landingSectionsHtml }} />
+      <div className="landing-marketing" dangerouslySetInnerHTML={{ __html: landingSectionsHtml }} />
     </>
   )
 }
 
 const landingSectionsHtml = `
 <section class="w-full px-6 md:px-[56px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
-    <div>
+  <div class="marketing-frame max-w-[1280px] mx-auto">
+    <div class="marketing-flow">
       <div class="hiw-step">
         <div class="hiw-num"><div class="hiw-circle">01</div><div class="hiw-vline"></div></div>
         <div class="hiw-text">
@@ -613,7 +623,7 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
+  <div class="marketing-frame max-w-[1280px] mx-auto">
     <div class="text-center mb-14">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">Built different</p>
       <h2 class="section-h2-lg text-[38px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
@@ -625,7 +635,7 @@ const landingSectionsHtml = `
       </p>
     </div>
 
-    <div class="bento-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+    <div class="bento-grid marketing-bento" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
       <div class="bento-span2" style="grid-column:span 2; background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
         <div style="padding:22px 22px 16px;">
           <p style="font-size:10px; font-weight:500; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Daily Growth Score</p>
@@ -738,7 +748,7 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
+  <div class="marketing-frame max-w-[1280px] mx-auto">
     <div class="text-center mb-14">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">Real people. Real results.</p>
       <h2 class="section-h2-lg text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
@@ -750,7 +760,7 @@ const landingSectionsHtml = `
       </p>
     </div>
 
-    <div class="max-w-[860px] mx-auto mb-10 bg-[#111] border border-white/9 rounded-[20px] px-6 md:px-11 py-8 md:py-10 relative overflow-hidden">
+    <div class="marketing-narrow-860 max-w-[860px] mx-auto mb-10 bg-[#111] border border-white/9 rounded-[20px] px-6 md:px-11 py-8 md:py-10 relative overflow-hidden">
       <div class="absolute top-[-20px] left-8 text-[160px] font-bold text-white/[0.03] leading-none pointer-events-none select-none">"</div>
       <p class="text-[22px] font-bold leading-[1.45] text-white/88 mb-7 max-w-[680px] relative z-10" style="letter-spacing:-0.5px;">
         "I've tried every productivity app out there. Taskflow is the <span class="text-white">first one that actually feels like it's on my side.</span> The AI knows when I'm slipping before I do."
@@ -765,7 +775,7 @@ const landingSectionsHtml = `
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-[860px] mx-auto mb-10">
+    <div class="marketing-narrow-860 grid grid-cols-1 md:grid-cols-3 gap-3 max-w-[860px] mx-auto mb-10">
       <div class="bg-[#111] border border-white/7 rounded-2xl p-5 hover:border-white/14 transition-colors">
         <div class="text-white/50 text-xs mb-3">★★★★★</div>
         <p class="text-sm text-white/60 leading-relaxed mb-4">"The NoFap tracker alone is worth it. <strong class="text-white/82 font-medium">I couldn't find anything free like this anywhere.</strong> 47 days clean and counting."</p>
@@ -821,7 +831,7 @@ const landingSectionsHtml = `
       </div>
     </div>
 
-    <div class="stats-bar max-w-[860px] mx-auto grid grid-cols-2 md:grid-cols-4 bg-[#111] border border-white/7 rounded-2xl overflow-hidden">
+    <div class="marketing-narrow-860 stats-bar max-w-[860px] mx-auto grid grid-cols-2 md:grid-cols-4 bg-[#111] border border-white/7 rounded-2xl overflow-hidden">
       <div class="px-6 py-6 text-center border-r border-white/7">
         <div class="text-[28px] font-bold text-white/90 mb-1" style="letter-spacing:-1px;">2,000+</div>
         <div class="text-xs text-white/30">People signed up</div>
@@ -843,7 +853,7 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
+  <div class="marketing-frame max-w-[1280px] mx-auto">
     <div class="flex items-end justify-between gap-10 mb-10 flex-wrap">
       <div>
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">The math is simple</p>
@@ -862,7 +872,7 @@ const landingSectionsHtml = `
       </div>
     </div>
 
-    <div class="comp-table-scroll hidden md:block">
+    <div class="marketing-compare comp-table-scroll hidden md:block">
       <div class="comp-table-inner border border-white/8 rounded-2xl overflow-hidden">
         <div class="grid border-b border-white/7 bg-white/[0.03]" style="grid-template-columns: 1fr 140px 140px;">
           <div class="px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-white/30">Feature</div>
@@ -1052,8 +1062,8 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full bg-[#0A0A0A] text-white border-b border-white/5">
-  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+  <div class="marketing-frame max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
+    <div class="marketing-split grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
       <div class="flex flex-col">
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-4">Ready when you are</p>
         <h2 class="section-h2-lg text-[42px] font-bold leading-[1.08] mb-5" style="letter-spacing:-1.5px;">
@@ -1116,8 +1126,8 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+  <div class="marketing-frame max-w-[1280px] mx-auto px-6 md:px-[56px] py-16 md:py-[100px]">
+    <div class="marketing-split grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
       <div class="flex flex-col">
         <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-4">Stay in the loop</p>
         <h2 class="section-h2-lg text-[36px] font-bold leading-[1.1] mb-4" style="letter-spacing:-1.5px;">
@@ -1162,7 +1172,7 @@ const landingSectionsHtml = `
 </section>
 
 <section class="w-full px-6 md:px-[64px] py-16 md:py-[112px] bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
+  <div class="marketing-frame max-w-[1280px] mx-auto">
     <div class="text-center mb-12">
       <p class="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-3">FAQ</p>
       <h2 class="section-h2-lg text-[38px] font-bold leading-[1.08] mb-4" style="letter-spacing:-1.5px;">
@@ -1182,7 +1192,7 @@ const landingSectionsHtml = `
       <button class="bg-white/[0.04] border border-white/[0.08] text-white/40 rounded-full px-4 py-1.5 text-xs cursor-pointer hover:text-white/65 transition">Getting started</button>
     </div>
 
-    <div class="max-w-[900px] mx-auto mb-14">
+    <div class="marketing-narrow-900 max-w-[900px] mx-auto mb-14">
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)">
           <div class="faq-q-text">Is Taskflow actually free?</div>
@@ -1264,7 +1274,7 @@ const landingSectionsHtml = `
       </div>
     </div>
 
-    <div class="max-w-[900px] mx-auto bg-[#111] border border-white/[0.07] rounded-2xl px-5 md:px-9 py-6 md:py-8 flex items-center justify-between gap-6 flex-wrap">
+    <div class="marketing-narrow-900 max-w-[900px] mx-auto bg-[#111] border border-white/[0.07] rounded-2xl px-5 md:px-9 py-6 md:py-8 flex items-center justify-between gap-6 flex-wrap">
       <div>
         <div class="text-sm font-bold text-white/85 mb-1">Still have questions?</div>
         <div class="text-xs text-white/35">We're real people — reach out and we'll get back to you fast.</div>
@@ -1278,7 +1288,7 @@ const landingSectionsHtml = `
 </section>
 
 <footer class="w-full border-t border-white/[0.07] px-6 md:px-[56px] pt-16 pb-10 bg-[#0A0A0A] text-white">
-  <div class="max-w-[1280px] mx-auto">
+  <div class="marketing-frame max-w-[1280px] mx-auto">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-14">
       <div class="flex flex-col gap-4 md:col-span-2">
         <a href="/" class="flex items-center gap-2 text-white/90 font-bold text-base w-fit">
