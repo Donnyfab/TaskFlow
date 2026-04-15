@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     if (session) {
       return NextResponse.redirect(new URL('/home', request.url))
     }
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    return NextResponse.next()
   }
 
   // Redirect logged-in users away from auth pages

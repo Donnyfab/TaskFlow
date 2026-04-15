@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import LandingPage from './landing/page'
 
 export default function RootPage() {
-  redirect('/auth/login')
+  return <LandingPage />
 }
