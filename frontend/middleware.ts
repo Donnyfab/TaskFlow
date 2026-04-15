@@ -8,14 +8,6 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const session = request.cookies.get('taskflow_session')
 
-  // Redirect root
-  if (pathname === '/') {
-    if (session) {
-      return NextResponse.redirect(new URL('/home', request.url))
-    }
-    return NextResponse.redirect(new URL('/auth/login', request.url))
-  }
-
   // Redirect logged-in users away from auth pages
   if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
     if (session) {
@@ -35,5 +27,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/auth/:path*'],
+  matcher: ['/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/auth/:path*'],
 }
