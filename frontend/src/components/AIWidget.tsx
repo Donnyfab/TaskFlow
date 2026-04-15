@@ -24,7 +24,11 @@ export default function AIWidget() {
   const dragRef     = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
 
   const activePage = pathname?.split('/')[1] || 'app'
-  const hidden = pathname?.startsWith('/auth') || pathname?.startsWith('/ai')
+  const hidden =
+    pathname === '/' ||
+    pathname?.startsWith('/auth') ||
+    pathname?.startsWith('/ai') ||
+    pathname?.startsWith('/landing')
 
   useEffect(() => {
     if (hidden) return
