@@ -4,6 +4,6 @@ import Sidebar from './Sidebar'
 
 export default function ConditionalSidebar() {
   const pathname = usePathname()
-  if (pathname === '/' || pathname.startsWith('/auth')) return null
+  if (pathname.startsWith('/auth')) return null
   return <Sidebar />
 }
