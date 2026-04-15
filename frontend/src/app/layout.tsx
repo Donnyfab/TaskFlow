@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import ConditionalSidebar from '@/components/ConditionalSidebar'
 import AIWidget from '@/components/AIWidget'
+import ConditionalMain from '@/components/ConditionalMain'
 
 export const metadata: Metadata = {
   title: 'TaskFlow',
@@ -20,9 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         color: '#fff',
       }}>
         <ConditionalSidebar />
-        <main style={{ flex: 1, overflowY: 'auto', minHeight: '100vh', minWidth: 0 }}>
-          {children}
-        </main>
+        <ConditionalMain>{children}</ConditionalMain>
         <AIWidget />
       </body>
     </html>
