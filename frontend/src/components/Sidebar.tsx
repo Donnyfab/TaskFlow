@@ -2,8 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 const sections = [
   {
@@ -38,7 +37,7 @@ export default function Sidebar() {
   const [profileOpen, setProfileOpen] = useState(false)
 
   useEffect(() => {
-    fetch(`${API}/api/me`, { credentials: 'include' })
+    fetch(apiUrl('/api/me'), { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setUser(d) })
       .catch(() => {})
@@ -132,7 +131,7 @@ export default function Sidebar() {
             fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', flexShrink: 0, overflow: 'hidden',
           }}>
             {user?.profile_image
-              ? <img src={`${API}${user.profile_image}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+              ? <img src={apiUrl(user.profile_image)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
               : initials}
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -170,7 +169,7 @@ export default function Sidebar() {
               ))}
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 0' }}/>
               <button onClick={async () => {
-                await fetch(`${API}/api/logout`, { method: 'POST', credentials: 'include' })
+                await fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' })
                 window.location.href = '/auth/login'
               }} style={{
                 display: 'block', width: '100%', padding: '9px 12px', fontSize: '13px',

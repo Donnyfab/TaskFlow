@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface UserData {
   name: string; username: string; email: string
@@ -59,7 +58,7 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    fetch(`${API}/api/settings/data`, { credentials: 'include' })
+    fetch(apiUrl('/api/settings/data'), { credentials: 'include' })
       .then(r => r.json()).then(d => {
         setData(d); setFullName(d.name || '')
       }).catch(() => {})
@@ -68,7 +67,7 @@ export default function SettingsPage() {
   async function saveName() {
     if (!fullName.trim()) return
     setSaving(true)
-    await fetch(`${API}/api/settings/update-name`, {
+    await fetch(apiUrl('/api/settings/update-name'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_name: fullName })
@@ -79,20 +78,20 @@ export default function SettingsPage() {
 
   async function clearMemory() {
     if (modalInput.trim() !== 'CLEAR') { setModalError(true); return }
-    await fetch(`${API}/api/settings/clear-ai-memory`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl('/api/settings/clear-ai-memory'), { method: 'POST', credentials: 'include' })
     setModal('none'); setModalInput(''); fireToast('AI memory cleared')
   }
 
   async function deleteData() {
     if (modalInput.trim() !== 'DELETE') { setModalError(true); return }
-    await fetch(`${API}/api/settings/delete-data`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl('/api/settings/delete-data'), { method: 'POST', credentials: 'include' })
     setModal('none'); setModalInput(''); fireToast('All data deleted')
   }
 
   async function deleteAccount() {
     if (modalInput.trim() !== 'DELETE') { setModalError(true); return }
-    await fetch(`${API}/api/settings/delete-account`, { method: 'POST', credentials: 'include' })
-    window.location.href = `${API}/logout`
+    await fetch(apiUrl('/api/settings/delete-account'), { method: 'POST', credentials: 'include' })
+    window.location.href = apiUrl('/logout')
   }
 
   const initials = data?.username ? data.username.slice(0, 2).toUpperCase() : 'TF'
@@ -138,14 +137,14 @@ export default function SettingsPage() {
               <div style={{ display:'flex', alignItems:'center', gap:'16px', marginBottom:'28px', padding:'18px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'12px', flexWrap:'wrap' }}>
                 <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:700, color:'rgba(255,255,255,0.6)', flexShrink:0, overflow:'hidden' }}>
                   {data?.profile_image
-                    ? <img src={`${API}${data.profile_image}`} alt="Profile" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                    ? <img src={apiUrl(data.profile_image)} alt="Profile" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
                     : initials}
                 </div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:'14px', fontWeight:600, color:'rgba(255,255,255,0.85)', marginBottom:'2px' }}>{data?.name || data?.username}</div>
                   <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.32)' }}>{data?.email}</div>
                 </div>
-                <a href={`${API}/upload_profile`} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'7px', padding:'6px 12px', fontSize:'11px', color:'rgba(255,255,255,0.5)', cursor:'pointer', textDecoration:'none' }}>Change photo</a>
+                <a href={apiUrl('/upload_profile')} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'7px', padding:'6px 12px', fontSize:'11px', color:'rgba(255,255,255,0.5)', cursor:'pointer', textDecoration:'none' }}>Change photo</a>
               </div>
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'16px' }}>

@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface CalEvent { id: number; title: string; date: string; time: string; category: string; color: string }
 interface Task { id: number; title: string }
@@ -58,7 +57,7 @@ export default function CalendarPage() {
   const [syncMsg, setSyncMsg]     = useState('')
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`${API}/api/calendar/data`, { credentials: 'include' })
+    const res = await fetch(apiUrl('/api/calendar/data'), { credentials: 'include' })
     if (!res.ok) return
     const d: Data = await res.json()
     setData(d)
@@ -80,7 +79,7 @@ export default function CalendarPage() {
   async function createEvent() {
     if (!evTitle.trim() || !evDate) return
     setSaving(true)
-    const res = await fetch(`${API}/api/calendar/events/create`, {
+    const res = await fetch(apiUrl('/api/calendar/events/create'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: evTitle, date: evDate, time: evTime, category: evCat, color: evColor })
@@ -106,14 +105,14 @@ export default function CalendarPage() {
       arr.splice(idx, 1)
       return { ...prev, [key]: arr }
     })
-    await fetch(`${API}/api/calendar/events/${ev.id}/delete`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl(`/api/calendar/events/${ev.id}/delete`), { method: 'POST', credentials: 'include' })
   }
 
   async function syncGoogle() {
     setSyncing(true)
     setSyncMsg('Syncing...')
     try {
-      const res = await fetch(`${API}/calendar/sync-google`, { method: 'POST', credentials: 'include' })
+      const res = await fetch(apiUrl('/calendar/sync-google'), { method: 'POST', credentials: 'include' })
       const d = await res.json()
       if (d.ok) {
         setSyncMsg(`✓ ${d.imported} imported`)

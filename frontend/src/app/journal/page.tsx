@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface Entry { id: number; title: string; preview: string; word_count: number; time_label: string; content: string }
 
@@ -42,7 +41,7 @@ export default function JournalPage() {
   }
 
   const fetchEntries = useCallback(async () => {
-    const res = await fetch(`${API}/api/journal/entries`, { credentials: 'include' })
+    const res = await fetch(apiUrl('/api/journal/entries'), { credentials: 'include' })
     if (!res.ok) return
     const d = await res.json()
     setEntries(d.entries)
@@ -59,7 +58,7 @@ export default function JournalPage() {
       const cur = activeRef.current
       const txt = contentRef.current
       if (!cur || !txt.trim()) return
-      await fetch(`${API}/api/journal/save/${cur.id}`, {
+      await fetch(apiUrl(`/api/journal/save/${cur.id}`), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: txt })
@@ -78,7 +77,7 @@ export default function JournalPage() {
   })
 
   async function newEntry() {
-    const res = await fetch(`${API}/api/journal/new`, { method: 'POST', credentials: 'include' })
+    const res = await fetch(apiUrl('/api/journal/new'), { method: 'POST', credentials: 'include' })
     const d = await res.json()
     const entry: Entry = { id: d.id, title: d.title, preview: '', word_count: 0, time_label: '', content: '' }
     setEntries(prev => [entry, ...prev])
@@ -98,7 +97,7 @@ export default function JournalPage() {
   async function saveEntry() {
     if (!active) return
     setSaving(true)
-    await fetch(`${API}/api/journal/save/${active.id}`, {
+    await fetch(apiUrl(`/api/journal/save/${active.id}`), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
@@ -113,7 +112,7 @@ export default function JournalPage() {
     setAiLoading(true)
     setAiInsight('')
     try {
-      const res = await fetch(`${API}/ai/journal-insight`, {
+      const res = await fetch(apiUrl('/ai/journal-insight'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })

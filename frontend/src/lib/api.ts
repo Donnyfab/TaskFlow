@@ -1,7 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import { apiUrl } from '@/lib/api-base'
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(apiUrl(path), {
     ...options,
     credentials: 'include',
     headers: {

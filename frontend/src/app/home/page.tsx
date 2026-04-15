@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { apiUrl } from '@/lib/api-base'
 
 interface HomeData {
   greeting: string
@@ -26,8 +27,6 @@ interface HomeData {
   active_days: number[]
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-
 export default function HomePage() {
   const [data, setData]               = useState<HomeData | null>(null)
   const [showBanner, setShowBanner]   = useState(true)
@@ -40,7 +39,7 @@ export default function HomePage() {
   const [planLoading, setPlanLoading] = useState(false)
 
   useEffect(() => {
-    fetch(`${API}/api/home`, { credentials: 'include' })
+    fetch(apiUrl('/api/home'), { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         setData(d)
@@ -52,19 +51,19 @@ export default function HomePage() {
 
   async function toggleTask(id: number) {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
-    await fetch(`${API}/tasks/toggle/${id}`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl(`/tasks/toggle/${id}`), { method: 'POST', credentials: 'include' })
   }
 
   async function toggleHabit(id: number) {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, completed_today: !h.completed_today } : h))
-    await fetch(`${API}/habits/${id}/toggle`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl(`/habits/${id}/toggle`), { method: 'POST', credentials: 'include' })
   }
 
   async function addQuickTask() {
     if (!taskInput.trim()) return
     const val = taskInput.trim()
     setTaskInput('')
-    const res = await fetch(`${API}/tasks/quick`, {
+    const res = await fetch(apiUrl('/tasks/quick'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: val })
@@ -74,7 +73,7 @@ export default function HomePage() {
   }
 
   async function saveJournal() {
-    await fetch(`${API}/journal/quick`, {
+    await fetch(apiUrl('/journal/quick'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: journalText })
@@ -86,7 +85,7 @@ export default function HomePage() {
     setPlanLoading(true)
     setPlanText('Generating your personalized plan...')
     try {
-      const res = await fetch(`${API}/ai/plan`, { method: 'POST', credentials: 'include' })
+      const res = await fetch(apiUrl('/ai/plan'), { method: 'POST', credentials: 'include' })
       const d = await res.json()
       setPlanText(d.plan)
     } catch {

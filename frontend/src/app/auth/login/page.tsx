@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,7 +15,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/login`, {
+      const res = await fetch(apiUrl('/api/login'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -123,7 +122,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <a href={`${API}/accountreset`} style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'right', textDecoration: 'none', marginTop: '-4px' }}>
+            <a href={apiUrl('/accountreset')} style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'right', textDecoration: 'none', marginTop: '-4px' }}>
               Forgot password?
             </a>
 
@@ -150,7 +149,7 @@ export default function LoginPage() {
           </div>
 
           {/* Google */}
-          <a href={`${API}/login/google`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '9px', padding: '11px', width: '100%', fontSize: '13px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', boxSizing: 'border-box' }}>
+          <a href={apiUrl('/login/google')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '9px', padding: '11px', width: '100%', fontSize: '13px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', boxSizing: 'border-box' }}>
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -162,7 +161,7 @@ export default function LoginPage() {
 
           <div style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '20px' }}>
             Don't have an account?{' '}
-            <a href={`${API}/register`} style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontWeight: 500 }}>
+            <a href={apiUrl('/register')} style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontWeight: 500 }}>
               Sign up free
             </a>
           </div>

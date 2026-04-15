@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -19,7 +18,7 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch(`${API}/register`, {
+      const res = await fetch(apiUrl('/register'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -155,8 +154,8 @@ export default function RegisterPage() {
 
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.22)', textAlign: 'center', marginTop: '12px', lineHeight: 1.6 }}>
             By signing up you agree to our{' '}
-            <a href={`${API}/terms`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>Terms</a>{' '}and{' '}
-            <a href={`${API}/privacy`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>Privacy Policy</a>.
+            <a href={apiUrl('/terms')} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>Terms</a>{' '}and{' '}
+            <a href={apiUrl('/privacy')} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'underline' }}>Privacy Policy</a>.
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
@@ -165,7 +164,7 @@ export default function RegisterPage() {
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }}/>
           </div>
 
-          <a href={`${API}/login/google`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '9px', padding: '11px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginBottom: '8px' }}>
+          <a href={apiUrl('/login/google')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '9px', padding: '11px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginBottom: '8px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

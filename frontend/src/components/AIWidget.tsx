@@ -1,8 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface Message { role: 'user' | 'ai'; text: string; time?: string }
 interface ActionCard { id: number; title: string; confirmation_text: string }
@@ -105,14 +104,14 @@ export default function AIWidget() {
     try {
       let tid = threadId
       if (!tid) {
-        const tRes = await fetch(`${API}/ai/threads/create`, {
+        const tRes = await fetch(apiUrl('/ai/threads/create'), {
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json' }, body: '{}'
         })
         const tData = await tRes.json()
         if (tData.ok && tData.thread) { tid = tData.thread.id; setThreadId(tid) }
       }
-      const res = await fetch(`${API}/ai/chat`, {
+      const res = await fetch(apiUrl('/ai/chat'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -140,7 +139,7 @@ export default function AIWidget() {
     setActionStatus(prev => ({ ...prev, [actionId]: decision === 'confirm' ? 'Applying...' : 'Clearing...' }))
     setResolvedActions(prev => new Set([...prev, actionId]))
     try {
-      const res = await fetch(`${API}/ai/actions/${actionId}/${decision}`, {
+      const res = await fetch(apiUrl(`/ai/actions/${actionId}/${decision}`), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thread_id: threadId })

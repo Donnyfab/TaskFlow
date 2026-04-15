@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface Message { role: 'user' | 'assistant'; content: string; timeLabel?: string }
 interface ActionCard { id: number; title: string; confirmation_text: string; type?: string }
@@ -49,7 +48,7 @@ export default function AIPage() {
   historyRef.current = messages
 
   useEffect(() => {
-    fetch(`${API}/api/me`, { credentials: 'include' }).then(r => r.json()).then(d => {
+    fetch(apiUrl('/api/me'), { credentials: 'include' }).then(r => r.json()).then(d => {
       if (d.name) {
         const parts = d.name.split(' ')
         setUserInitials(parts.length >= 2 ? parts[0][0] + parts[parts.length-1][0] : d.name.slice(0,2).toUpperCase())
@@ -63,8 +62,8 @@ export default function AIPage() {
   async function fetchSidebar() {
     try {
       const [tRes, pRes] = await Promise.all([
-        fetch(`${API}/ai/threads/create`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-        fetch(`${API}/ai/projects/create`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{"name":"__list__"}' }),
+        fetch(apiUrl('/ai/threads/create'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+        fetch(apiUrl('/ai/projects/create'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{"name":"__list__"}' }),
       ])
     } catch {}
     // Just load existing threads via the chat endpoint on first message
@@ -83,7 +82,7 @@ export default function AIPage() {
     const history = [...historyRef.current, userMsg].map(m => ({ role: m.role, content: m.content }))
 
     try {
-      const res = await fetch(`${API}/ai/chat`, {
+      const res = await fetch(apiUrl('/ai/chat'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT, active_page: 'ai', persist_chat: true, thread_id: threadId, project_id: projectId })
@@ -110,7 +109,7 @@ export default function AIPage() {
   async function resolveAction(actionId: number, decision: 'confirm' | 'cancel') {
     setActionStatus(prev => ({ ...prev, [actionId]: decision === 'confirm' ? 'Applying...' : 'Clearing...' }))
     try {
-      const res = await fetch(`${API}/ai/actions/${actionId}/${decision}`, {
+      const res = await fetch(apiUrl(`/ai/actions/${actionId}/${decision}`), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thread_id: threadId })
@@ -128,7 +127,7 @@ export default function AIPage() {
   async function createProject() {
     if (!newProjectName.trim()) return
     try {
-      const res = await fetch(`${API}/ai/projects/create`, {
+      const res = await fetch(apiUrl('/ai/projects/create'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newProjectName, description: newProjectDesc })

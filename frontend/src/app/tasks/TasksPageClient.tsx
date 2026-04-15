@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface Task {
   id: number; title: string; completed: boolean; priority: string
@@ -43,7 +42,7 @@ export default function TasksPageClient() {
   const detailRef = useRef<HTMLDivElement>(null)
 
   async function fetchData(lid: number | null) {
-    const url = lid ? `${API}/api/tasks/data?list_id=${lid}` : `${API}/api/tasks/data`
+    const url = lid ? apiUrl(`/api/tasks/data?list_id=${lid}`) : apiUrl('/api/tasks/data')
     const res = await fetch(url, { credentials:'include' })
     if (!res.ok) return null
     return res.json() as Promise<Data>
@@ -75,7 +74,7 @@ export default function TasksPageClient() {
     setNewTask('')
     const temp: Task = { id: Date.now(), title, completed:false, priority:'medium', list_id:listId, list_name:'Task', pinned:false, description:'' }
     setTasks(prev => [temp, ...prev])
-    const res = await fetch(`${API}/tasks/quick`, {
+    const res = await fetch(apiUrl('/tasks/quick'), {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ title, list_id: listId })
@@ -87,20 +86,20 @@ export default function TasksPageClient() {
 
   async function toggleTask(id: number) {
     setTasks(prev => prev.map(t => t.id === id ? {...t, completed:!t.completed} : t))
-    await fetch(`${API}/tasks/toggle/${id}`, { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} })
+    await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} })
   }
 
   async function deleteTask(id: number) {
     setTasks(prev => prev.filter(t => t.id !== id))
     if (detail?.id === id) setDetail(null)
-    await fetch(`${API}/tasks/delete/${id}`, { method:'POST', credentials:'include' })
+    await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' })
   }
 
   async function addList() {
     if (!newList.trim()) return
     const name = newList.trim()
     setNewList('')
-    const res = await fetch(`${API}/lists/create`, {
+    const res = await fetch(apiUrl('/lists/create'), {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body: `name=${encodeURIComponent(name)}`
@@ -122,7 +121,7 @@ export default function TasksPageClient() {
 
   async function saveDetail() {
     if (!detail) return
-    const res = await fetch(`${API}/tasks/update/${detail.id}`, {
+    const res = await fetch(apiUrl(`/tasks/update/${detail.id}`), {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'},
       body: JSON.stringify({ title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId })

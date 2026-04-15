@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 
 interface Habit {
   id: number; name: string; icon: string; frequency: string
@@ -27,7 +26,7 @@ export default function HabitsPage() {
   const [saving, setSaving]   = useState(false)
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`${API}/api/habits/data`, { credentials: 'include' })
+    const res = await fetch(apiUrl('/api/habits/data'), { credentials: 'include' })
     if (!res.ok) return
     const d: Data = await res.json()
     setData(d)
@@ -41,7 +40,7 @@ export default function HabitsPage() {
     setHabits(prev => prev.map(h =>
       h.id === id ? { ...h, completed_today: !h.completed_today, streak: h.completed_today ? Math.max(0, h.streak - 1) : h.streak + 1 } : h
     ))
-    await fetch(`${API}/habits/${id}/toggle`, {
+    await fetch(apiUrl(`/habits/${id}/toggle`), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
@@ -50,13 +49,13 @@ export default function HabitsPage() {
   async function deleteHabit(id: number) {
     if (!confirm('Delete this habit? Your streak will be lost.')) return
     setHabits(prev => prev.filter(h => h.id !== id))
-    await fetch(`${API}/habits/${id}/delete`, { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl(`/habits/${id}/delete`), { method: 'POST', credentials: 'include' })
   }
 
   async function createHabit() {
     if (!newName.trim()) return
     setSaving(true)
-    const res = await fetch(`${API}/habits/create`, {
+    const res = await fetch(apiUrl('/habits/create'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `name=${encodeURIComponent(newName)}&icon=${encodeURIComponent(newIcon)}&frequency=${encodeURIComponent(newFreq)}`

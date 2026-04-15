@@ -44,8 +44,22 @@ from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
 # Load environment variables from .env FIRST (so os.environ works)
 load_dotenv()
 
+def env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_csv(name: str, default: list[str]) -> list[str]:
+    value = os.environ.get(name, "")
+    if not value.strip():
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 DB_CONNECT_TIMEOUT = max(1, int(os.environ.get("DB_CONNECT_TIMEOUT", "10")))
-DB_USE_POOL = os.environ.get("DB_USE_POOL", "").strip().lower() in {"1", "true", "yes", "on"}
+DB_USE_POOL = env_flag("DB_USE_POOL")
 DB_CONNECT_RETRIES = max(1, int(os.environ.get("DB_CONNECT_RETRIES", "5")))
 DB_CONNECT_RETRY_DELAY = max(0.0, float(os.environ.get("DB_CONNECT_RETRY_DELAY", "2")))
 
@@ -72,11 +86,13 @@ print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-CORS(app, supports_credentials=True, origins=[
+DEFAULT_CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://yourdomain.vercel.app"
-])
+    r"https://.*\.vercel\.app",
+]
+CORS_ALLOWED_ORIGINS = env_csv("CORS_ALLOWED_ORIGINS", DEFAULT_CORS_ALLOWED_ORIGINS)
+CORS(app, supports_credentials=True, origins=CORS_ALLOWED_ORIGINS)
 
 app.config["CACHE_TYPE"] = os.environ.get("FLASK_CACHE_TYPE", "SimpleCache")
 app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.environ.get("FLASK_CACHE_DEFAULT_TIMEOUT", 60))
@@ -119,13 +135,15 @@ mail = Mail(app)
 # In production, ALWAYS store this in .env
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "DEV_ONLY_CHANGE_ME")
 SESSION_LIFETIME_DAYS = max(1, int(os.environ.get("SESSION_LIFETIME_DAYS", "30")))
+SESSION_COOKIE_CROSS_SITE = env_flag("SESSION_COOKIE_CROSS_SITE")
+SESSION_COOKIE_SAMESITE_DEFAULT = "None" if SESSION_COOKIE_CROSS_SITE else "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=SESSION_LIFETIME_DAYS)
 app.config["SESSION_COOKIE_NAME"] = os.environ.get("SESSION_COOKIE_NAME", "taskflow_session")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
-app.config["SESSION_COOKIE_SECURE"] = (
-    os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower() in {"1", "true", "yes", "on"}
+app.config["SESSION_COOKIE_SAMESITE"] = (
+    os.environ.get("SESSION_COOKIE_SAMESITE", "").strip() or SESSION_COOKIE_SAMESITE_DEFAULT
 )
+app.config["SESSION_COOKIE_SECURE"] = env_flag("SESSION_COOKIE_SECURE", SESSION_COOKIE_CROSS_SITE)
 app.config["SESSION_REFRESH_EACH_REQUEST"] = True
 EMAIL_VERIFY_MAX_AGE = int(os.environ.get("EMAIL_VERIFY_MAX_AGE", "86400"))
 EMAIL_VERIFY_SALT = os.environ.get("EMAIL_VERIFY_SALT", "taskflow-email-verify")

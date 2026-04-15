@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+import { apiUrl } from '@/lib/api-base'
 const C = 552.9
 
 interface Task { id: number; title: string }
@@ -41,7 +40,7 @@ export default function FocusPage() {
   totalRef.current    = totalSec
 
   useEffect(() => {
-    fetch(`${API}/api/tasks/data`, { credentials: 'include' })
+    fetch(apiUrl('/api/tasks/data'), { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         const incomplete = (d.tasks || []).filter((t: any) => !t.completed)
@@ -98,7 +97,7 @@ export default function FocusPage() {
   }
 
   function showComplete(total: number, spent: number) {
-    fetch(`${API}/focus/sessions/save`, {
+    fetch(apiUrl('/focus/sessions/save'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_id: selTaskId, session_duration: total, actual_time_spent: spent, completed: false })
@@ -108,7 +107,7 @@ export default function FocusPage() {
 
   function markDone(done: boolean) {
     setTaskDone(done)
-    fetch(`${API}/focus/sessions/complete`, {
+    fetch(apiUrl('/focus/sessions/complete'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_id: selTaskId, completed: done, reflection })
