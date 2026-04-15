@@ -9,7 +9,7 @@
 # ============================================================
 # 1) IMPORTS (Libraries we use)
 # ============================================================
-
+from flask_cors import CORS
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, redirect,
@@ -37,6 +37,8 @@ import requests
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
+
+
 
 
 # Load environment variables from .env FIRST (so os.environ works)
@@ -70,6 +72,12 @@ print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+CORS(app, supports_credentials=True, origins=[
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://yourdomain.vercel.app"
+])
+
 app.config["CACHE_TYPE"] = os.environ.get("FLASK_CACHE_TYPE", "SimpleCache")
 app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.environ.get("FLASK_CACHE_DEFAULT_TIMEOUT", 60))
 app.config["CACHE_THRESHOLD"] = int(os.environ.get("FLASK_CACHE_THRESHOLD", 512))
@@ -3920,6 +3928,64 @@ def home_page():
     ctx = build_home_dashboard_context(session["user_id"])
     return render_template("sidebar/home.html", **ctx)
 
+@app.route("/api/home")
+def api_home():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    ctx = build_home_dashboard_context(session["user_id"])
+
+    return jsonify({
+        "greeting":            ctx["greeting"],
+        "name":                ctx["name"],
+        "today_date":          ctx["today_date"],
+        "streak":              ctx["streak"],
+        "habits_due":          ctx["habits_due"],
+        "ai_insight":          ctx["ai_insight"],
+        "tasks_done":          ctx["tasks_done"],
+        "tasks_total":         ctx["tasks_total"],
+        "habits_done":         ctx["habits_done"],
+        "habits_total":        ctx["habits_total"],
+        "growth_score":        ctx["growth_score"],
+        "journaled_today":     ctx["journaled_today"],
+        "journal_prompt":      ctx["journal_prompt"],
+        "current_month":       ctx["current_month"],
+        "first_day_of_month":  ctx["first_day_of_month"],
+        "days_in_month":       ctx["days_in_month"],
+        "today_day":           ctx["today_day"],
+        "active_days":         ctx["active_days"],
+        "today_journal_entry": {
+            "content": ctx["today_journal_entry"]["content"]
+        } if ctx.get("today_journal_entry") else None,
+        "tasks": [
+            {
+                "id":        t["id"],
+                "title":     t["title"],
+                "completed": bool(t["completed"]),
+                "priority":  t.get("priority", "medium"),
+                "category":  t.get("category") or t.get("list_name") or "Task",
+            }
+            for t in (ctx["tasks"] or [])
+        ],
+        "habits": [
+            {
+                "id":              h["id"],
+                "name":            h["name"],
+                "streak":          h.get("streak", 0),
+                "completed_today": bool(h.get("completed_today")),
+            }
+            for t in [] for h in []  # placeholder — real line below
+        ] if False else [
+            {
+                "id":              h["id"],
+                "name":            h["name"],
+                "streak":          h.get("streak", 0),
+                "completed_today": bool(h.get("completed_today")),
+            }
+            for h in (ctx["habits"] or [])
+        ],
+    })
+
 
 @app.route("/settings")
 @login_required
@@ -6802,9 +6868,422 @@ def save_folder_color(folder_id):
     cursor.close()
     return "", 204
 
+@app.route("/api/login", methods=["POST", "OPTIONS"])
+def api_login():
+    if request.method == "OPTIONS":
+        return "", 200
 
+    data = request.get_json(silent=True) or {}
+    identifier = (data.get("identifier") or "").strip().lower()
+    password = data.get("password", "")
 
+    if not identifier or not password:
+        return jsonify({"ok": False, "error": "Username and password are required."}), 400
 
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT id, name, username, password_hash FROM users WHERE username=%s OR email=%s",
+            (identifier, identifier),
+        )
+        user = cursor.fetchone()
+        cursor.close()
+    except Exception:
+        return jsonify({"ok": False, "error": "Database error."}), 503
+
+    if not user or not check_password_hash(user[3], password):
+        return jsonify({"ok": False, "error": "Invalid username or password."}), 401
+
+    begin_user_session(user[0], user[1], user[2])
+    return jsonify({"ok": True, "name": user[1]})
+
+@app.route("/api/me")
+def api_me():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user = fetch_user_by_id(session["user_id"])
+    if not user:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({
+        "name":     user["name"],
+        "username": user["username"],
+        "email":    user["email"],
+    })
+
+@app.route("/api/logout", methods=["POST", "OPTIONS"])
+def api_logout():
+    if request.method == "OPTIONS":
+        return "", 200
+    session.clear()
+    return jsonify({"ok": True})
+
+@app.route("/api/tasks/data")
+def api_tasks_data():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    list_id = request.args.get("list_id", type=int)
+    ensure_task_list_metadata_columns()
+    ensure_task_metadata_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    inbox_id = get_inbox_list_id(user_id)
+    cursor.execute(
+        """
+        SELECT tl.id, tl.name, tl.pinned_at,
+               COUNT(t.id) AS task_count
+        FROM task_lists tl
+        LEFT JOIN tasks t ON t.list_id = tl.id AND t.user_id = tl.user_id
+        WHERE tl.user_id = %s AND tl.archived_at IS NULL
+        GROUP BY tl.id, tl.name, tl.pinned_at
+        ORDER BY
+          CASE WHEN tl.id = %s THEN 0 WHEN tl.pinned_at IS NULL THEN 2 ELSE 1 END,
+          tl.pinned_at DESC, tl.created_at DESC
+        """, (user_id, inbox_id)
+    )
+    lists = cursor.fetchall()
+    for lst in lists:
+        lst["pinned_at"] = bool(lst["pinned_at"])
+    valid_ids = {l["id"] for l in lists}
+    active_list_id = list_id if list_id in valid_ids else None
+    if active_list_id is None:
+        cursor.execute(
+            """
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            ORDER BY t.completed ASC,
+              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+              t.pinned_at DESC, t.created_at DESC
+            """, (user_id,)
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND t.list_id = %s AND tl.archived_at IS NULL
+            ORDER BY t.completed ASC,
+              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+              t.pinned_at DESC, t.created_at DESC
+            """, (user_id, active_list_id)
+        )
+    tasks = cursor.fetchall()
+    cursor.close()
+    return jsonify({
+        "lists": [{"id": l["id"], "name": l["name"], "pinned": bool(l["pinned_at"]), "task_count": l["task_count"]} for l in lists],
+        "tasks": [{"id": t["id"], "title": t["title"], "completed": bool(t["completed"]), "priority": t.get("priority") or "medium", "list_id": t["list_id"], "list_name": t.get("list_name") or "Task", "pinned": bool(t.get("pinned_at")), "description": t.get("description") or ""} for t in tasks],
+        "active_list_id": active_list_id,
+        "all_tasks_count": sum(l["task_count"] for l in lists),
+    })
+
+@app.route("/api/habits/data")
+def api_habits_data():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    habits = fetch_user_habits(user_id)
+    habits_done = sum(1 for h in habits if h["completed_today"])
+    habits_total = len(habits)
+    best = max(habits, key=lambda h: h["streak"], default=None)
+    return jsonify({
+        "habits": [{"id":h["id"],"name":h["name"],"icon":h.get("icon") or "↺","frequency":h.get("frequency") or "Daily","streak":h.get("streak") or 0,"completed_today":bool(h.get("completed_today"))} for h in habits],
+        "habits_done": habits_done,
+        "habits_total": habits_total,
+        "best_streak": best["streak"] if best else 0,
+        "best_streak_name": best["name"] if best else "No habits yet",
+        "week_completion_pct": calculate_habit_week_completion_pct(user_id, habits_total),
+        "ai_insight": build_habit_ai_insight(habits),
+        "activity_map": build_habit_activity_map(user_id, habits_total),
+        "today_date": datetime.now().strftime("%A, %B %d"),
+    })
+
+@app.route("/api/journal/entries")
+def api_journal_entries():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, title, content, created_at, updated_at,
+          CASE WHEN TRIM(COALESCE(content,''))='' THEN 0
+          ELSE LENGTH(TRIM(content))-LENGTH(REPLACE(TRIM(content),' ',''))+1 END AS word_count
+        FROM notes
+        WHERE user_id=%s AND folder_id=%s AND deleted_at IS NULL
+          AND NOT ((title IS NULL OR title='') AND (content IS NULL OR content=''))
+        ORDER BY COALESCE(updated_at, created_at) DESC
+        """, (user_id, journal_folder_id)
+    )
+    entries = cursor.fetchall()
+    cursor.close()
+    result = []
+    for e in entries:
+        result.append({
+            "id": e["id"],
+            "title": e["title"] or (e["created_at"].strftime("%A, %B %d") if e["created_at"] else "Untitled"),
+            "preview": (e["content"] or "")[:80],
+            "word_count": e["word_count"] or 0,
+            "time_label": e["created_at"].strftime("%-I:%M %p") if e["created_at"] else "",
+            "content": e["content"] or "",
+        })
+    return jsonify({"entries": result})
+
+@app.route("/api/journal/entry/<int:entry_id>")
+def api_journal_entry(entry_id):
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id, title, content, created_at FROM notes WHERE id=%s AND user_id=%s AND folder_id=%s AND deleted_at IS NULL",
+        (entry_id, user_id, journal_folder_id)
+    )
+    entry = cursor.fetchone()
+    cursor.close()
+    if not entry:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({
+        "id": entry["id"],
+        "title": entry["title"] or (entry["created_at"].strftime("%A, %B %d") if entry["created_at"] else "Untitled"),
+        "content": entry["content"] or "",
+        "time_label": entry["created_at"].strftime("%-I:%M %p") if entry["created_at"] else "",
+    })
+
+@app.route("/api/journal/new", methods=["POST", "OPTIONS"])
+def api_journal_new():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    title = datetime.now().strftime("%A, %B %d")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at) VALUES (%s,%s,%s,'',NOW(),NOW())",
+        (user_id, journal_folder_id, title)
+    )
+    entry_id = cursor.lastrowid
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    return jsonify({"id": entry_id, "title": title})
+
+@app.route("/api/journal/save/<int:entry_id>", methods=["POST", "OPTIONS"])
+def api_journal_save(entry_id):
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    journal_folder_id = get_journal_folder_id(user_id)
+    data = request.get_json(silent=True) or {}
+    content = (data.get("content") or "").strip()
+    title = datetime.now().strftime("%A, %B %d")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE notes SET content=%s, title=%s, updated_at=NOW() WHERE id=%s AND user_id=%s AND folder_id=%s AND deleted_at IS NULL",
+        (content, title, entry_id, user_id, journal_folder_id)
+    )
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/calendar/data")
+def api_calendar_data():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    events = []
+    if calendar_schema_available():
+        cursor.execute(
+            """
+            SELECT id, title, event_date AS date, event_time AS time, category, color
+            FROM calendar_events
+            WHERE user_id=%s AND deleted_at IS NULL
+            ORDER BY event_date ASC, event_time ASC
+            """, (user_id,)
+        )
+        rows = cursor.fetchall()
+        for r in rows:
+            events.append({
+                "id": r["id"],
+                "title": r["title"],
+                "date": r["date"].strftime("%Y-%m-%d") if r["date"] else None,
+                "time": format_calendar_event_time(r["time"]),
+                "category": r["category"] or "personal",
+                "color": r["color"] or "rgba(255,255,255,0.7)",
+            })
+    cursor.execute(
+        "SELECT id, title FROM tasks WHERE user_id=%s AND completed=0 ORDER BY created_at DESC LIMIT 5",
+        (user_id,)
+    )
+    upcoming_tasks = [{"id": t["id"], "title": t["title"]} for t in cursor.fetchall()]
+    cursor.close()
+
+    ensure_google_oauth_token_columns()
+    db2 = get_db()
+    c2 = db2.cursor(dictionary=True)
+    c2.execute("SELECT google_refresh_token FROM users WHERE id=%s", (user_id,))
+    row = c2.fetchone()
+    c2.close()
+
+    return jsonify({
+        "events": events,
+        "upcoming_tasks": upcoming_tasks,
+        "google_connected": bool(row and row.get("google_refresh_token")),
+    })
+
+@app.route("/api/calendar/events/create", methods=["POST", "OPTIONS"])
+def api_calendar_create():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if not calendar_schema_available():
+        return jsonify({"ok": False, "error": "Calendar not configured"}), 503
+    data = request.get_json(silent=True) or {}
+    title    = (data.get("title") or "").strip()
+    date     = (data.get("date") or "").strip()
+    time     = (data.get("time") or "09:00").strip()
+    category = (data.get("category") or "personal").strip()
+    color    = (data.get("color") or "rgba(255,255,255,0.7)").strip()
+    if not title or not date:
+        return jsonify({"ok": False, "error": "Title and date required"}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at) VALUES (%s,%s,%s,%s,%s,%s,NOW())",
+        (session["user_id"], title, date, time, category, color)
+    )
+    event_id = cursor.lastrowid
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+    return jsonify({"ok": True, "id": event_id, "title": title, "date": date, "time": time, "category": category, "color": color})
+
+@app.route("/api/calendar/events/<int:event_id>/delete", methods=["POST", "OPTIONS"])
+def api_calendar_delete(event_id):
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE calendar_events SET deleted_at=NOW() WHERE id=%s AND user_id=%s",
+        (event_id, session["user_id"])
+    )
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+    return jsonify({"ok": True})
+
+@app.route("/api/settings/data")
+def api_settings_data():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user = fetch_user_by_id(session["user_id"])
+    if not user:
+        return jsonify({"error": "not found"}), 404
+    ensure_google_oauth_token_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT google_refresh_token, email FROM users WHERE id=%s", (session["user_id"],))
+    row = cursor.fetchone()
+    cursor.close()
+    profile_image_url = None
+    if user.get("profile_image") and user["profile_image"] != "default.png":
+        profile_image_url = f"/static/uploads/{user['profile_image']}"
+    return jsonify({
+        "name": user["name"],
+        "username": user["username"],
+        "email": user["email"],
+        "profile_image": profile_image_url,
+        "google_calendar_connected": bool(row and row.get("google_refresh_token")),
+        "current_user_email": row["email"] if row else "",
+    })
+
+@app.route("/api/settings/update-name", methods=["POST", "OPTIONS"])
+def api_settings_update_name():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    full_name = (data.get("full_name") or "").strip()
+    if not full_name:
+        return jsonify({"ok": False, "error": "Name is required"}), 400
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET name=%s WHERE id=%s", (full_name, session["user_id"]))
+    cursor.close()
+    session["user_name"] = full_name
+    invalidate_user_cached_data(session["user_id"])
+    return jsonify({"ok": True})
+
+@app.route("/api/settings/clear-ai-memory", methods=["POST", "OPTIONS"])
+def api_settings_clear_ai_memory():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if ensure_ai_support_schema():
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("DELETE FROM user_memories WHERE user_id=%s", (session["user_id"],))
+        cursor.close()
+    return jsonify({"ok": True})
+
+@app.route("/api/settings/delete-data", methods=["POST", "OPTIONS"])
+def api_settings_delete_data():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM tasks WHERE user_id=%s", (user_id,))
+    if habits_schema_available():
+        cursor.execute("DELETE FROM habits WHERE user_id=%s", (user_id,))
+        cursor.execute("DELETE FROM habit_completions WHERE user_id=%s", (user_id,))
+    if ensure_ai_support_schema():
+        cursor.execute("DELETE FROM user_memories WHERE user_id=%s", (user_id,))
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/settings/delete-account", methods=["POST", "OPTIONS"])
+def api_settings_delete_account():
+    if request.method == "OPTIONS":
+        return "", 200
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM tasks WHERE user_id=%s", (user_id,))
+    if habits_schema_available():
+        cursor.execute("DELETE FROM habits WHERE user_id=%s", (user_id,))
+        cursor.execute("DELETE FROM habit_completions WHERE user_id=%s", (user_id,))
+    if ensure_ai_support_schema():
+        cursor.execute("DELETE FROM user_memories WHERE user_id=%s", (user_id,))
+        cursor.execute("DELETE FROM ai_chat_messages WHERE user_id=%s", (user_id,))
+        cursor.execute("DELETE FROM ai_chat_threads WHERE user_id=%s", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id=%s", (user_id,))
+    cursor.close()
+    session.clear()
+    return jsonify({"ok": True})
 # ============================================================
 # 18) RUN APP
 # ============================================================
