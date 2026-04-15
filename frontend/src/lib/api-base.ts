@@ -10,7 +10,9 @@ function isLocalHostname(hostname: string) {
 
 function resolveApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim()
-  if (configured) {
+
+  // In local development, we still talk directly to Flask.
+  if (process.env.NODE_ENV !== 'production' && configured) {
     return configured.replace(/\/$/, '')
   }
 
