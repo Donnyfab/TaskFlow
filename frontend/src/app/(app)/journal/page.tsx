@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
 interface Entry { id: number; title: string; preview: string; word_count: number; time_label: string; content: string }
@@ -15,11 +16,22 @@ const PROMPTS = [
 ]
 
 export default function JournalPage() {
-  const [entries, setEntries]         = useState<Entry[]>([])
+  const queryClient = useQueryClient()
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['journal'],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/journal/entries'), { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch journal entries')
+      return res.json() as Promise<{ entries: Entry[] }>
+    },
+  })
+
+  const entries = data?.entries ?? []
+
   const [active, setActive]           = useState<Entry | null>(null)
   const [content, setContent]         = useState('')
   const [search, setSearch]           = useState('')
-  const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
   const [toast, setToast]             = useState('')
   const [showToast, setShowToast]     = useState(false)
@@ -30,9 +42,19 @@ export default function JournalPage() {
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeRef   = useRef<Entry | null>(null)
   const contentRef  = useRef('')
+  const initializedRef = useRef(false)
 
   activeRef.current  = active
   contentRef.current = content
+
+  // Select the first entry once data loads (only on first load)
+  useEffect(() => {
+    if (!initializedRef.current && entries.length > 0) {
+      initializedRef.current = true
+      setActive(entries[0])
+      setContent(entries[0].content)
+    }
+  }, [entries])
 
   const fireToast = (msg: string) => {
     setToast(msg)
@@ -40,20 +62,8 @@ export default function JournalPage() {
     setTimeout(() => setShowToast(false), 2200)
   }
 
-  const fetchEntries = useCallback(async () => {
-    const res = await fetch(apiUrl('/api/journal/entries'), { credentials: 'include' })
-    if (!res.ok) return
-    const d = await res.json()
-    setEntries(d.entries)
-    setLoading(false)
-    if (!activeRef.current && d.entries.length > 0) {
-      setActive(d.entries[0])
-      setContent(d.entries[0].content)
-    }
-  }, [])
-
+  // Auto-save every 30 seconds
   useEffect(() => {
-    fetchEntries()
     autoSaveRef.current = setInterval(async () => {
       const cur = activeRef.current
       const txt = contentRef.current
@@ -64,10 +74,12 @@ export default function JournalPage() {
         body: JSON.stringify({ content: txt })
       })
       fireToast('Auto-saved')
+      queryClient.invalidateQueries({ queryKey: ['journal'] })
     }, 30000)
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
-  }, [fetchEntries])
+  }, [queryClient])
 
+  // Cmd/Ctrl+S to save
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveEntry() }
@@ -80,11 +92,11 @@ export default function JournalPage() {
     const res = await fetch(apiUrl('/api/journal/new'), { method: 'POST', credentials: 'include' })
     const d = await res.json()
     const entry: Entry = { id: d.id, title: d.title, preview: '', word_count: 0, time_label: '', content: '' }
-    setEntries(prev => [entry, ...prev])
     setActive(entry)
     setContent('')
     setMood('')
     setAiInsight('')
+    queryClient.invalidateQueries({ queryKey: ['journal'] })
   }
 
   function selectEntry(entry: Entry) {
@@ -102,9 +114,9 @@ export default function JournalPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     })
-    setEntries(prev => prev.map(e => e.id === active.id ? { ...e, content, preview: content.slice(0, 80), word_count: countWords(content) } : e))
     setSaving(false)
     fireToast('Saved')
+    queryClient.invalidateQueries({ queryKey: ['journal'] })
   }
 
   async function getAIInsight() {
