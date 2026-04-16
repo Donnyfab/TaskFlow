@@ -11,6 +11,8 @@
   "type": "commonjs",
   "description": "",
   "dependencies": {
-    "@tanstack/react-query": "^5.99.0"
+    "@tanstack/query-sync-storage-persister": "^5.99.0",
+    "@tanstack/react-query": "^5.99.0",
+    "@tanstack/react-query-persist-client": "^5.99.0"
   }
 }
