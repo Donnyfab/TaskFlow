@@ -28,8 +28,7 @@ export default function HabitsPage() {
     },
   })
 
-  const [localHabits, setLocalHabits] = useState<Habit[]>([])
-  const habits = localHabits.length > 0 || !data ? localHabits : data.habits
+  const habits = data?.habits ?? []
 
   const [modal, setModal]     = useState(false)
   const [newName, setNewName] = useState('')
@@ -38,44 +37,64 @@ export default function HabitsPage() {
   const [saving, setSaving]   = useState(false)
 
   async function toggleHabit(id: number) {
-    setLocalHabits(prev =>
-      (prev.length ? prev : (data?.habits ?? [])).map(h =>
+    const previous = queryClient.getQueryData<Data>(['habits'])
+    queryClient.setQueryData<Data>(['habits'], old => old ? {
+      ...old,
+      habits: old.habits.map(h =>
         h.id === id ? { ...h, completed_today: !h.completed_today, streak: h.completed_today ? Math.max(0, h.streak - 1) : h.streak + 1 } : h
       )
-    )
-    await fetch(apiUrl(`/habits/${id}/toggle`), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    queryClient.invalidateQueries({ queryKey: ['habits'] })
+    } : old)
+    try {
+      await fetch(apiUrl(`/habits/${id}/toggle`), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      })
+    } catch {
+      queryClient.setQueryData(['habits'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['habits'] })
+    }
   }
 
   async function deleteHabit(id: number) {
     if (!confirm('Delete this habit? Your streak will be lost.')) return
-    setLocalHabits(prev =>
-      (prev.length ? prev : (data?.habits ?? [])).filter(h => h.id !== id)
-    )
-    await fetch(apiUrl(`/habits/${id}/delete`), { method: 'POST', credentials: 'include' })
-    queryClient.invalidateQueries({ queryKey: ['habits'] })
+    const previous = queryClient.getQueryData<Data>(['habits'])
+    queryClient.setQueryData<Data>(['habits'], old => old ? { ...old, habits: old.habits.filter(h => h.id !== id) } : old)
+    try {
+      await fetch(apiUrl(`/habits/${id}/delete`), { method: 'POST', credentials: 'include' })
+    } catch {
+      queryClient.setQueryData(['habits'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['habits'] })
+    }
   }
 
   async function createHabit() {
     if (!newName.trim()) return
     setSaving(true)
-    const res = await fetch(apiUrl('/habits/create'), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `name=${encodeURIComponent(newName)}&icon=${encodeURIComponent(newIcon)}&frequency=${encodeURIComponent(newFreq)}`
-    })
-    if (res.ok) {
-      setModal(false)
-      setNewName('')
-      setNewIcon('💪')
-      setNewFreq('Daily')
-      setLocalHabits([]) // clear local so cache takes over after invalidation
+    const name = newName.trim()
+    const tempHabit: Habit = { id: -Date.now(), name, icon: newIcon, frequency: newFreq, streak: 0, completed_today: false }
+    const previous = queryClient.getQueryData<Data>(['habits'])
+    queryClient.setQueryData<Data>(['habits'], old => old ? { ...old, habits: [...old.habits, tempHabit] } : old)
+    setModal(false)
+    setNewName('')
+    setNewIcon('💪')
+    setNewFreq('Daily')
+    try {
+      const res = await fetch(apiUrl('/habits/create'), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `name=${encodeURIComponent(name)}&icon=${encodeURIComponent(newIcon)}&frequency=${encodeURIComponent(newFreq)}`
+      })
+      if (!res.ok) {
+        queryClient.setQueryData(['habits'], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['habits'], previous)
+    } finally {
       queryClient.invalidateQueries({ queryKey: ['habits'] })
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const done  = habits.filter(h => h.completed_today).length

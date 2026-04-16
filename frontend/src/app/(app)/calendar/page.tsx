@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
@@ -50,14 +50,8 @@ export default function CalendarPage() {
     },
   })
 
-  // eventsMap is derived from cache but can be updated optimistically
-  const [localEventsMap, setLocalEventsMap] = useState<Record<string, CalEvent[]> | null>(null)
-  const eventsMap = localEventsMap ?? (data ? buildEventsMap(data.events) : {})
-
-  // Sync localEventsMap when cache updates (e.g. after invalidation)
-  useEffect(() => {
-    if (data) setLocalEventsMap(buildEventsMap(data.events))
-  }, [data])
+  // eventsMap is derived directly from the query cache
+  const eventsMap = data ? buildEventsMap(data.events) : {}
 
   const [curYear, setCurYear]     = useState(now.getFullYear())
   const [curMonth, setCurMonth]   = useState(now.getMonth())
@@ -88,37 +82,49 @@ export default function CalendarPage() {
   async function createEvent() {
     if (!evTitle.trim() || !evDate) return
     setSaving(true)
-    const res = await fetch(apiUrl('/api/calendar/events/create'), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: evTitle, date: evDate, time: evTime, category: evCat, color: evColor })
-    })
-    const result = await res.json()
-    if (result.ok) {
-      const newEv: CalEvent = result
-      setLocalEventsMap(prev => {
-        const base = prev ?? {}
-        const d = new Date(evDate + 'T00:00:00')
-        const key = getKey(d.getFullYear(), d.getMonth(), d.getDate())
-        return { ...base, [key]: [...(base[key] || []), newEv] }
+    const tempId = -Date.now()
+    const tempEv: CalEvent = { id: tempId, title: evTitle.trim(), date: evDate, time: evTime, category: evCat, color: evColor }
+    const previous = queryClient.getQueryData<Data>(['calendar'])
+    queryClient.setQueryData<Data>(['calendar'], old => old ? { ...old, events: [...old.events, tempEv] } : old)
+    setModal(false)
+    try {
+      const res = await fetch(apiUrl('/api/calendar/events/create'), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: evTitle, date: evDate, time: evTime, category: evCat, color: evColor })
       })
-      setModal(false)
+      const result = await res.json()
+      if (result.ok && result.id) {
+        queryClient.setQueryData<Data>(['calendar'], old => old ? {
+          ...old,
+          events: old.events.map(e => e.id === tempId ? { ...tempEv, id: result.id } : e)
+        } : old)
+      } else {
+        queryClient.setQueryData(['calendar'], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['calendar'], previous)
+    } finally {
+      setSaving(false)
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
     }
-    setSaving(false)
   }
 
   async function deleteEvent(key: string, idx: number) {
     const ev = eventsMap[key]?.[idx]
     if (!ev) return
-    setLocalEventsMap(prev => {
-      const base = prev ?? {}
-      const arr = [...(base[key] || [])]
-      arr.splice(idx, 1)
-      return { ...base, [key]: arr }
-    })
-    await fetch(apiUrl(`/api/calendar/events/${ev.id}/delete`), { method: 'POST', credentials: 'include' })
-    queryClient.invalidateQueries({ queryKey: ['calendar'] })
+    const previous = queryClient.getQueryData<Data>(['calendar'])
+    queryClient.setQueryData<Data>(['calendar'], old => old ? {
+      ...old,
+      events: old.events.filter(e => e.id !== ev.id)
+    } : old)
+    try {
+      await fetch(apiUrl(`/api/calendar/events/${ev.id}/delete`), { method: 'POST', credentials: 'include' })
+    } catch {
+      queryClient.setQueryData(['calendar'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+    }
   }
 
   async function syncGoogle() {

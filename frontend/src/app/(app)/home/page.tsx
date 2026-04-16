@@ -40,66 +40,98 @@ export default function HomePage() {
     },
   })
 
-  const [showBanner, setShowBanner]   = useState(true)
-  const [localTasks, setLocalTasks]   = useState<HomeData['tasks']>([])
-  const [localHabits, setLocalHabits] = useState<HomeData['habits']>([])
-  const [taskInput, setTaskInput]     = useState('')
+  const tasks  = data?.tasks  ?? []
+  const habits = data?.habits ?? []
+
+  const [showBanner, setShowBanner] = useState(true)
+  const [taskInput, setTaskInput]   = useState('')
   const [journalText, setJournalText] = useState('')
   const [planOpen, setPlanOpen]       = useState(false)
   const [planText, setPlanText]       = useState('Generating your personalized plan...')
   const [planLoading, setPlanLoading] = useState(false)
 
-  const tasks  = localTasks.length  > 0 || !data ? localTasks  : data.tasks
-  const habits = localHabits.length > 0 || !data ? localHabits : data.habits
-
-  // Sync journal text from cache on first load
-  const journalInitialized = useState(() => false)
+  // Initialize journal textarea from cache on first load
   if (data && journalText === '' && data.today_journal_entry?.content) {
     setJournalText(data.today_journal_entry.content)
   }
 
   async function toggleTask(id: number) {
-    setLocalTasks(prev =>
-      (prev.length ? prev : (data?.tasks ?? [])).map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-    )
-    await fetch(apiUrl(`/tasks/toggle/${id}`), { method: 'POST', credentials: 'include' })
-    queryClient.invalidateQueries({ queryKey: ['home'] })
+    const previous = queryClient.getQueryData<HomeData>(['home'])
+    queryClient.setQueryData<HomeData>(['home'], old => old ? {
+      ...old,
+      tasks: old.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
+    } : old)
+    try {
+      await fetch(apiUrl(`/tasks/toggle/${id}`), { method: 'POST', credentials: 'include' })
+    } catch {
+      queryClient.setQueryData(['home'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['home'] })
+    }
   }
 
   async function toggleHabit(id: number) {
-    setLocalHabits(prev =>
-      (prev.length ? prev : (data?.habits ?? [])).map(h => h.id === id ? { ...h, completed_today: !h.completed_today } : h)
-    )
-    await fetch(apiUrl(`/habits/${id}/toggle`), { method: 'POST', credentials: 'include' })
-    queryClient.invalidateQueries({ queryKey: ['home'] })
+    const previous = queryClient.getQueryData<HomeData>(['home'])
+    queryClient.setQueryData<HomeData>(['home'], old => old ? {
+      ...old,
+      habits: old.habits.map(h => h.id === id ? { ...h, completed_today: !h.completed_today } : h)
+    } : old)
+    try {
+      await fetch(apiUrl(`/habits/${id}/toggle`), { method: 'POST', credentials: 'include' })
+    } catch {
+      queryClient.setQueryData(['home'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['home'] })
+    }
   }
 
   async function addQuickTask() {
     if (!taskInput.trim()) return
     const val = taskInput.trim()
     setTaskInput('')
-    const res = await fetch(apiUrl('/tasks/quick'), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: val })
-    })
-    const created = await res.json()
-    if (created.id) {
-      setLocalTasks(prev => [
-        ...(prev.length ? prev : (data?.tasks ?? [])),
-        { id: created.id, title: val, completed: false, priority: 'low', category: 'Task' }
-      ])
+    const temp = { id: -Date.now(), title: val, completed: false, priority: 'low', category: 'Task' }
+    const previous = queryClient.getQueryData<HomeData>(['home'])
+    queryClient.setQueryData<HomeData>(['home'], old => old ? { ...old, tasks: [...old.tasks, temp] } : old)
+    try {
+      const res = await fetch(apiUrl('/tasks/quick'), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: val })
+      })
+      const created = await res.json()
+      if (created.id) {
+        queryClient.setQueryData<HomeData>(['home'], old => old ? {
+          ...old,
+          tasks: old.tasks.map(t => t.id === temp.id ? { ...temp, id: created.id } : t)
+        } : old)
+      } else {
+        queryClient.setQueryData(['home'], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['home'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['home'] })
     }
-    queryClient.invalidateQueries({ queryKey: ['home'] })
   }
 
   async function saveJournal() {
-    await fetch(apiUrl('/journal/quick'), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: journalText })
-    })
-    queryClient.invalidateQueries({ queryKey: ['home'] })
+    const previous = queryClient.getQueryData<HomeData>(['home'])
+    queryClient.setQueryData<HomeData>(['home'], old => old ? {
+      ...old,
+      today_journal_entry: { content: journalText },
+      journaled_today: true,
+    } : old)
+    try {
+      await fetch(apiUrl('/journal/quick'), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: journalText })
+      })
+    } catch {
+      queryClient.setQueryData(['home'], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['home'] })
+    }
   }
 
   async function planMyDay() {

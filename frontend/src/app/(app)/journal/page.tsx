@@ -89,14 +89,28 @@ export default function JournalPage() {
   })
 
   async function newEntry() {
-    const res = await fetch(apiUrl('/api/journal/new'), { method: 'POST', credentials: 'include' })
-    const d = await res.json()
-    const entry: Entry = { id: d.id, title: d.title, preview: '', word_count: 0, time_label: '', content: '' }
-    setActive(entry)
+    const tempId = -Date.now()
+    const tempEntry: Entry = { id: tempId, title: 'New Entry', preview: '', word_count: 0, time_label: 'Just now', content: '' }
+    const previous = queryClient.getQueryData<{ entries: Entry[] }>(['journal'])
+    queryClient.setQueryData<{ entries: Entry[] }>(['journal'], old => old ? { entries: [tempEntry, ...old.entries] } : old)
+    setActive(tempEntry)
     setContent('')
     setMood('')
     setAiInsight('')
-    queryClient.invalidateQueries({ queryKey: ['journal'] })
+    try {
+      const res = await fetch(apiUrl('/api/journal/new'), { method: 'POST', credentials: 'include' })
+      const d = await res.json()
+      const realEntry: Entry = { id: d.id, title: d.title, preview: '', word_count: 0, time_label: '', content: '' }
+      queryClient.setQueryData<{ entries: Entry[] }>(['journal'], old => old ? {
+        entries: old.entries.map(e => e.id === tempId ? realEntry : e)
+      } : old)
+      setActive(realEntry)
+    } catch {
+      queryClient.setQueryData(['journal'], previous)
+      setActive(null)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['journal'] })
+    }
   }
 
   function selectEntry(entry: Entry) {
@@ -109,14 +123,26 @@ export default function JournalPage() {
   async function saveEntry() {
     if (!active) return
     setSaving(true)
-    await fetch(apiUrl(`/api/journal/save/${active.id}`), {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
-    })
-    setSaving(false)
-    fireToast('Saved')
-    queryClient.invalidateQueries({ queryKey: ['journal'] })
+    const preview = content.slice(0, 80)
+    const word_count = countWords(content)
+    const previous = queryClient.getQueryData<{ entries: Entry[] }>(['journal'])
+    queryClient.setQueryData<{ entries: Entry[] }>(['journal'], old => old ? {
+      entries: old.entries.map(e => e.id === active.id ? { ...e, content, preview, word_count } : e)
+    } : old)
+    try {
+      await fetch(apiUrl(`/api/journal/save/${active.id}`), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      })
+      fireToast('Saved')
+    } catch {
+      queryClient.setQueryData(['journal'], previous)
+      fireToast('Save failed')
+    } finally {
+      setSaving(false)
+      queryClient.invalidateQueries({ queryKey: ['journal'] })
+    }
   }
 
   async function getAIInsight() {

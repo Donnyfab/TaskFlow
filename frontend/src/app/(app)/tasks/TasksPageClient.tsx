@@ -43,8 +43,7 @@ export default function TasksPageClient() {
     },
   })
 
-  const [localTasks, setLocalTasks] = useState<Task[]>([])
-  const tasks = localTasks.length > 0 || !data ? localTasks : data.tasks
+  const tasks = data?.tasks ?? []
 
   const [filter, setFilter]         = useState<'all'|'active'|'completed'>('all')
   const [newTask, setNewTask]        = useState('')
@@ -60,68 +59,102 @@ export default function TasksPageClient() {
     if (!newTask.trim()) return
     const title = newTask.trim()
     setNewTask('')
-    const temp: Task = { id: Date.now(), title, completed:false, priority:'medium', list_id:listId, list_name:'Task', pinned:false, description:'' }
-    setLocalTasks(prev => [temp, ...(prev.length ? prev : (data?.tasks ?? []))])
-    const res = await fetch(apiUrl('/tasks/quick'), {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ title, list_id: listId })
-    })
-    const created = await res.json()
-    if (created.id) setLocalTasks(prev => prev.map(t => t.id === temp.id ? {...temp, id:created.id} : t))
-    else setLocalTasks(prev => prev.filter(t => t.id !== temp.id))
-    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    const temp: Task = { id: -Date.now(), title, completed:false, priority:'medium', list_id:listId, list_name:'Task', pinned:false, description:'' }
+    const previous = queryClient.getQueryData<Data>(['tasks', listId])
+    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks: [temp, ...old.tasks] } : old)
+    try {
+      const res = await fetch(apiUrl('/tasks/quick'), {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title, list_id: listId })
+      })
+      const created = await res.json()
+      if (created.id) {
+        queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === temp.id ? { ...temp, id: created.id } : t) } : old)
+      } else {
+        queryClient.setQueryData(['tasks', listId], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['tasks', listId], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    }
   }
 
   async function toggleTask(id: number) {
-    setLocalTasks(prev =>
-      (prev.length ? prev : (data?.tasks ?? [])).map(t => t.id === id ? {...t, completed:!t.completed} : t)
-    )
-    await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} })
-    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    const previous = queryClient.getQueryData<Data>(['tasks', listId])
+    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) } : old)
+    try {
+      await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} })
+    } catch {
+      queryClient.setQueryData(['tasks', listId], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    }
   }
 
   async function deleteTask(id: number) {
-    setLocalTasks(prev =>
-      (prev.length ? prev : (data?.tasks ?? [])).filter(t => t.id !== id)
-    )
+    const previous = queryClient.getQueryData<Data>(['tasks', listId])
+    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks: old.tasks.filter(t => t.id !== id) } : old)
     if (detail?.id === id) setDetail(null)
-    await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' })
-    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    try {
+      await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' })
+    } catch {
+      queryClient.setQueryData(['tasks', listId], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    }
   }
 
   async function addList() {
     if (!newList.trim()) return
     const name = newList.trim()
     setNewList('')
-    const res = await fetch(apiUrl('/lists/create'), {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body: `name=${encodeURIComponent(name)}`
-    })
-    if (res.ok) {
-      const url = res.url
-      const listIdMatch = url.match(/list_id=(\d+)/)
-      if (listIdMatch) router.push(`/tasks?list_id=${listIdMatch[1]}`)
-      else queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    const previous = queryClient.getQueryData<Data>(['tasks', listId])
+    const tempList: TaskList = { id: -Date.now(), name, pinned: false, task_count: 0 }
+    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, lists: [...old.lists, tempList] } : old)
+    try {
+      const res = await fetch(apiUrl('/lists/create'), {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: `name=${encodeURIComponent(name)}`
+      })
+      if (res.ok) {
+        const url = res.url
+        const listIdMatch = url.match(/list_id=(\d+)/)
+        if (listIdMatch) router.push(`/tasks?list_id=${listIdMatch[1]}`)
+        else queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+      } else {
+        queryClient.setQueryData(['tasks', listId], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['tasks', listId], previous)
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
     }
   }
 
   async function saveDetail() {
     if (!detail) return
-    const res = await fetch(apiUrl(`/tasks/update/${detail.id}`), {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'},
-      body: JSON.stringify({ title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId })
-    })
-    const result = await res.json()
-    if (result.ok) {
-      setLocalTasks(prev =>
-        (prev.length ? prev : (data?.tasks ?? [])).map(t =>
-          t.id === detail.id ? {...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId} : t
-        )
-      )
-      setDetail(null)
+    const previous = queryClient.getQueryData<Data>(['tasks', listId])
+    queryClient.setQueryData<Data>(['tasks', listId], old => old ? {
+      ...old,
+      tasks: old.tasks.map(t => t.id === detail.id ? { ...t, title: dpTitle, description: dpNotes, priority: dpPriority, list_id: dpListId } : t)
+    } : old)
+    setDetail(null)
+    try {
+      const res = await fetch(apiUrl(`/tasks/update/${detail.id}`), {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'},
+        body: JSON.stringify({ title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId })
+      })
+      const result = await res.json()
+      if (!result.ok) {
+        queryClient.setQueryData(['tasks', listId], previous)
+      }
+    } catch {
+      queryClient.setQueryData(['tasks', listId], previous)
+    } finally {
       queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
     }
   }
