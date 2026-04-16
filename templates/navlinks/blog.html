@@ -98,52 +98,7 @@
 </head>
 <body class="scrollbar-hide">
 
-  <header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
-    <div class="max-w-none mx-auto h-full flex items-center justify-between px-6 md:px-10">
-      <div class="flex items-center gap-10">
-        <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
-          <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          TaskFlow
-        </a>
-        <nav class="hidden md:flex gap-10 text-sm">
-          <a href="/features" class="text-white/70 hover:text-white transition">Features</a>
-          <a href="/pricing" class="text-white/70 hover:text-white transition">Pricing</a>
-          <a href="/about" class="text-white/70 hover:text-white transition">About</a>
-          <a href="/blog" class="text-white transition">Blog</a>
-        </nav>
-      </div>
-      <div class="flex items-center gap-6">
-        <div class="hidden md:block h-6 w-px bg-white/20"></div>
-        <div class="hidden md:flex gap-4">
-          <a href="/login" class="text-white/70 hover:text-white px-4 py-2 transition">Log in</a>
-          <a href="/register" class="bg-white text-gray-900 px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition">Sign up</a>
-        </div>
-      </div>
-      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
-    </div>
-  </header>
-
-  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
-    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-      <a href="/" class="flex items-center gap-2 text-white font-bold">
-        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        TaskFlow
-      </a>
-      <button id="menuClose" class="text-2xl">✕</button>
-    </div>
-    <div class="px-6 py-8 flex flex-col gap-6 text-base">
-      <a href="/features" class="text-white/80 hover:text-white">Features</a>
-      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
-      <a href="/about" class="text-white/80 hover:text-white">About</a>
-      <a href="/blog" class="text-white">Blog</a>
-      <div class="mt-8 flex flex-col gap-4">
-        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
-        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
-      </div>
-    </div>
-  </div>
+  {% include "includes/public_navbar.html" %}
 
   <section class="b-hero">
     <div class="b-shell">

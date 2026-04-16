@@ -1,0 +1,283 @@
+<header class="fixed top-0 left-0 w-full h-[72px] z-50 bg-[#0A0A0A]/70 backdrop-blur-md border-b border-white/10">
+  <div class="max-w-none mx-auto h-full grid grid-cols-3 items-center px-6 md:px-10">
+
+    <div class="flex items-center">
+      <a href="/" class="flex items-center gap-2 text-white font-bold text-base">
+        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        TaskFlow
+      </a>
+    </div>
+
+    <nav class="hidden md:flex items-center justify-center gap-8 text-sm relative">
+      <div class="relative group" id="products-menu">
+        <button id="products-btn"
+          class="flex items-center gap-1 text-white/60 hover:text-white transition-colors duration-200 cursor-pointer">
+          Products
+        </button>
+
+        <div id="products-dropdown"
+          class="absolute top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[640px] bg-[#141414] border border-white/10 rounded-xl overflow-hidden z-50
+          opacity-0 invisible group-hover:opacity-100 group-hover:visible
+          translate-y-2 group-hover:translate-y-0
+          transition-all duration-200 ease-out">
+
+          <div class="grid grid-cols-2">
+            <div class="p-5 border-r border-white/[0.06]">
+              <div class="text-[10px] font-semibold text-white/25 uppercase tracking-widest mb-4">The Hub</div>
+
+              <a href="/overview" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="rgba(255,255,255,0.7)"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="rgba(255,255,255,0.7)"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="rgba(255,255,255,0.7)"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="rgba(255,255,255,0.7)"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Overview</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Your personal life OS — everything connected</div>
+                </div>
+              </a>
+
+              <a href="/ai-brain" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><path d="M6 8.5L7.5 10L10 6.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">AI Brain</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">How the AI learns your patterns and improves your life</div>
+                </div>
+              </a>
+
+              <a href="/features" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Features</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Tasks, habits, journal, accountability and more</div>
+                </div>
+              </a>
+
+              <a href="/growth-score" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v3M8 11v3M2 8h3M11 8h3" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="2.5" fill="rgba(255,255,255,0.7)"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Growth Score</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">The metric that ties every part of your life together</div>
+                </div>
+              </a>
+            </div>
+
+            <div class="p-5">
+              <div class="text-[10px] font-semibold text-white/25 uppercase tracking-widest mb-4">Satellite Apps</div>
+
+              <a href="/lift" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2C8 2 5 5 5 8.5C5 10.43 6.34 12 8 12C9.66 12 11 10.43 11 8.5C11 5 8 2 8 2Z" stroke="rgba(255,255,255,0.7)" stroke-width="1.4" stroke-linejoin="round"/><path d="M5.5 10L4 13M10.5 10L12 13" stroke="rgba(255,255,255,0.7)" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[13px] font-medium text-white/85">Lift</span>
+                    <span class="text-[10px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-medium">Soon</span>
+                  </div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Workout tracker — log sets, track progress, get AI plans</div>
+                </div>
+              </a>
+
+              <a href="/eats" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 5h10a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1z" stroke="rgba(255,255,255,0.7)" stroke-width="1.4"/><path d="M5 5V4a1 1 0 011-1h4a1 1 0 011 1v1" stroke="rgba(255,255,255,0.7)" stroke-width="1.4"/></svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[13px] font-medium text-white/85">Eats</span>
+                    <span class="text-[10px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-medium">Soon</span>
+                  </div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Meal planner — AI meal plans, grocery lists, macros</div>
+                </div>
+              </a>
+
+              <a href="/finance" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="rgba(255,255,255,0.7)" stroke-width="1.4"/></svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[13px] font-medium text-white/85">Finance</span>
+                    <span class="text-[10px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-medium">Soon</span>
+                  </div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Track income, spending, and savings goals</div>
+                </div>
+              </a>
+
+              <div class="flex items-start gap-3 p-2.5 mt-1 border-t border-white/[0.06] pt-3">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.03] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/30 mb-0.5">More coming</div>
+                  <div class="text-[11.5px] text-white/20 leading-snug">The ecosystem keeps growing</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between px-5 py-3 border-t border-white/[0.06] bg-white/[0.02]">
+            <div class="flex items-center gap-2 text-[12px] text-white/35">
+              <span class="bg-white/10 text-white/60 text-[10px] font-semibold px-2 py-0.5 rounded">New</span>
+              AI Brain now learns cross-app patterns
+            </div>
+            <a href="/changelog" class="text-[12px] text-white/35 hover:text-white/65 transition-colors">Changelog →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative group">
+        <button class="text-white/60 hover:text-white transition-colors duration-200 cursor-pointer">
+          Resources
+        </button>
+
+        <div class="absolute top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-[580px] bg-[#141414] border border-white/10 rounded-xl overflow-hidden z-50
+          opacity-0 invisible group-hover:opacity-100 group-hover:visible
+          translate-y-2 group-hover:translate-y-0
+          transition-all duration-200 ease-out">
+
+          <div class="grid grid-cols-2">
+            <div class="p-5 border-r border-white/[0.06]">
+              <div class="text-[10px] font-semibold text-white/25 uppercase tracking-widest mb-4">Learn</div>
+
+              <a href="/blog" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Blog</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Productivity, discipline, and self-improvement</div>
+                </div>
+              </a>
+
+              <a href="/changelog" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><path d="M8 5v3.5l2 1.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[13px] font-medium text-white/85">Changelog</span>
+                    <span class="text-[10px] bg-white/10 text-white/55 px-1.5 py-0.5 rounded font-semibold">New</span>
+                  </div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">See what's been built and what's shipping next</div>
+                </div>
+              </a>
+
+              <a href="/roadmap" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 13V6l5-4 5 4v7" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 13v-3h4v3" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Roadmap</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Where Taskflow is headed — Lift, Eats, Finance and beyond</div>
+                </div>
+              </a>
+            </div>
+
+            <div class="p-5">
+              <div class="text-[10px] font-semibold text-white/25 uppercase tracking-widest mb-4">Support</div>
+
+              <a href="/getting-started" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 5v4c0 3.31 2.69 5 6 5s6-1.69 6-5V5L8 2z" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Getting Started</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Set up Taskflow and get your first plan in 60 seconds</div>
+                </div>
+              </a>
+
+              <a href="/faq" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors mb-1">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><path d="M8 7.5c0-1 .75-1.5 1.5-1.5S11 6.5 11 7.5C11 9 8 9.5 8 11" stroke="rgba(255,255,255,0.7)" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="12.5" r=".75" fill="rgba(255,255,255,0.7)"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">FAQ</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Answers to the most common questions about Taskflow</div>
+                </div>
+              </a>
+
+              <a href="/contact" class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/[0.06] transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H9l-3 2v-2H3a1 1 0 01-1-1V4z" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                </div>
+                <div>
+                  <div class="text-[13px] font-medium text-white/85 mb-0.5">Contact</div>
+                  <div class="text-[11.5px] text-white/35 leading-snug">Reach out — support, feedback, or just say hi</div>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between px-5 py-3 border-t border-white/[0.06] bg-white/[0.02]">
+            <div class="flex items-center gap-2 text-[12px] text-white/30">
+              <span class="bg-white/10 text-white/55 text-[10px] font-semibold px-2 py-0.5 rounded">Tip</span>
+              Get your first AI plan in under 60 seconds after signing up
+            </div>
+            <a href="{{ app_public_url }}/auth/register" class="text-[12px] text-white/35 hover:text-white/65 transition-colors">Start for free →</a>
+          </div>
+        </div>
+      </div>
+
+      <a href="/pricing" class="text-white/60 hover:text-white transition-colors duration-200">Pricing</a>
+      <a href="/contact" class="text-white/60 hover:text-white transition-colors duration-200">Contact</a>
+    </nav>
+
+    <div class="flex items-center justify-end gap-3">
+      <a href="{{ app_public_url }}/auth/login" class="hidden md:block text-white/60 hover:text-white text-sm px-3 py-2 transition-colors duration-200">Log in</a>
+      <a href="{{ app_public_url }}/auth/register" class="hidden md:block bg-white text-gray-900 text-sm px-4 py-2 rounded-md font-semibold hover:bg-white/90 transition-all duration-200">Sign up</a>
+      <button id="menuOpen" class="md:hidden text-white text-2xl">☰</button>
+    </div>
+  </div>
+</header>
+
+<div id="mobileMenu"
+  class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
+  <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
+    <a href="/" class="flex items-center gap-2 text-white font-bold">
+      <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
+          <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      TaskFlow
+    </a>
+
+    <button id="menuClose" class="text-2xl">✕</button>
+  </div>
+
+  <div class="px-6 py-8 flex flex-col gap-6 text-base">
+    <a href="/features" class="text-white/80 hover:text-white">Features</a>
+    <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
+    <a href="/blog" class="text-white/80 hover:text-white">Blog</a>
+
+    <details class="group">
+      <summary class="cursor-pointer text-white/80 hover:text-white">
+        More
+      </summary>
+      <div class="mt-4 ml-4 flex flex-col gap-3 text-white/60">
+        <a href="/contact">Contact</a>
+        <a href="/about">About</a>
+      </div>
+    </details>
+
+    <div class="mt-8 flex flex-col gap-4">
+      <a href="{{ app_public_url }}/auth/register"
+        class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">
+        Sign up
+      </a>
+      <a href="{{ app_public_url }}/auth/login"
+        class="w-full text-center border border-white/20 py-3 rounded-md">
+        Log in
+      </a>
+    </div>
+  </div>
+</div>
