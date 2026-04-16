@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
 interface HomeData {
@@ -28,35 +29,49 @@ interface HomeData {
 }
 
 export default function HomePage() {
-  const [data, setData]               = useState<HomeData | null>(null)
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['home'],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/home'), { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch home data')
+      return res.json() as Promise<HomeData>
+    },
+  })
+
   const [showBanner, setShowBanner]   = useState(true)
-  const [tasks, setTasks]             = useState<HomeData['tasks']>([])
-  const [habits, setHabits]           = useState<HomeData['habits']>([])
+  const [localTasks, setLocalTasks]   = useState<HomeData['tasks']>([])
+  const [localHabits, setLocalHabits] = useState<HomeData['habits']>([])
   const [taskInput, setTaskInput]     = useState('')
   const [journalText, setJournalText] = useState('')
   const [planOpen, setPlanOpen]       = useState(false)
   const [planText, setPlanText]       = useState('Generating your personalized plan...')
   const [planLoading, setPlanLoading] = useState(false)
 
-  useEffect(() => {
-    fetch(apiUrl('/api/home'), { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => {
-        setData(d)
-        setTasks(d.tasks || [])
-        setHabits(d.habits || [])
-        setJournalText(d.today_journal_entry?.content || '')
-      })
-  }, [])
+  const tasks  = localTasks.length  > 0 || !data ? localTasks  : data.tasks
+  const habits = localHabits.length > 0 || !data ? localHabits : data.habits
+
+  // Sync journal text from cache on first load
+  const journalInitialized = useState(() => false)
+  if (data && journalText === '' && data.today_journal_entry?.content) {
+    setJournalText(data.today_journal_entry.content)
+  }
 
   async function toggleTask(id: number) {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
+    setLocalTasks(prev =>
+      (prev.length ? prev : (data?.tasks ?? [])).map(t => t.id === id ? { ...t, completed: !t.completed } : t)
+    )
     await fetch(apiUrl(`/tasks/toggle/${id}`), { method: 'POST', credentials: 'include' })
+    queryClient.invalidateQueries({ queryKey: ['home'] })
   }
 
   async function toggleHabit(id: number) {
-    setHabits(prev => prev.map(h => h.id === id ? { ...h, completed_today: !h.completed_today } : h))
+    setLocalHabits(prev =>
+      (prev.length ? prev : (data?.habits ?? [])).map(h => h.id === id ? { ...h, completed_today: !h.completed_today } : h)
+    )
     await fetch(apiUrl(`/habits/${id}/toggle`), { method: 'POST', credentials: 'include' })
+    queryClient.invalidateQueries({ queryKey: ['home'] })
   }
 
   async function addQuickTask() {
@@ -69,7 +84,13 @@ export default function HomePage() {
       body: JSON.stringify({ title: val })
     })
     const created = await res.json()
-    if (created.id) setTasks(prev => [...prev, { id: created.id, title: val, completed: false, priority: 'low', category: 'Task' }])
+    if (created.id) {
+      setLocalTasks(prev => [
+        ...(prev.length ? prev : (data?.tasks ?? [])),
+        { id: created.id, title: val, completed: false, priority: 'low', category: 'Task' }
+      ])
+    }
+    queryClient.invalidateQueries({ queryKey: ['home'] })
   }
 
   async function saveJournal() {
@@ -78,6 +99,7 @@ export default function HomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: journalText })
     })
+    queryClient.invalidateQueries({ queryKey: ['home'] })
   }
 
   async function planMyDay() {
@@ -99,10 +121,9 @@ export default function HomePage() {
 
   const score = data?.growth_score ?? 0
   const dashOffset = 201 - (201 * score / 100)
-  const tasksPct = data && data.tasks_total > 0 ? (data.tasks_done / data.tasks_total * 100) : 0
+  const tasksPct  = data && data.tasks_total  > 0 ? (data.tasks_done  / data.tasks_total  * 100) : 0
   const habitsPct = data && data.habits_total > 0 ? (data.habits_done / data.habits_total * 100) : 0
 
-  // Calendar
   const calBlanks = Array(data?.first_day_of_month ?? 0).fill(null)
   const calDays   = Array.from({ length: data?.days_in_month ?? 0 }, (_, i) => i + 1)
 
@@ -127,9 +148,11 @@ export default function HomePage() {
     bottomGrid:  { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px' },
   }
 
-  if (!data) return (
+  if (isLoading) return (
     <div style={{ padding:'32px', color:'rgba(255,255,255,0.2)', fontSize:'13px' }}>Loading...</div>
   )
+
+  if (!data) return null
 
   return (
     <div style={{ overflowY:'auto', minHeight:'100vh' }}>
@@ -163,8 +186,8 @@ export default function HomePage() {
         {/* STATS */}
         <div style={s.statsGrid}>
           {[
-            { label:'Current streak', value: data.streak, sub:'days in a row' },
-            { label:'Tasks today',    value: data.tasks_done,  sub2:`/${data.tasks_total}`, sub:`${data.tasks_total - data.tasks_done} remaining` },
+            { label:'Current streak', value: data.streak,      sub:'days in a row' },
+            { label:'Tasks today',    value: data.tasks_done,  sub2:`/${data.tasks_total}`,  sub:`${data.tasks_total  - data.tasks_done}  remaining` },
             { label:'Habits done',   value: data.habits_done, sub2:`/${data.habits_total}`, sub:`${data.habits_total - data.habits_done} still pending` },
             { label:'Growth score',  value: data.growth_score, sub:'out of 100' },
           ].map(card => (
