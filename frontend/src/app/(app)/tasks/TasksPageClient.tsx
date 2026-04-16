@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
 interface Task {
@@ -28,71 +29,65 @@ export default function TasksPageClient() {
   const searchParams = useSearchParams()
   const listId = searchParams.get('list_id') ? Number(searchParams.get('list_id')) : null
 
-  const [data, setData]           = useState<Data | null>(null)
-  const [tasks, setTasks]         = useState<Task[]>([])
-  const [filter, setFilter]       = useState<'all'|'active'|'completed'>('all')
-  const [newTask, setNewTask]      = useState('')
-  const [newList, setNewList]      = useState('')
-  const [detail, setDetail]        = useState<Task | null>(null)
-  const [dpTitle, setDpTitle]      = useState('')
-  const [dpNotes, setDpNotes]      = useState('')
-  const [dpPriority, setDpPriority]= useState('medium')
-  const [dpListId, setDpListId]    = useState<number|null>(null)
-  const [loading, setLoading]      = useState(true)
+  const queryClient = useQueryClient()
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['tasks', listId],
+    queryFn: async () => {
+      const url = listId
+        ? apiUrl(`/api/tasks/data?list_id=${listId}`)
+        : apiUrl('/api/tasks/data')
+      const res = await fetch(url, { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch tasks')
+      return res.json() as Promise<Data>
+    },
+  })
+
+  const [localTasks, setLocalTasks] = useState<Task[]>([])
+  const tasks = localTasks.length > 0 || !data ? localTasks : data.tasks
+
+  const [filter, setFilter]         = useState<'all'|'active'|'completed'>('all')
+  const [newTask, setNewTask]        = useState('')
+  const [newList, setNewList]        = useState('')
+  const [detail, setDetail]          = useState<Task | null>(null)
+  const [dpTitle, setDpTitle]        = useState('')
+  const [dpNotes, setDpNotes]        = useState('')
+  const [dpPriority, setDpPriority]  = useState('medium')
+  const [dpListId, setDpListId]      = useState<number|null>(null)
   const detailRef = useRef<HTMLDivElement>(null)
-
-  async function fetchData(lid: number | null) {
-    const url = lid ? apiUrl(`/api/tasks/data?list_id=${lid}`) : apiUrl('/api/tasks/data')
-    const res = await fetch(url, { credentials:'include' })
-    if (!res.ok) return null
-    return res.json() as Promise<Data>
-  }
-
-  useEffect(() => {
-    let cancelled = false
-
-    fetchData(listId)
-      .then(d => {
-        if (!d || cancelled) return
-        setData(d)
-        setTasks(d.tasks)
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [listId])
 
   async function addTask() {
     if (!newTask.trim()) return
     const title = newTask.trim()
     setNewTask('')
     const temp: Task = { id: Date.now(), title, completed:false, priority:'medium', list_id:listId, list_name:'Task', pinned:false, description:'' }
-    setTasks(prev => [temp, ...prev])
+    setLocalTasks(prev => [temp, ...(prev.length ? prev : (data?.tasks ?? []))])
     const res = await fetch(apiUrl('/tasks/quick'), {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ title, list_id: listId })
     })
     const created = await res.json()
-    if (created.id) setTasks(prev => prev.map(t => t.id === temp.id ? {...temp, id:created.id} : t))
-    else setTasks(prev => prev.filter(t => t.id !== temp.id))
+    if (created.id) setLocalTasks(prev => prev.map(t => t.id === temp.id ? {...temp, id:created.id} : t))
+    else setLocalTasks(prev => prev.filter(t => t.id !== temp.id))
+    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
   }
 
   async function toggleTask(id: number) {
-    setTasks(prev => prev.map(t => t.id === id ? {...t, completed:!t.completed} : t))
+    setLocalTasks(prev =>
+      (prev.length ? prev : (data?.tasks ?? [])).map(t => t.id === id ? {...t, completed:!t.completed} : t)
+    )
     await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} })
+    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
   }
 
   async function deleteTask(id: number) {
-    setTasks(prev => prev.filter(t => t.id !== id))
+    setLocalTasks(prev =>
+      (prev.length ? prev : (data?.tasks ?? [])).filter(t => t.id !== id)
+    )
     if (detail?.id === id) setDetail(null)
     await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' })
+    queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
   }
 
   async function addList() {
@@ -108,14 +103,7 @@ export default function TasksPageClient() {
       const url = res.url
       const listIdMatch = url.match(/list_id=(\d+)/)
       if (listIdMatch) router.push(`/tasks?list_id=${listIdMatch[1]}`)
-      else {
-        const d = await fetchData(listId)
-        if (d) {
-          setData(d)
-          setTasks(d.tasks)
-          setLoading(false)
-        }
-      }
+      else queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
     }
   }
 
@@ -128,8 +116,13 @@ export default function TasksPageClient() {
     })
     const result = await res.json()
     if (result.ok) {
-      setTasks(prev => prev.map(t => t.id === detail.id ? {...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId} : t))
+      setLocalTasks(prev =>
+        (prev.length ? prev : (data?.tasks ?? [])).map(t =>
+          t.id === detail.id ? {...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId} : t
+        )
+      )
       setDetail(null)
+      queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
     }
   }
 
@@ -182,7 +175,6 @@ export default function TasksPageClient() {
         <div style={s.lsScroll}>
           <div style={s.lsSection}>My lists</div>
 
-          {/* All tasks */}
           <a href="/tasks" onClick={e=>{e.preventDefault();router.push('/tasks')}} style={{
             display:'flex',alignItems:'center',gap:'8px',padding:'7px 20px',fontSize:'13px',textDecoration:'none',
             color: !listId ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.45)',
@@ -232,7 +224,6 @@ export default function TasksPageClient() {
             </button>
           </div>
 
-          {/* Filter tabs */}
           <div style={{display:'flex',gap:0}}>
             {(['all','active','completed'] as const).map(f=>(
               <div key={f} onClick={()=>setFilter(f)} style={{

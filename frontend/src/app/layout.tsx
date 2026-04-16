@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import QueryProvider from '@/providers/QueryProvider'
 
 export const metadata: Metadata = {
   title: 'TaskFlow',
@@ -15,7 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
         color: '#fff',
       }}>
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
       </body>
     </html>
   )
