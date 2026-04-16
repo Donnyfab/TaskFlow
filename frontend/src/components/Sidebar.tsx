@@ -33,6 +33,7 @@ const sections = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router   = useRouter()
+  const marketingUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
   const [user, setUser]           = useState<{ name: string; username: string; profile_image?: string } | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
 
@@ -170,7 +171,7 @@ export default function Sidebar() {
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 0' }}/>
               <button onClick={async () => {
                 await fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' })
-                window.location.href = '/auth/login'
+                window.location.href = marketingUrl
               }} style={{
                 display: 'block', width: '100%', padding: '9px 12px', fontSize: '13px',
                 color: 'rgba(255,100,100,0.8)', background: 'transparent', border: 'none',
