@@ -2883,6 +2883,8 @@ def ping():
 
 @app.route("/")
 def landing_page():
+    if logged_in():
+        return redirect(APP_PUBLIC_URL + "/home")
     return render_template("landing_page.html")
 
 
