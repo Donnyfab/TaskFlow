@@ -1,11 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { apiUrl } from '@/lib/api-base'
 
 export default function LoginPage() {
   const router = useRouter()
-  const landingPageUrl = apiUrl('/')
+  const searchParams = useSearchParams()
+  const landingPageUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
+  const infoMessage = searchParams.get('verify') === 'sent' ? 'Check your inbox to verify your email before signing in.' : ''
+  const oauthError = searchParams.get('error') === 'google' ? 'Google sign-in could not be completed. Please try again.' : ''
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState('')
@@ -98,6 +101,12 @@ export default function LoginPage() {
           <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '28px' }}>Sign in to continue your growth journey.</div>
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {infoMessage && (
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.72)' }}>
+                {infoMessage}
+              </div>
+            )}
+
             <div>
               <div style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '5px' }}>Username or email</div>
               <input
@@ -127,9 +136,9 @@ export default function LoginPage() {
               Forgot password?
             </a>
 
-            {error && (
+            {(error || oauthError) && (
               <div style={{ background: 'rgba(255,80,80,0.08)', border: '1px solid rgba(255,80,80,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: 'rgba(255,120,120,0.8)' }}>
-                {error}
+                {error || oauthError}
               </div>
             )}
 

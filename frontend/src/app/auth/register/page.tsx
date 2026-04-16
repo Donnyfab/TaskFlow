@@ -5,7 +5,7 @@ import { apiUrl } from '@/lib/api-base'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const landingPageUrl = apiUrl('/')
+  const landingPageUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName]   = useState('')
   const [email, setEmail]         = useState('')

@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const backendOrigin = (process.env.BACKEND_PROXY_URL || 'https://tflow.live').replace(/\/$/, '')
+const backendOrigin = (process.env.BACKEND_PROXY_URL || 'https://api.tflow.live').replace(/\/$/, '')
 
 const nextConfig = {
   typescript: {
@@ -28,6 +28,7 @@ const nextConfig = {
       { source: '/ai/actions/:path*', destination: `${backendOrigin}/ai/actions/:path*` },
       { source: '/ai/journal-insight', destination: `${backendOrigin}/ai/journal-insight` },
       { source: '/login/google', destination: `${backendOrigin}/login/google` },
+      { source: '/auth/google/callback', destination: `${backendOrigin}/auth/google/callback` },
       { source: '/register', destination: `${backendOrigin}/register` },
       { source: '/accountreset', destination: `${backendOrigin}/accountreset` },
       { source: '/upload_profile', destination: `${backendOrigin}/upload_profile` },

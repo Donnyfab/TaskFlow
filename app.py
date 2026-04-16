@@ -58,6 +58,11 @@ def env_csv(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def env_url(name: str, default: str) -> str:
+    value = (os.environ.get(name) or "").strip() or default
+    return value.rstrip("/")
+
+
 DB_CONNECT_TIMEOUT = max(1, int(os.environ.get("DB_CONNECT_TIMEOUT", "10")))
 DB_USE_POOL = env_flag("DB_USE_POOL")
 DB_CONNECT_RETRIES = max(1, int(os.environ.get("DB_CONNECT_RETRIES", "5")))
@@ -76,6 +81,8 @@ DB_CONFIG = {
 DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 5)))
 db_pool = None
 db_pool_initialized = False
+MARKETING_PUBLIC_URL = env_url("MARKETING_PUBLIC_URL", "https://tflow.live")
+APP_PUBLIC_URL = env_url("APP_PUBLIC_URL", "https://app.tflow.live")
 
 print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
@@ -89,6 +96,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 DEFAULT_CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://app.tflow.live",
     r"https://.*\.vercel\.app",
 ]
 CORS_ALLOWED_ORIGINS = env_csv("CORS_ALLOWED_ORIGINS", DEFAULT_CORS_ALLOWED_ORIGINS)
@@ -309,7 +317,11 @@ else:
 
 @app.context_processor
 def inject_auth_flags():
-    return {"google_oauth_enabled": google is not None}
+    return {
+        "google_oauth_enabled": google is not None,
+        "marketing_public_url": MARKETING_PUBLIC_URL,
+        "app_public_url": APP_PUBLIC_URL,
+    }
 
 
 # ============================================================
@@ -3208,7 +3220,7 @@ def logout():
     Logs the user out by clearing their session cookie.
     """
     session.clear()
-    return redirect(url_for("landing_page"))
+    return redirect(MARKETING_PUBLIC_URL)
 
 # ============================================================
 # 12) ACCOUNT / SETTINGS ROUTES (login required)
@@ -6568,7 +6580,11 @@ def trash_page():
 @app.route("/login/google")
 def login_google():
     is_calendar_connect_flow = "google_calendar_connect_user_id" in session and "user_id" in session
-    fallback_target = "settings_page" if is_calendar_connect_flow else "login_page"
+    fallback_target = (
+        f"{APP_PUBLIC_URL}/settings"
+        if is_calendar_connect_flow
+        else f"{APP_PUBLIC_URL}/auth/login?error=google"
+    )
 
     if google is None:
         return (
@@ -6577,7 +6593,7 @@ def login_google():
             500,
         )
     try:
-        redirect_uri = GOOGLE_REDIRECT_URI or url_for("google_callback", _external=True)
+        redirect_uri = GOOGLE_REDIRECT_URI or f"{APP_PUBLIC_URL}/auth/google/callback"
         return google.authorize_redirect(redirect_uri)
     except requests.RequestException:
         app.logger.exception("Google OAuth redirect failed because Google could not be reached.")
@@ -6585,7 +6601,7 @@ def login_google():
             session.pop("google_calendar_connect_user_id", None)
             session.pop("google_oauth_redirect", None)
         flash("Google sign-in is unavailable right now. Check your internet connection and try again.")
-        return redirect(url_for(fallback_target))
+        return redirect(fallback_target)
     except OAuthError as exc:
         app.logger.exception("Google OAuth redirect failed.")
         if is_calendar_connect_flow:
@@ -6596,7 +6612,7 @@ def login_google():
             "Google sign-in could not start."
             + (f" {description}" if description else "")
         )
-        return redirect(url_for(fallback_target))
+        return redirect(fallback_target)
 
 
 @app.route("/calendar/connect-google")
@@ -6685,7 +6701,11 @@ def google_callback():
 
     pending_google_connect_user_id = session.pop("google_calendar_connect_user_id", None)
     pending_google_redirect = session.pop("google_oauth_redirect", None)
-    failure_target = pending_google_redirect or url_for("settings_page" if pending_google_connect_user_id else "login_page")
+    failure_target = pending_google_redirect or (
+        f"{APP_PUBLIC_URL}/settings"
+        if pending_google_connect_user_id
+        else f"{APP_PUBLIC_URL}/auth/login?error=google"
+    )
 
     if request.args.get("error"):
         description = (request.args.get("error_description") or "").strip()
@@ -6714,7 +6734,7 @@ def google_callback():
             )
             invalidate_user_cached_data(pending_google_connect_user_id)
             flash("Google Calendar connected.")
-            return redirect(pending_google_redirect or url_for("settings_page"))
+            return redirect(pending_google_redirect or f"{APP_PUBLIC_URL}/settings")
 
         email = user_info.get("email")
         name = user_info.get("name") or "TaskFlow User"
@@ -6763,7 +6783,7 @@ def google_callback():
 
     begin_user_session(user_id, name, username)
 
-    return redirect(url_for("home_page"))
+    return redirect(f"{APP_PUBLIC_URL}/home")
 
 # Sidebar links pages
 @app.route("/tasks")
