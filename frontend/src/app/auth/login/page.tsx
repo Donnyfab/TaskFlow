@@ -5,6 +5,7 @@ import { apiUrl } from '@/lib/api-base'
 
 export default function LoginPage() {
   const router = useRouter()
+  const landingPageUrl = apiUrl('/')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState('')
@@ -40,7 +41,7 @@ export default function LoginPage() {
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 56px', borderRight: '1px solid rgba(255,255,255,0.07)', background: '#0A0A0A' }}>
         
         {/* Logo */}
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}>
+        <a href={landingPageUrl} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}>
           <div style={{ width: '28px', height: '28px', background: '#fff', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
               <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
