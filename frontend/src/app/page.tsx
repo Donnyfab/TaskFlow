@@ -1,9 +1,5 @@
-import LandingPage from './landing/page'
+import { redirect } from 'next/navigation'
 
 export default function RootPage() {
-  return (
-    <div style={{ width: '100%', minHeight: '100vh', background: '#0A0A0A' }}>
-      <LandingPage />
-    </div>
-  )
+  redirect('/auth/login')
 }

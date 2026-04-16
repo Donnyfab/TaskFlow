@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const AUTH_PATHS = ['/auth/login', '/auth/register']
-const PUBLIC_PATHS = ['/landing']
+
 const PROTECTED_PATHS = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/ai', '/focus', '/score', '/settings', '/account']
 
 export function middleware(request: NextRequest) {
@@ -25,11 +25,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Public marketing pages stay accessible whether signed in or not.
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
-    return NextResponse.next()
-  }
-
   // Protect app pages
   if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
     if (!session) {
@@ -41,5 +36,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/landing/:path*', '/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/auth/:path*'],
+  matcher: ['/', '/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/auth/:path*'],
 }
