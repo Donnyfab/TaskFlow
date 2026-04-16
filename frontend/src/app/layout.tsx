@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import QueryProvider from '@/providers/QueryProvider'
+import Prefetcher from '@/components/Prefetcher'
 
 export const metadata: Metadata = {
   title: 'TaskFlow',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         color: '#fff',
       }}>
         <QueryProvider>
+          <Prefetcher />
           {children}
         </QueryProvider>
       </body>
