@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
 interface CalEvent { id: number; title: string; date: string; time: string; category: string; color: string }
@@ -37,9 +38,27 @@ function alphaReplace(color: string, alpha: string) {
 }
 
 export default function CalendarPage() {
+  const queryClient = useQueryClient()
   const now = new Date()
-  const [data, setData]           = useState<Data | null>(null)
-  const [eventsMap, setEventsMap] = useState<Record<string, CalEvent[]>>({})
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['calendar'],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/calendar/data'), { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch calendar data')
+      return res.json() as Promise<Data>
+    },
+  })
+
+  // eventsMap is derived from cache but can be updated optimistically
+  const [localEventsMap, setLocalEventsMap] = useState<Record<string, CalEvent[]> | null>(null)
+  const eventsMap = localEventsMap ?? (data ? buildEventsMap(data.events) : {})
+
+  // Sync localEventsMap when cache updates (e.g. after invalidation)
+  useEffect(() => {
+    if (data) setLocalEventsMap(buildEventsMap(data.events))
+  }, [data])
+
   const [curYear, setCurYear]     = useState(now.getFullYear())
   const [curMonth, setCurMonth]   = useState(now.getMonth())
   const [selDay, setSelDay]       = useState(now.getDate())
@@ -55,16 +74,6 @@ export default function CalendarPage() {
   const [saving, setSaving]       = useState(false)
   const [syncing, setSyncing]     = useState(false)
   const [syncMsg, setSyncMsg]     = useState('')
-
-  const fetchData = useCallback(async () => {
-    const res = await fetch(apiUrl('/api/calendar/data'), { credentials: 'include' })
-    if (!res.ok) return
-    const d: Data = await res.json()
-    setData(d)
-    setEventsMap(buildEventsMap(d.events))
-  }, [])
-
-  useEffect(() => { fetchData() }, [fetchData])
 
   function openModal(date?: string, time?: string) {
     const y = selYear, m = String(selMonth+1).padStart(2,'0'), d = String(selDay).padStart(2,'0')
@@ -87,12 +96,14 @@ export default function CalendarPage() {
     const result = await res.json()
     if (result.ok) {
       const newEv: CalEvent = result
-      setEventsMap(prev => {
+      setLocalEventsMap(prev => {
+        const base = prev ?? {}
         const d = new Date(evDate + 'T00:00:00')
         const key = getKey(d.getFullYear(), d.getMonth(), d.getDate())
-        return { ...prev, [key]: [...(prev[key] || []), newEv] }
+        return { ...base, [key]: [...(base[key] || []), newEv] }
       })
       setModal(false)
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
     }
     setSaving(false)
   }
@@ -100,12 +111,14 @@ export default function CalendarPage() {
   async function deleteEvent(key: string, idx: number) {
     const ev = eventsMap[key]?.[idx]
     if (!ev) return
-    setEventsMap(prev => {
-      const arr = [...(prev[key] || [])]
+    setLocalEventsMap(prev => {
+      const base = prev ?? {}
+      const arr = [...(base[key] || [])]
       arr.splice(idx, 1)
-      return { ...prev, [key]: arr }
+      return { ...base, [key]: arr }
     })
     await fetch(apiUrl(`/api/calendar/events/${ev.id}/delete`), { method: 'POST', credentials: 'include' })
+    queryClient.invalidateQueries({ queryKey: ['calendar'] })
   }
 
   async function syncGoogle() {
@@ -116,7 +129,7 @@ export default function CalendarPage() {
       const d = await res.json()
       if (d.ok) {
         setSyncMsg(`✓ ${d.imported} imported`)
-        fetchData()
+        queryClient.invalidateQueries({ queryKey: ['calendar'] })
         setTimeout(() => setSyncMsg(''), 3000)
       } else {
         setSyncMsg('Sync failed')
@@ -167,6 +180,18 @@ export default function CalendarPage() {
   const miniFirstDay = new Date(curYear, curMonth, 1).getDay()
   const miniDays = new Date(curYear, curMonth + 1, 0).getDate()
   const miniPrev = new Date(curYear, curMonth, 0).getDate()
+
+  if (loading) return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', minHeight: '100vh' }}>
+      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', width: '200px' }} />
+        <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', borderRadius: '12px', marginTop: '8px' }} />
+      </div>
+      <div style={{ borderLeft: '1px solid rgba(255,255,255,0.05)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {[1,2,3].map(i => <div key={i} style={{ height: '60px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }} />)}
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', minHeight: '100vh', minWidth: 0 }}>
