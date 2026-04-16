@@ -1,18 +1,31 @@
 'use client'
-import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { apiUrl } from '@/lib/api-base'
 
 export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const landingPageUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
-  const infoMessage = searchParams.get('verify') === 'sent' ? 'Check your inbox to verify your email before signing in.' : ''
-  const oauthError = searchParams.get('error') === 'google' ? 'Google sign-in could not be completed. Please try again.' : ''
+  const [infoMessage, setInfoMessage] = useState('')
+  const [oauthError, setOauthError] = useState('')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setInfoMessage(
+      params.get('verify') === 'sent'
+        ? 'Check your inbox to verify your email before signing in.'
+        : ''
+    )
+    setOauthError(
+      params.get('error') === 'google'
+        ? 'Google sign-in could not be completed. Please try again.'
+        : ''
+    )
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
