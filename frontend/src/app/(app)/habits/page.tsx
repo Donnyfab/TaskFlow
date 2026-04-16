@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 
 interface Habit {
@@ -16,40 +17,46 @@ interface Data {
 const EMOJIS = ['💪','📚','🚿','🌅','🧘','✍️','🎵','💧','🏃','🥗','😴','🎯']
 
 export default function HabitsPage() {
-  const [data, setData]       = useState<Data | null>(null)
-  const [habits, setHabits]   = useState<Habit[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['habits'],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/habits/data'), { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch habits')
+      return res.json() as Promise<Data>
+    },
+  })
+
+  const [localHabits, setLocalHabits] = useState<Habit[]>([])
+  const habits = localHabits.length > 0 || !data ? localHabits : data.habits
+
   const [modal, setModal]     = useState(false)
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('💪')
   const [newFreq, setNewFreq] = useState('Daily')
   const [saving, setSaving]   = useState(false)
 
-  const fetchData = useCallback(async () => {
-    const res = await fetch(apiUrl('/api/habits/data'), { credentials: 'include' })
-    if (!res.ok) return
-    const d: Data = await res.json()
-    setData(d)
-    setHabits(d.habits)
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
   async function toggleHabit(id: number) {
-    setHabits(prev => prev.map(h =>
-      h.id === id ? { ...h, completed_today: !h.completed_today, streak: h.completed_today ? Math.max(0, h.streak - 1) : h.streak + 1 } : h
-    ))
+    setLocalHabits(prev =>
+      (prev.length ? prev : (data?.habits ?? [])).map(h =>
+        h.id === id ? { ...h, completed_today: !h.completed_today, streak: h.completed_today ? Math.max(0, h.streak - 1) : h.streak + 1 } : h
+      )
+    )
     await fetch(apiUrl(`/habits/${id}/toggle`), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
+    queryClient.invalidateQueries({ queryKey: ['habits'] })
   }
 
   async function deleteHabit(id: number) {
     if (!confirm('Delete this habit? Your streak will be lost.')) return
-    setHabits(prev => prev.filter(h => h.id !== id))
+    setLocalHabits(prev =>
+      (prev.length ? prev : (data?.habits ?? [])).filter(h => h.id !== id)
+    )
     await fetch(apiUrl(`/habits/${id}/delete`), { method: 'POST', credentials: 'include' })
+    queryClient.invalidateQueries({ queryKey: ['habits'] })
   }
 
   async function createHabit() {
@@ -65,7 +72,8 @@ export default function HabitsPage() {
       setNewName('')
       setNewIcon('💪')
       setNewFreq('Daily')
-      fetchData()
+      setLocalHabits([]) // clear local so cache takes over after invalidation
+      queryClient.invalidateQueries({ queryKey: ['habits'] })
     }
     setSaving(false)
   }
