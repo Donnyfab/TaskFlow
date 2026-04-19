@@ -9,6 +9,7 @@ import { apiUrl } from '@/lib/api-base'
 interface Task {
   id: number; title: string; completed: boolean; priority: string
   list_id: number | null; list_name: string; pinned: boolean; description: string
+  scheduled_for?: string | null
 }
 interface TaskList { id: number; name: string; pinned: boolean; task_count: number }
 interface Data {
@@ -160,12 +161,16 @@ export default function TasksPageClient() {
   const listId       = searchParams.get('list_id') ? Number(searchParams.get('list_id')) : null
   const queryClient  = useQueryClient()
 
+  // queryId distinguishes each smart list view in the cache
+  const [smartActive, setSmartActive] = useState('inbox')
+  const queryId: string | number = listId ?? smartActive
+
   const { data, isLoading } = useQuery({
-    queryKey: ['tasks', listId],
+    queryKey: ['tasks', queryId],
     queryFn: async () => {
       const url = listId
         ? apiUrl(`/api/tasks/data?list_id=${listId}`)
-        : apiUrl('/api/tasks/data')
+        : apiUrl(`/api/tasks/data?smart=${smartActive}`)
       const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) throw new Error('Failed to fetch tasks')
       return res.json() as Promise<Data>
@@ -175,7 +180,6 @@ export default function TasksPageClient() {
   const tasks = data?.tasks ?? []
 
   const [filter,          setFilter]         = useState<'all'|'active'|'completed'>('all')
-  const [newTask,         setNewTask]         = useState('')
   const [newList,         setNewList]         = useState('')
   const [showNewList,     setShowNewList]     = useState(false)
   const [showNewListMenu, setShowNewListMenu] = useState(false)
@@ -184,7 +188,6 @@ export default function TasksPageClient() {
   const [dpNotes,         setDpNotes]         = useState('')
   const [dpPriority,      setDpPriority]      = useState('medium')
   const [dpListId,        setDpListId]        = useState<number|null>(null)
-  const [smartActive,     setSmartActive]     = useState('inbox')
   const [hovNL,           setHovNL]           = useState(false)
 
   // ── New Task Modal state ──────────────────────────────────────────
@@ -346,11 +349,11 @@ export default function TasksPageClient() {
 
   async function bdSaveTask(task: BdTask) {
     const temp: Task = { id:-Date.now(), title:task.title, completed:false, priority:task.priority, list_id:listId, list_name:'Task', pinned:false, description:task.dueDate?`Due: ${task.dueDate}`:'' }
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
     setBdTasks(p => p.filter(t => t.id !== task.id))
     try {
       await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:task.title, list_id:listId, priority:task.priority }) })
-    } finally { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
+    } finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function bdSaveAll() {
@@ -358,7 +361,7 @@ export default function TasksPageClient() {
     for (const t of snapshot) {
       await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:t.title, list_id:listId, priority:t.priority }) })
     }
-    queryClient.invalidateQueries({ queryKey:['tasks',listId] }); bdClose()
+    queryClient.invalidateQueries({ queryKey:['tasks', queryId] }); bdClose()
   }
 
   /* ── New Task Modal functions ── */
@@ -381,91 +384,97 @@ export default function TasksPageClient() {
 
   async function mtCreate() {
     if (!mtTitle.trim()) return
-    const title = mtTitle.trim()
-    const resolvedListId = /^\d+$/.test(mtLocation) ? Number(mtLocation) : null
+    // Capture state values before clearing
+    const title       = mtTitle.trim()
+    const loc         = mtLocation
+    const date        = mtDate
+    const pri         = mtPriority
     mtClose(); setMtTitle(''); setMtPriority('none'); setMtDate('')
-    const priority = mtPriority === 'none' ? 'medium' : mtPriority
-    const temp: Task = { id:-Date.now(), title, completed:false, priority, list_id:resolvedListId, list_name:'Task', pinned:false, description: mtDate ? `Due: ${mtDate}` : '' }
-    // Only optimistically insert into the current view if this task belongs here
-    const sameList = resolvedListId === listId
-    const prev = sameList ? queryClient.getQueryData<Data>(['tasks', listId]) : undefined
-    if (sameList) queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
+
+    const resolvedListId = /^\d+$/.test(loc) ? Number(loc) : null
+    const priority = pri === 'none' ? 'medium' : pri
+
+    // Map location → scheduled_for value sent to the API
+    const scheduledFor: string | null = (() => {
+      if (resolvedListId !== null) return null        // going to a project list
+      if (loc === 'inbox')    return null
+      if (loc === 'today')    return 'today'
+      if (loc === 'someday')  return 'someday'
+      if (loc === 'anytime')  return 'anytime'
+      if (loc === 'upcoming') return date || null     // date string or null
+      return null
+    })()
+
+    // Derive which query cache key this task belongs to
+    const destQueryId: string | number = resolvedListId !== null
+      ? resolvedListId
+      : (scheduledFor && scheduledFor.match(/^\d{4}-\d{2}-\d{2}$/) ? 'upcoming' : (scheduledFor ?? 'inbox'))
+
+    const sameList = destQueryId === queryId
+    const temp: Task = { id:-Date.now(), title, completed:false, priority, list_id:resolvedListId, list_name:'Task', pinned:false, description:'', scheduled_for: scheduledFor }
+    const prev = sameList ? queryClient.getQueryData<Data>(['tasks', queryId]) : undefined
+    if (sameList) queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
     try {
-      const res = await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, list_id:resolvedListId, priority }) })
+      const res = await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, list_id:resolvedListId, priority, scheduled_for: scheduledFor }) })
       const created = await res.json()
       if (created.id && sameList) {
-        queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===temp.id ? {...temp,id:created.id} : t) } : old)
+        queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===temp.id ? {...temp,id:created.id} : t) } : old)
       } else if (!created.id && sameList && prev) {
-        queryClient.setQueryData(['tasks', listId], prev)
+        queryClient.setQueryData(['tasks', queryId], prev)
       }
-    } catch { if (sameList && prev) queryClient.setQueryData(['tasks', listId], prev) }
+    } catch { if (sameList && prev) queryClient.setQueryData(['tasks', queryId], prev) }
     finally {
-      queryClient.invalidateQueries({ queryKey:['tasks', listId] })
-      if (!sameList) queryClient.invalidateQueries({ queryKey:['tasks', resolvedListId] })
+      queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
+      if (!sameList) queryClient.invalidateQueries({ queryKey:['tasks', destQueryId] })
     }
   }
 
   /* ── Standard mutations ── */
-  async function addTask() {
-    if (!newTask.trim()) return
-    const title = newTask.trim(); setNewTask('')
-    const temp: Task = { id:-Date.now(), title, completed:false, priority:'medium', list_id:listId, list_name:'Task', pinned:false, description:'' }
-    const prev = queryClient.getQueryData<Data>(['tasks', listId])
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
-    try {
-      const res = await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, list_id:listId }) })
-      const created = await res.json()
-      if (created.id) queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===temp.id ? {...temp,id:created.id} : t) } : old)
-      else queryClient.setQueryData(['tasks', listId], prev)
-    } catch { queryClient.setQueryData(['tasks', listId], prev) }
-    finally   { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
-  }
-
   async function toggleTask(id: number) {
-    const prev = queryClient.getQueryData<Data>(['tasks', listId])
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===id ? {...t,completed:!t.completed} : t) } : old)
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===id ? {...t,completed:!t.completed} : t) } : old)
     try { await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} }) }
-    catch { queryClient.setQueryData(['tasks', listId], prev) }
-    finally { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
+    catch { queryClient.setQueryData(['tasks', queryId], prev) }
+    finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function deleteTask(id: number) {
-    const prev = queryClient.getQueryData<Data>(['tasks', listId])
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:old.tasks.filter(t => t.id!==id) } : old)
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.filter(t => t.id!==id) } : old)
     if (detail?.id===id) setDetail(null)
     try { await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' }) }
-    catch { queryClient.setQueryData(['tasks', listId], prev) }
-    finally { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
+    catch { queryClient.setQueryData(['tasks', queryId], prev) }
+    finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function addList() {
     if (!newList.trim()) return
     const name = newList.trim(); setNewList(''); setShowNewList(false)
-    const prev = queryClient.getQueryData<Data>(['tasks', listId])
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     const tempList: TaskList = { id:-Date.now(), name, pinned:false, task_count:0 }
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, lists:[...old.lists,tempList] } : old)
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, lists:[...old.lists,tempList] } : old)
     try {
       const res = await fetch(apiUrl('/lists/create'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(name)}` })
       if (res.ok) {
         const match = res.url.match(/list_id=(\d+)/)
         if (match) router.push(`/tasks?list_id=${match[1]}`)
-        else queryClient.invalidateQueries({ queryKey:['tasks',listId] })
-      } else queryClient.setQueryData(['tasks', listId], prev)
-    } catch { queryClient.setQueryData(['tasks', listId], prev) }
-    finally   { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
+        else queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
+      } else queryClient.setQueryData(['tasks', queryId], prev)
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
+    finally   { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function saveDetail() {
     if (!detail) return
-    const prev = queryClient.getQueryData<Data>(['tasks', listId])
-    queryClient.setQueryData<Data>(['tasks', listId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===detail.id ? { ...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId } : t) } : old)
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===detail.id ? { ...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId } : t) } : old)
     setDetail(null)
     try {
       const res = await fetch(apiUrl(`/tasks/update/${detail.id}`), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','Accept':'application/json'}, body:JSON.stringify({ title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId }) })
       const result = await res.json()
-      if (!result.ok) queryClient.setQueryData(['tasks', listId], prev)
-    } catch { queryClient.setQueryData(['tasks', listId], prev) }
-    finally   { queryClient.invalidateQueries({ queryKey:['tasks',listId] }) }
+      if (!result.ok) queryClient.setQueryData(['tasks', queryId], prev)
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
+    finally   { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   function openDetail(task: Task) {
@@ -770,18 +779,10 @@ export default function TasksPageClient() {
 
         {/* Scrollable task area */}
         <div style={{ flex:1, overflowY:'auto', padding:'16px 40px 40px' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 14px', border:`1px solid ${C.inputBorder}`, borderRadius:'10px', background:C.inputBg, marginBottom:'22px' }}>
-            <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px solid ${C.checkBorder}`, flexShrink:0, opacity:0.45 }}/>
-            <input id="quick-inp" value={newTask} onChange={e=>setNewTask(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask()}
-              placeholder="Add a new to-do — press Enter to save..."
-              style={{ flex:1, border:'none', background:'transparent', fontSize:'13.5px', color:C.text, outline:'none', fontFamily:'inherit' }}
-            />
-          </div>
-
           {tasks.length===0 && (
             <div style={{ textAlign:'center', padding:'70px 0', color:C.muted, fontSize:'13px', lineHeight:2 }}>
               <div style={{ fontSize:'32px', marginBottom:'8px', opacity:0.3 }}>✓</div>
-              No tasks yet.<br/>Type above and press Enter to add one.
+              No tasks here yet.<br/>Hit the + button to add one.
             </div>
           )}
 
@@ -789,7 +790,7 @@ export default function TasksPageClient() {
             <>
               <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Active</div>
               {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
-              <div onClick={()=>document.getElementById('quick-inp')?.focus()} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'text', opacity:0.4 }}>
+              <div onClick={openTaskModal} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'pointer', opacity:0.4 }}>
                 <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px dashed ${C.checkBorder}`, flexShrink:0 }}/>
                 <span style={{ fontSize:'13.5px', color:C.muted }}>New To-Do</span>
               </div>
