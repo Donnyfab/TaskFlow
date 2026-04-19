@@ -401,7 +401,7 @@ export default function TasksPageClient() {
       if (loc === 'today')    return 'today'
       if (loc === 'someday')  return 'someday'
       if (loc === 'anytime')  return 'anytime'
-      if (loc === 'upcoming') return date || null     // date string or null
+      if (loc === 'upcoming') return date || new Date(Date.now() + 86400000).toISOString().slice(0, 10)
       return null
     })()
 
@@ -906,7 +906,7 @@ export default function TasksPageClient() {
                     <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, width:'210px', background:theme==='light'?'#FFFFFF':'#1C1C1E', border:`1px solid ${C.border}`, borderRadius:'13px', boxShadow:theme==='light'?'0 10px 32px rgba(0,0,0,0.13)':'0 10px 32px rgba(0,0,0,0.6)', overflow:'hidden', zIndex:10, animation:'bdFadeIn 0.1s ease-out', padding:'4px' }}>
                       {SMART_LISTS.map(item => (
                         <div key={item.id}
-                          onClick={() => { setMtLocation(item.id); setMtShowLoc(false) }}
+                          onClick={() => { setMtLocation(item.id); setMtShowLoc(false); if (item.id === 'upcoming') setMtShowSched(true) }}
                           style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 10px', borderRadius:'9px', cursor:'pointer', background:mtLocation===item.id?C.activeItemBg:'transparent', color:mtLocation===item.id?C.activeItemTx:C.text, fontSize:'13px', transition:'background 0.1s' }}
                           onMouseEnter={e => { if (mtLocation!==item.id) e.currentTarget.style.background = C.hoverItemBg }}
                           onMouseLeave={e => { if (mtLocation!==item.id) e.currentTarget.style.background = 'transparent' }}
@@ -985,7 +985,7 @@ export default function TasksPageClient() {
               <div style={{ position:'relative' }}>
                 <button
                   onClick={() => { setMtShowSched(v => !v); setMtShowLoc(false) }}
-                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 10px', borderRadius:'8px', border:'none', background:mtShowSched?C.hoverItemBg:'transparent', color:mtDate?C.blue:C.muted, fontSize:'12.5px', fontFamily:'inherit', cursor:'pointer', transition:'all 0.12s', fontWeight:mtDate?500:400 }}
+                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 10px', borderRadius:'8px', border:'none', background:mtShowSched?C.hoverItemBg:'transparent', color:(mtDate||mtLocation==='upcoming')?C.blue:C.muted, fontSize:'12.5px', fontFamily:'inherit', cursor:'pointer', transition:'all 0.12s', fontWeight:(mtDate||mtLocation==='upcoming')?500:400 }}
                   onMouseEnter={e => e.currentTarget.style.background = C.hoverItemBg}
                   onMouseLeave={e => e.currentTarget.style.background = mtShowSched?C.hoverItemBg:'transparent'}
                 >
@@ -993,7 +993,7 @@ export default function TasksPageClient() {
                     <rect x="1.5" y="3" width="13" height="11" rx="2.5"/>
                     <path d="M1.5 7h13M5 1.5v3M11 1.5v3"/>
                   </svg>
-                  Schedule
+                  {mtDate || (mtLocation === 'upcoming' ? 'Tomorrow' : 'Schedule')}
                 </button>
                 {mtShowSched && (
                   <>
