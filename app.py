@@ -479,6 +479,29 @@ def _set_schema_flag(name: str, value) -> bool:
     return normalized
 
 
+# ── scheduled_for column — runs once per process, bypasses the main schema cache
+_SCHEDULED_FOR_COLUMN_READY = False
+
+def _ensure_scheduled_for_column() -> bool:
+    global _SCHEDULED_FOR_COLUMN_READY
+    if _SCHEDULED_FOR_COLUMN_READY:
+        return True
+    try:
+        db = get_db()
+        c = db.cursor()
+        c.execute("SHOW COLUMNS FROM tasks LIKE 'scheduled_for'")
+        if c.fetchone() is None:
+            c.execute(
+                "ALTER TABLE tasks ADD COLUMN scheduled_for VARCHAR(32) NULL DEFAULT NULL"
+            )
+        c.close()
+        _SCHEDULED_FOR_COLUMN_READY = True
+        return True
+    except Exception:
+        app.logger.exception("Could not ensure scheduled_for column.")
+        return False
+
+
 def ensure_google_oauth_token_columns():
     if SCHEMA_CHECKS_INITIALIZED:
         return _get_schema_flag("google_oauth_token_columns_ready")
@@ -886,6 +909,7 @@ def ensure_task_metadata_columns():
         required_columns = {
             "priority": "VARCHAR(16) NOT NULL DEFAULT 'medium'",
             "pinned_at": "DATETIME NULL DEFAULT NULL",
+            "scheduled_for": "VARCHAR(32) NULL DEFAULT NULL",
         }
 
         for column_name, column_definition in required_columns.items():
@@ -4955,20 +4979,42 @@ def create_quick_task():
     if not list_id or not user_owns_list(session["user_id"], list_id):
         list_id = get_inbox_list_id(session["user_id"])
 
+    # Ensure the scheduled_for column exists (self-healing migration)
+    col_ready = _ensure_scheduled_for_column()
+
+    # Validate scheduled_for value from payload
+    raw_scheduled = payload.get("scheduled_for")
+    valid_smart = {"today", "someday", "anytime"}
+    if raw_scheduled in valid_smart:
+        scheduled_for = raw_scheduled
+    elif raw_scheduled and re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_scheduled)):
+        scheduled_for = raw_scheduled
+    else:
+        scheduled_for = None
+
     db = get_db()
     cursor = db.cursor()
-    cursor.execute(
-        """
-        INSERT INTO tasks (user_id, list_id, title, description)
-        VALUES (%s, %s, %s, %s)
-        """,
-        (session["user_id"], list_id, title, ""),
-    )
+    if col_ready and scheduled_for is not None:
+        cursor.execute(
+            """
+            INSERT INTO tasks (user_id, list_id, title, description, scheduled_for)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (session["user_id"], list_id, title, "", scheduled_for),
+        )
+    else:
+        cursor.execute(
+            """
+            INSERT INTO tasks (user_id, list_id, title, description)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (session["user_id"], list_id, title, ""),
+        )
     task_id = cursor.lastrowid
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
-    return jsonify({"id": task_id, "title": title, "completed": False, "list_id": list_id})
+    return jsonify({"id": task_id, "title": title, "completed": False, "list_id": list_id, "scheduled_for": scheduled_for})
 
 
 
@@ -6962,8 +7008,10 @@ def api_tasks_data():
         return jsonify({"error": "unauthorized"}), 401
     user_id = session["user_id"]
     list_id = request.args.get("list_id", type=int)
+    smart   = request.args.get("smart", "inbox")   # inbox | today | upcoming | anytime | someday
     ensure_task_list_metadata_columns()
     ensure_task_metadata_columns()
+    col_ready = _ensure_scheduled_for_column()   # adds column if missing, caches result
     db = get_db()
     cursor = db.cursor(dictionary=True)
     inbox_id = get_inbox_list_id(user_id)
@@ -6985,35 +7033,100 @@ def api_tasks_data():
         lst["pinned_at"] = bool(lst["pinned_at"])
     valid_ids = {l["id"] for l in lists}
     active_list_id = list_id if list_id in valid_ids else None
-    if active_list_id is None:
+
+    base_order = """
+        ORDER BY t.completed ASC,
+          CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
+          t.pinned_at DESC, t.created_at DESC
+    """
+
+    if active_list_id is not None:
+        # Explicit project/list view — no scheduled_for filter needed
         cursor.execute(
-            """
-            SELECT t.*, tl.name AS list_name
-            FROM tasks t
-            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
-            WHERE t.user_id = %s AND (t.list_id IS NULL OR tl.archived_at IS NULL)
-            ORDER BY t.completed ASC,
-              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
-              t.pinned_at DESC, t.created_at DESC
-            """, (user_id,)
-        )
-    else:
-        cursor.execute(
-            """
+            f"""
             SELECT t.*, tl.name AS list_name
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s AND t.list_id = %s AND tl.archived_at IS NULL
-            ORDER BY t.completed ASC,
-              CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
-              t.pinned_at DESC, t.created_at DESC
+            {base_order}
             """, (user_id, active_list_id)
         )
+    elif not col_ready:
+        # Column not yet created — show all tasks (graceful fallback)
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+    elif smart == "today":
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND t.scheduled_for = 'today'
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+    elif smart == "upcoming":
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s
+              AND t.scheduled_for REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
+              AND t.scheduled_for >= CURDATE()
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+    elif smart == "anytime":
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND t.scheduled_for = 'anytime'
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+    elif smart == "someday":
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s AND t.scheduled_for = 'someday'
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+    else:
+        # Inbox: tasks with no scheduled_for set
+        cursor.execute(
+            f"""
+            SELECT t.*, tl.name AS list_name
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s
+              AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            {base_order}
+            """, (user_id,)
+        )
+
     tasks = cursor.fetchall()
     cursor.close()
     return jsonify({
         "lists": [{"id": l["id"], "name": l["name"], "pinned": bool(l["pinned_at"]), "task_count": l["task_count"]} for l in lists],
-        "tasks": [{"id": t["id"], "title": t["title"], "completed": bool(t["completed"]), "priority": t.get("priority") or "medium", "list_id": t["list_id"], "list_name": t.get("list_name") or "Task", "pinned": bool(t.get("pinned_at")), "description": t.get("description") or ""} for t in tasks],
+        "tasks": [{"id": t["id"], "title": t["title"], "completed": bool(t["completed"]), "priority": t.get("priority") or "medium", "list_id": t["list_id"], "list_name": t.get("list_name") or "Task", "pinned": bool(t.get("pinned_at")), "description": t.get("description") or "", "scheduled_for": t.get("scheduled_for") or None} for t in tasks],
         "active_list_id": active_list_id,
         "all_tasks_count": sum(l["task_count"] for l in lists),
     })
