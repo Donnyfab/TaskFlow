@@ -28,7 +28,8 @@ export default function AIWidget() {
     pathname === '/' ||
     pathname?.startsWith('/auth') ||
     pathname?.startsWith('/ai') ||
-    pathname?.startsWith('/landing')
+    pathname?.startsWith('/landing') ||
+    pathname?.startsWith('/tasks')
 
   useEffect(() => {
     if (hidden) return

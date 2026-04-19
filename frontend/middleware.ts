@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const AUTH_PATHS = ['/auth/login', '/auth/register']
-
+const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/landing']
 const PROTECTED_PATHS = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/ai', '/focus', '/score', '/settings', '/account']
 
 export function middleware(request: NextRequest) {
@@ -14,11 +13,11 @@ export function middleware(request: NextRequest) {
     if (session) {
       return NextResponse.redirect(new URL('/home', request.url))
     }
-    return NextResponse.next()
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
   // Redirect logged-in users away from auth pages
-  if (AUTH_PATHS.some(p => pathname.startsWith(p))) {
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
     if (session) {
       return NextResponse.redirect(new URL('/home', request.url))
     }

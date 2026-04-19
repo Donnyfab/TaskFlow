@@ -29,6 +29,8 @@ const ACCENT_COLORS = [
   { key: 'orange', bg: '#fb923c' },
 ]
 
+const API = apiUrl('')
+
 export default function SettingsPage() {
   const [section, setSection]     = useState<Section>('account')
   const [data, setData]           = useState<UserData | null>(null)
@@ -55,6 +57,34 @@ export default function SettingsPage() {
   const fireToast = (msg: string) => {
     setToast(msg); setShowToast(true)
     setTimeout(() => setShowToast(false), 2200)
+  }
+
+  // ── Sync theme from localStorage on mount ──────────────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem('tf-theme')
+    if (saved === 'dark' || saved === 'light') setTheme(saved)
+  }, [])
+
+  // ── Listen for theme changes from Sidebar (same tab via custom event) ──
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'tf-theme' && (e.newValue === 'dark' || e.newValue === 'light')) {
+        setTheme(e.newValue)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // ── Apply theme + broadcast to Sidebar ────────────────────────────
+  const applyTheme = (next: string) => {
+    setTheme(next)
+    localStorage.setItem('tf-theme', next)
+    // StorageEvent doesn't fire for same-tab changes, so dispatch manually
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'tf-theme', newValue: next })
+    )
+    fireToast('Theme saved')
   }
 
   useEffect(() => {
@@ -237,7 +267,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* APPEARANCE */}
+          {/* ── APPEARANCE ─────────────────────────────────────────────── */}
           {section === 'appearance' && (
             <div>
               <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color:'rgba(255,255,255,0.92)', marginBottom:'4px' }}>Appearance</div>
@@ -245,11 +275,20 @@ export default function SettingsPage() {
               <div style={{ fontSize:'10px', fontWeight:600, color:'rgba(255,255,255,0.28)', textTransform:'uppercase', letterSpacing:'0.7px', marginBottom:'12px' }}>Theme</div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px', marginBottom:'28px' }}>
                 {[
-                  { key:'light',  name:'Light',  desc:'Clean white interface',      previewBg:'#f4f4f4', bars:['#ddd','#eee'] },
+                  { key:'light',  name:'Light',  desc:'Clean white interface',        previewBg:'#f4f4f4', bars:['#ddd','#eee'] },
                   { key:'dark',   name:'Dark',   desc:'Pure black, easy on the eyes', previewBg:'#111',   bars:['#333','#222'] },
-                  { key:'system', name:'System', desc:'Follows your OS setting',    previewBg:'linear-gradient(135deg,#111 50%,#f0f0f0 50%)', bars:[] },
+                  { key:'system', name:'System', desc:'Follows your OS setting',      previewBg:'linear-gradient(135deg,#111 50%,#f0f0f0 50%)', bars:[] },
                 ].map(t => (
-                  <div key={t.key} onClick={() => { setTheme(t.key); fireToast('Saved') }} style={{ border:`1px solid ${theme===t.key?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.08)'}`, borderRadius:'12px', padding:'14px', cursor:'pointer', background: theme===t.key?'rgba(255,255,255,0.04)':'transparent' }}>
+                  <div
+                    key={t.key}
+                    onClick={() => applyTheme(t.key)}   // ← calls applyTheme instead of setTheme
+                    style={{
+                      border:`1px solid ${theme===t.key ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius:'12px', padding:'14px', cursor:'pointer',
+                      background: theme===t.key ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      transition:'border-color 0.15s, background 0.15s',
+                    }}
+                  >
                     <div style={{ height:'50px', borderRadius:'7px', marginBottom:'10px', display:'flex', gap:'3px', padding:'6px', background: t.previewBg }}>
                       {t.bars.map((b, i) => <div key={i} style={{ flex:1, borderRadius:'3px', background:b }}/>)}
                     </div>
@@ -258,11 +297,30 @@ export default function SettingsPage() {
                         <div style={{ fontSize:'12px', fontWeight:500, color:'rgba(255,255,255,0.7)' }}>{t.name}</div>
                         <div style={{ fontSize:'10px', color:'rgba(255,255,255,0.28)', marginTop:'2px' }}>{t.desc}</div>
                       </div>
-                      <div style={{ width:'14px', height:'14px', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'7px', background: theme===t.key?'rgba(255,255,255,0.7)':'transparent', color: theme===t.key?'#0A0A0A':'transparent' }}>✓</div>
+                      <div style={{
+                        width:'14px', height:'14px', borderRadius:'50%',
+                        border:'1px solid rgba(255,255,255,0.2)',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:'7px',
+                        background: theme===t.key ? 'rgba(255,255,255,0.7)' : 'transparent',
+                        color:       theme===t.key ? '#0A0A0A'              : 'transparent',
+                        transition:'background 0.15s',
+                      }}>✓</div>
                     </div>
                   </div>
                 ))}
               </div>
+
+              {/* Active theme badge */}
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'28px' }}>
+                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:'rgba(100,220,130,0.9)', flexShrink:0 }}/>
+                <span style={{ fontSize:'11px', color:'rgba(255,255,255,0.35)' }}>
+                  {theme === 'dark'   ? 'Dark mode is active across the app'
+                  : theme === 'light' ? 'Light mode is active across the app'
+                  :                    'Following your system setting'}
+                </span>
+              </div>
+
               <div style={{ fontSize:'10px', fontWeight:600, color:'rgba(255,255,255,0.28)', textTransform:'uppercase', letterSpacing:'0.7px', marginBottom:'12px' }}>Accent color</div>
               <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
                 {ACCENT_COLORS.map(a => (
