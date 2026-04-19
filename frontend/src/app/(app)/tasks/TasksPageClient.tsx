@@ -41,13 +41,6 @@ const IcUpcoming = () => (
     <path d="M2.5 7.5h13M6 2v3M12 2v3M6 11h3M6 13.5h5"/>
   </svg>
 )
-const IcAnytime = () => (
-  <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="14" height="11" rx="2.5"/>
-    <rect x="2" y="2" width="14" height="4" rx="1.5"/>
-    <path d="M6 9.5h6M6 12h4"/>
-  </svg>
-)
 const IcSomeday = () => (
   <svg viewBox="0 0 18 18" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4.5" width="14" height="11" rx="2.5"/>
@@ -77,7 +70,6 @@ const SMART_LISTS = [
   { id: 'inbox',    label: 'Inbox',    Icon: IcInbox    },
   { id: 'today',    label: 'Today',    Icon: IcToday    },
   { id: 'upcoming', label: 'Upcoming', Icon: IcUpcoming },
-  { id: 'anytime',  label: 'Anytime',  Icon: IcAnytime  },
   { id: 'someday',  label: 'Someday',  Icon: IcSomeday  },
 ]
 const SYSTEM_LISTS = [
@@ -400,7 +392,6 @@ export default function TasksPageClient() {
       if (loc === 'inbox')    return null
       if (loc === 'today')    return 'today'
       if (loc === 'someday')  return 'someday'
-      if (loc === 'anytime')  return 'anytime'
       if (loc === 'upcoming') return date || new Date(Date.now() + 86400000).toISOString().slice(0, 10)
       return null
     })()
