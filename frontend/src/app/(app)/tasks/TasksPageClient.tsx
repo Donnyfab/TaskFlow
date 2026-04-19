@@ -11,9 +11,9 @@ interface Task {
   list_id: number | null; list_name: string; pinned: boolean; description: string
   scheduled_for?: string | null
 }
-interface TaskList { id: number; name: string; pinned: boolean; task_count: number }
+interface TaskList { id: number; name: string; pinned: boolean; task_count: number; is_inbox?: boolean }
 interface Data {
-  lists: TaskList[]; tasks: Task[]; active_list_id: number | null; all_tasks_count: number
+  lists: TaskList[]; tasks: Task[]; active_list_id: number | null; all_tasks_count: number; inbox_count?: number
 }
 interface BdTask {
   id: number; title: string; priority: 'high' | 'medium' | 'low'; dueDate?: string
@@ -569,7 +569,7 @@ export default function TasksPageClient() {
           {/* ── Smart lists ── */}
           {SMART_LISTS.map(item => {
             const isActive = !listId && smartActive===item.id
-            const count    = item.id==='inbox' ? (data?.all_tasks_count ?? 0) : null
+            const count    = item.id==='inbox' ? (data?.inbox_count ?? 0) || null : null
             return (
               <SidebarItem key={item.id}
                 Icon={item.Icon} label={item.label}
@@ -590,13 +590,13 @@ export default function TasksPageClient() {
           ))}
 
           {/* ── User lists ── */}
-          {data?.lists && data.lists.length > 0 && (
+          {data?.lists && data.lists.filter(l => !l.is_inbox).length > 0 && (
             <>
               <div style={{ height:'1px', background:C.border, margin:'10px 12px' }}/>
               <div style={{ fontSize:'10px', fontWeight:600, color:C.muted, textTransform:'uppercase', letterSpacing:'0.06em', padding:'0 16px', marginBottom:'4px' }}>
                 My Lists
               </div>
-              {data.lists.map(lst => (
+              {data.lists.filter(l => !l.is_inbox).map(lst => (
                 <SidebarItemCustom key={lst.id}
                   label={lst.name} count={lst.task_count || null}
                   active={listId===lst.id} C={C} theme={theme}
@@ -916,10 +916,10 @@ export default function TasksPageClient() {
                           {mtLocation===item.id && <svg viewBox="0 0 10 8" width="10" height="8" fill="none" stroke={C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4l3 3 5-6"/></svg>}
                         </div>
                       ))}
-                      {data?.lists && data.lists.length > 0 && (
+                      {data?.lists && data.lists.filter(l => !l.is_inbox).length > 0 && (
                         <>
                           <div style={{ height:'1px', background:C.border, margin:'4px 0' }}/>
-                          {data.lists.map(lst => (
+                          {data.lists.filter(l => !l.is_inbox).map(lst => (
                             <div key={lst.id}
                               onClick={() => { setMtLocation(String(lst.id)); setMtShowLoc(false) }}
                               style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 10px', borderRadius:'9px', cursor:'pointer', background:mtLocation===String(lst.id)?C.activeItemBg:'transparent', color:mtLocation===String(lst.id)?C.activeItemTx:C.text, fontSize:'13px', transition:'background 0.1s' }}

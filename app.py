@@ -7123,12 +7123,32 @@ def api_tasks_data():
         )
 
     tasks = cursor.fetchall()
+
+    # Count of true Inbox tasks (scheduled_for IS NULL) for the sidebar badge
+    inbox_count = 0
+    if col_ready:
+        ic = db.cursor(dictionary=True)
+        ic.execute(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM tasks t
+            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+            WHERE t.user_id = %s
+              AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.completed = 0
+            """, (user_id,)
+        )
+        inbox_count = ic.fetchone()["cnt"]
+        ic.close()
     cursor.close()
+
     return jsonify({
-        "lists": [{"id": l["id"], "name": l["name"], "pinned": bool(l["pinned_at"]), "task_count": l["task_count"]} for l in lists],
+        "lists": [{"id": l["id"], "name": l["name"], "pinned": bool(l["pinned_at"]), "task_count": l["task_count"], "is_inbox": l["id"] == inbox_id} for l in lists],
         "tasks": [{"id": t["id"], "title": t["title"], "completed": bool(t["completed"]), "priority": t.get("priority") or "medium", "list_id": t["list_id"], "list_name": t.get("list_name") or "Task", "pinned": bool(t.get("pinned_at")), "description": t.get("description") or "", "scheduled_for": t.get("scheduled_for") or None} for t in tasks],
         "active_list_id": active_list_id,
         "all_tasks_count": sum(l["task_count"] for l in lists),
+        "inbox_count": inbox_count,
     })
 
 @app.route("/api/habits/data")
