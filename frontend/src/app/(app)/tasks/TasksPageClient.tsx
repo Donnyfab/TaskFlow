@@ -537,31 +537,33 @@ export default function TasksPageClient() {
 
           {/* ── Brain Dump button row (hamburger + Brain Dump inline) ── */}
           <div style={{ padding:'0 10px', marginBottom:'12px', display:'flex', alignItems:'center', gap:'6px' }}>
-            {/* Hamburger — toggles the nav sidebar */}
-            <button
-              onClick={toggleNavSidebar}
-              title={navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              style={{
-                display:'flex', alignItems:'center', justifyContent:'center',
-                width:'36px', height:'36px', flexShrink:0,
-                borderRadius:'10px', border:'none', cursor:'pointer',
-                background:'transparent',
-                color: theme==='light' ? '#888' : 'rgba(255,255,255,0.4)',
-                transition:'background 0.12s, color 0.12s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)'
-                e.currentTarget.style.color = theme==='light' ? '#1C1C1E' : 'rgba(255,255,255,0.9)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = theme==='light' ? '#888' : 'rgba(255,255,255,0.4)'
-              }}
-            >
-              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M2 4h12M2 8h12M2 12h12"/>
-              </svg>
-            </button>
+            {/* Hamburger — only visible when nav sidebar is collapsed */}
+            {navCollapsed && (
+              <button
+                onClick={toggleNavSidebar}
+                title="Expand sidebar"
+                style={{
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  width:'36px', height:'36px', flexShrink:0,
+                  borderRadius:'10px', border:'none', cursor:'pointer',
+                  background:'transparent',
+                  color: theme==='light' ? '#888' : 'rgba(255,255,255,0.4)',
+                  transition:'background 0.12s, color 0.12s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)'
+                  e.currentTarget.style.color = theme==='light' ? '#1C1C1E' : 'rgba(255,255,255,0.9)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = theme==='light' ? '#888' : 'rgba(255,255,255,0.4)'
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M2 4h12M2 8h12M2 12h12"/>
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => setBdOpen(true)}
               style={{
