@@ -173,7 +173,7 @@ export default function Sidebar() {
   }
 
   const t = THEMES[theme]
-  const W = collapsed ? '62px' : '220px'
+  const W = collapsed ? '0px' : '220px'
 
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
@@ -245,7 +245,7 @@ export default function Sidebar() {
       onMouseLeave={() => setSidebarHovered(false)}
       style={{
         background:    t.bg,
-        borderRight:   `1px solid ${t.border}`,
+        borderRight:   collapsed ? 'none' : `1px solid ${t.border}`,
         paddingTop:    '10px',
         paddingBottom: '10px',
         display:       'flex',
