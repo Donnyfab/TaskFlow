@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { apiUrl } from '@/lib/api-base'
 
-/* ─── SVG Icons — 17×17, larger to match artifact ───────────────── */
+/* ─── SVG Icons ──────────────────────────────────────────────────── */
 const IconHome = () => (
   <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 8L8.5 2.5 15 8v7a1 1 0 01-1 1H11v-4.5H6V16H3a1 1 0 01-1-1z"/>
@@ -62,18 +62,29 @@ const IconMoon = () => (
     <path d="M14.5 10.5A6.5 6.5 0 016.5 2.5a6.5 6.5 0 000 12 6.5 6.5 0 008-4z"/>
   </svg>
 )
+const IconCollapseLeft = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 3.5L4.5 8L9 12.5"/>
+    <path d="M13.5 3.5L9 8L13.5 12.5"/>
+  </svg>
+)
+const IconHamburger = () => (
+  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <path d="M2 4h12M2 8h12M2 12h12"/>
+  </svg>
+)
 
-/* ─── Nav — flat order matching artifact, split into two groups ─── */
+/* ─── Nav groups ─────────────────────────────────────────────────── */
 const GROUP_1 = [
-  { href: '/home',   Icon: IconHome,    label: 'Home' },
-  { href: '/tasks',  Icon: IconTasks,   label: 'Tasks' },
-  { href: '/habits', Icon: IconHabits,  label: 'Habits' },
-  { href: '/journal',Icon: IconJournal, label: 'Journal' },
+  { href: '/home',    Icon: IconHome,    label: 'Home'    },
+  { href: '/tasks',   Icon: IconTasks,   label: 'Tasks'   },
+  { href: '/habits',  Icon: IconHabits,  label: 'Habits'  },
+  { href: '/journal', Icon: IconJournal, label: 'Journal' },
 ]
 const GROUP_2 = [
-  { href: '/calendar', Icon: IconCalendar, label: 'Calendar' },
-  { href: '/focus',    Icon: IconFocus,    label: 'Focus Mode' },
-  { href: '/ai',       Icon: IconAI,       label: 'AI Coach' },
+  { href: '/calendar', Icon: IconCalendar, label: 'Calendar'     },
+  { href: '/focus',    Icon: IconFocus,    label: 'Focus Mode'   },
+  { href: '/ai',       Icon: IconAI,       label: 'AI Coach'     },
   { href: '/score',    Icon: IconGrowth,   label: 'Growth Score' },
 ]
 
@@ -87,15 +98,10 @@ const THEMES = {
     linkActiveBg:     'rgba(255,255,255,0.07)',
     linkActiveLine:   'rgba(255,255,255,0.55)',
     linkHoverBg:      'rgba(255,255,255,0.07)',
-    iconActiveBg:     'transparent',
-    logoBg:           '#fff',
-    logoStroke:       '#0A0A0A',
-    logoText:         'rgba(255,255,255,0.9)',
     profileBg:        'rgba(255,255,255,0.1)',
     profileText:      'rgba(255,255,255,0.8)',
     profileSub:       'rgba(255,255,255,0.3)',
     chevron:          'rgba(255,255,255,0.3)',
-    profileTopBorder: 'rgba(255,255,255,0.05)',
     dropdownBg:       '#1a1a1a',
     dropdownBorder:   'rgba(255,255,255,0.1)',
     dropdownText:     'rgba(255,255,255,0.72)',
@@ -106,6 +112,10 @@ const THEMES = {
     themeBtnColor:    'rgba(255,255,255,0.35)',
     themeBtnHover:    'rgba(255,255,255,0.08)',
     sep:              'rgba(255,255,255,0.07)',
+    collapseColor:    'rgba(255,255,255,0.35)',
+    collapseHover:    'rgba(255,255,255,0.08)',
+    hamburgerColor:   'rgba(255,255,255,0.5)',
+    hamburgerHover:   'rgba(255,255,255,0.08)',
   },
   light: {
     bg:               '#E8E8E8',
@@ -115,15 +125,10 @@ const THEMES = {
     linkActiveBg:     '#D6E8FF',
     linkActiveLine:   '#1a7fe8',
     linkHoverBg:      'rgba(0,0,0,0.06)',
-    iconActiveBg:     'transparent',
-    logoBg:           '#1a7fe8',
-    logoStroke:       '#ffffff',
-    logoText:         '#1C1C1E',
     profileBg:        '#D8D8D8',
     profileText:      '#1C1C1E',
     profileSub:       '#ABABAB',
     chevron:          '#ABABAB',
-    profileTopBorder: 'rgba(0,0,0,0.08)',
     dropdownBg:       '#FFFFFF',
     dropdownBorder:   'rgba(0,0,0,0.10)',
     dropdownText:     '#1C1C1E',
@@ -134,6 +139,10 @@ const THEMES = {
     themeBtnColor:    '#ABABAB',
     themeBtnHover:    'rgba(0,0,0,0.06)',
     sep:              'rgba(0,0,0,0.08)',
+    collapseColor:    '#ABABAB',
+    collapseHover:    'rgba(0,0,0,0.06)',
+    hamburgerColor:   '#ABABAB',
+    hamburgerHover:   'rgba(0,0,0,0.06)',
   },
 }
 
@@ -145,8 +154,9 @@ export default function Sidebar() {
   const [user, setUser]               = useState<{ name: string; username: string; profile_image?: string } | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [theme, setTheme]             = useState<'dark' | 'light'>('dark')
-  const [collapsed, setCollapsed]     = useState(true)   // icon-only by default, matching artifact
+  const [collapsed, setCollapsed]     = useState(true)
   const [hovered, setHovered]         = useState<string | null>(null)
+  const [sidebarHovered, setSidebarHovered] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('tf-theme') as 'dark' | 'light' | null
@@ -186,7 +196,6 @@ export default function Sidebar() {
 
   if (pathname.startsWith('/auth')) return null
 
-  /* Shared nav button style */
   const navBtn = (href: string, active: boolean) => ({
     display:        'flex' as const,
     alignItems:     'center' as const,
@@ -215,7 +224,7 @@ export default function Sidebar() {
         <Link
           key={href}
           href={href}
-          title={label}                              // always show tooltip on hover
+          title={label}
           style={navBtn(href, active)}
           onMouseEnter={() => setHovered(href)}
           onMouseLeave={() => setHovered(null)}
@@ -227,9 +236,7 @@ export default function Sidebar() {
             width:          '20px',
             height:         '20px',
             flexShrink:      0,
-            color:          active
-              ? t.linkActiveLine
-              : (hovered === href ? t.linkActive : t.linkDefault),
+            color:          active ? t.linkActiveLine : (hovered === href ? t.linkActive : t.linkDefault),
             transition:     'color 0.12s',
           }}>
             <Icon />
@@ -248,126 +255,31 @@ export default function Sidebar() {
     })
 
   return (
-    <aside style={{
-      background:    t.bg,
-      borderRight:   `1px solid ${t.border}`,
-      paddingTop:    '14px',
-      paddingBottom: '0',
-      display:       'flex',
-      flexDirection: 'column',
-      minHeight:     '100vh',
-      width:          W,
-      flexShrink:     0,
-      overflow:      'hidden',
-      transition:    'width 0.22s cubic-bezier(0.4,0,0.2,1), background 0.2s',
-    }}>
+    <aside
+      onMouseEnter={() => setSidebarHovered(true)}
+      onMouseLeave={() => { setSidebarHovered(false) }}
+      style={{
+        background:    t.bg,
+        borderRight:   `1px solid ${t.border}`,
+        paddingTop:    '10px',
+        paddingBottom: '10px',
+        display:       'flex',
+        flexDirection: 'column',
+        minHeight:     '100vh',
+        width:          W,
+        flexShrink:     0,
+        overflow:      'hidden',
+        transition:    'width 0.22s cubic-bezier(0.4,0,0.2,1), background 0.2s',
+        position:      'relative',
+      }}
+    >
 
-      {/* ── Logo row — no bottom border ── */}
-      <div style={{
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        padding:        collapsed ? '0 0 10px' : '0 16px 10px',
-        marginBottom:   '6px',
-        // no borderBottom — removed per request
-      }}>
-        {/* Logo — click to collapse/expand */}
-        <button
-          onClick={() => { setCollapsed(c => !c); setProfileOpen(false) }}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{
-            display:    'flex',
-            alignItems: 'center',
-            gap:        '8px',
-            background: 'transparent',
-            border:     'none',
-            cursor:     'pointer',
-            padding:     0,
-            flexShrink:  0,
-          }}
-        >
-          <div style={{
-            width:          '32px',
-            height:         '32px',
-            background:      t.logoBg,
-            borderRadius:   '8px',
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'center',
-            flexShrink:      0,
-            transition:     'background 0.2s',
-          }}>
-            <svg viewBox="0 0 16 16" fill="none" width="15" height="15">
-              <path d="M3 8L6.5 11.5L13 4.5" stroke={t.logoStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span style={{
-            fontSize:   '15px',
-            fontWeight:  700,
-            color:       t.logoText,
-            whiteSpace: 'nowrap',
-            opacity:     collapsed ? 0 : 1,
-            maxWidth:    collapsed ? '0px' : '120px',
-            overflow:   'hidden',
-            transition: 'opacity 0.12s, max-width 0.22s',
-          }}>
-          </span>
-        </button>
-
-        {/* Theme toggle — visible only when expanded */}
-        {!collapsed && (
+      {/* ── Top row: hamburger (collapsed) or nothing (expanded) ── */}
+      {collapsed ? (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
           <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            style={{
-              display:        'flex',
-              alignItems:     'center',
-              justifyContent: 'center',
-              width:          '30px',
-              height:         '30px',
-              borderRadius:   '8px',
-              border:         'none',
-              cursor:         'pointer',
-              background:     'transparent',
-              color:           t.themeBtnColor,
-              flexShrink:      0,
-              transition:     'background 0.12s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = t.themeBtnHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          >
-            {theme === 'dark' ? <IconSun /> : <IconMoon />}
-          </button>
-        )}
-      </div>
-
-      {/* ── Group 1: Home, Tasks, Habits, Journal ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
-        {renderGroup(GROUP_1)}
-      </div>
-
-      {/* ── Separator ── */}
-      <div style={{
-        height:     '1px',
-        background:  t.sep,
-        margin:     collapsed ? '8px 14px' : '8px 16px',
-        transition: 'margin 0.22s',
-      }} />
-
-      {/* ── Group 2: Calendar, Focus, AI, Growth ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
-        {renderGroup(GROUP_2)}
-      </div>
-
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* ── Theme toggle when collapsed (bottom of icon rail) ── */}
-      {collapsed && (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '8px' }}>
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            onClick={() => setCollapsed(false)}
+            title="Expand sidebar"
             style={{
               display:        'flex',
               alignItems:     'center',
@@ -378,27 +290,32 @@ export default function Sidebar() {
               border:         'none',
               cursor:         'pointer',
               background:     'transparent',
-              color:           t.themeBtnColor,
-              transition:     'background 0.12s',
+              color:           t.hamburgerColor,
+              transition:     'background 0.12s, color 0.12s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = t.themeBtnHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = t.hamburgerHover
+              e.currentTarget.style.color = t.linkActive
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = t.hamburgerColor
+            }}
           >
-            {theme === 'dark' ? <IconSun /> : <IconMoon />}
+            <IconHamburger />
           </button>
         </div>
+      ) : (
+        /* Top spacer when expanded so profile aligns nicely */
+        <div style={{ height: '4px' }} />
       )}
 
-      {/* ── Profile ── */}
-      <div style={{ paddingTop: '4px' }}>
+      {/* ── Profile / account — always at top ── */}
+      <div style={{ position: 'relative', marginBottom: '8px' }}>
         <button
           onClick={() => !collapsed && setProfileOpen(p => !p)}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = t.linkHoverBg
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent'
-          }}
+          onMouseEnter={e => { e.currentTarget.style.background = t.linkHoverBg }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           title={collapsed ? (user?.username || 'Profile') : undefined}
           style={{
             display:        'flex',
@@ -453,12 +370,13 @@ export default function Sidebar() {
           )}
         </button>
 
+        {/* Dropdown opens downward since profile is at top */}
         {profileOpen && !collapsed && (
           <>
             <div onClick={() => setProfileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }}/>
             <div style={{
               position:     'absolute',
-              bottom:       '100%',
+              top:          'calc(100% + 4px)',
               left:         '12px',
               right:        '12px',
               background:    t.dropdownBg,
@@ -466,10 +384,10 @@ export default function Sidebar() {
               borderRadius: '12px',
               padding:      '6px',
               zIndex:        10,
-              boxShadow:    '0 18px 40px rgba(0,0,0,0.18)',
+              boxShadow:    '0 8px 32px rgba(0,0,0,0.18)',
             }}>
               {[
-                { label: 'Account',  href: '/account' },
+                { label: 'Account',  href: '/account'  },
                 { label: 'Settings', href: '/settings' },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setProfileOpen(false)} style={{
@@ -498,6 +416,83 @@ export default function Sidebar() {
               </button>
             </div>
           </>
+        )}
+      </div>
+
+      {/* ── Separator ── */}
+      <div style={{ height: '1px', background: t.sep, margin: collapsed ? '0 14px 8px' : '0 16px 8px', transition: 'margin 0.22s' }} />
+
+      {/* ── Group 1 ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
+        {renderGroup(GROUP_1)}
+      </div>
+
+      <div style={{ height: '1px', background: t.sep, margin: collapsed ? '8px 14px' : '8px 16px', transition: 'margin 0.22s' }} />
+
+      {/* ── Group 2 ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
+        {renderGroup(GROUP_2)}
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* ── Bottom row: theme toggle + collapse button (expanded) / theme toggle (collapsed) ── */}
+      <div style={{
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: collapsed ? 'center' : 'space-between',
+        padding:        collapsed ? '0' : '0 8px',
+        paddingBottom:  '2px',
+      }}>
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          style={{
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            width:          '34px',
+            height:         '34px',
+            borderRadius:   '9px',
+            border:         'none',
+            cursor:         'pointer',
+            background:     'transparent',
+            color:           t.themeBtnColor,
+            transition:     'background 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = t.themeBtnHover }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          {theme === 'dark' ? <IconSun /> : <IconMoon />}
+        </button>
+
+        {/* Collapse button — only when expanded, fades in on sidebar hover */}
+        {!collapsed && (
+          <button
+            onClick={() => { setCollapsed(true); setProfileOpen(false) }}
+            title="Collapse sidebar"
+            style={{
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'center',
+              width:          '34px',
+              height:         '34px',
+              borderRadius:   '9px',
+              border:         'none',
+              cursor:         'pointer',
+              background:     'transparent',
+              color:           t.collapseColor,
+              opacity:         sidebarHovered ? 1 : 0,
+              transition:     'opacity 0.18s, background 0.12s',
+              pointerEvents:   sidebarHovered ? 'auto' : 'none',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.collapseHover }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <IconCollapseLeft />
+          </button>
         )}
       </div>
 
