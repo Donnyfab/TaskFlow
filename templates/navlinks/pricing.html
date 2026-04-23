@@ -1,300 +1,990 @@
 <!DOCTYPE html>
-<html lang="en" class="scrollbar-hide">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Pricing | TaskFlow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; color: #fff; }
+    /* ── Tokens ──────────────────────────────────────────────────────── */
+    :root {
+      --bg:           oklch(6.5% 0.008 255);
+      --card:         oklch(10.5% 0.007 255);
+      --border:       oklch(100% 0 0 / 7%);
+      --border-mid:   oklch(100% 0 0 / 11%);
+      --text-1:       oklch(95% 0.004 255);
+      --text-2:       oklch(65% 0.008 255);
+      --text-3:       oklch(40% 0.007 255);
+      --amber:        oklch(76% 0.13 70);
+      --amber-bg:     oklch(76% 0.13 70 / 10%);
+      --amber-border: oklch(76% 0.13 70 / 22%);
 
-    .p-hero { padding: 140px 56px 64px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .p-label { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-    .p-title { font-size: clamp(30px, 4vw, 52px); font-weight: 800; letter-spacing: -1.8px; line-height: 1.06; margin-bottom: 14px; }
-    .p-dim { color: rgba(255,255,255,0.28); }
-    .p-sub { font-size: 15px; color: rgba(255,255,255,0.4); max-width: 480px; margin: 0 auto; line-height: 1.75; }
+      /* Featured (Pro) card */
+      --feat-bg:    oklch(96.5% 0.004 90);
+      --feat-ink:   oklch(11% 0.012 255);
+      --feat-ink-2: oklch(32% 0.010 255);
+      --feat-ink-3: oklch(52% 0.010 255);
 
-    .toggle-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px 56px 0; }
-    .toggle { display: flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 4px; }
-    .toggle-btn { padding: 6px 18px; border-radius: 100px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
-    .toggle-btn.active { background: #fff; color: #0A0A0A; }
-    .toggle-btn:not(.active) { background: transparent; color: rgba(255,255,255,0.4); }
-    .save-badge { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 100px; padding: 4px 10px; font-size: 10px; color: rgba(255,255,255,0.5); }
+      /* Typography */
+      --display: 'Syne', sans-serif;
+      --body:    'Manrope', sans-serif;
 
-    .cards-wrap { padding: 48px 56px 0; }
-    .cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; max-width: 1200px; margin: 0 auto; align-items: start; }
-
-    .card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 28px 24px; transition: border-color 0.2s; position: relative; }
-    .card:hover { border-color: rgba(255,255,255,0.14); }
-    .card.featured { background: #fff; color: #0A0A0A; border-color: transparent; transform: translateY(-8px); }
-
-    .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #0A0A0A; color: #fff; font-size: 9px; font-weight: 700; padding: 4px 12px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1); }
-
-    .card-tier { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
-    .card.featured .card-tier { color: rgba(0,0,0,0.4); }
-
-    .price-wrap { display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px; }
-    .price-amt { font-size: 36px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
-    .card.featured .price-amt { color: #0A0A0A; }
-    .price-per { font-size: 12px; color: rgba(255,255,255,0.3); }
-    .card.featured .price-per { color: rgba(0,0,0,0.4); }
-
-    .tagline { font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.6; margin-bottom: 20px; min-height: 36px; }
-    .card.featured .tagline { color: rgba(0,0,0,0.5); }
-
-    .card-btn { width: 100%; padding: 11px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all 0.2s; margin-bottom: 6px; text-decoration: none; display: block; text-align: center; }
-    .btn-ghost { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.12); color: #fff; }
-    .btn-dark { background: #0A0A0A; color: #fff; }
-    .btn-dark:hover { background: #1a1a1a; }
-
-    .card-note { font-size: 10px; color: rgba(255,255,255,0.22); text-align: center; margin-bottom: 18px; }
-    .card.featured .card-note { color: rgba(0,0,0,0.35); }
-
-    .divider { height: 1px; background: rgba(255,255,255,0.07); margin-bottom: 16px; }
-    .card.featured .divider { background: rgba(0,0,0,0.08); }
-
-    .feats { display: flex; flex-direction: column; gap: 9px; }
-    .feat { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.4; }
-    .card.featured .feat { color: rgba(0,0,0,0.6); }
-    .feat-icon { font-size: 7px; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; color: rgba(255,255,255,0.4); }
-    .card.featured .feat-icon { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
-    .feat-muted { opacity: 0.3; }
-
-    .compare-wrap { padding: 64px 56px 0; }
-    .compare { max-width: 1200px; margin: 0 auto; background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden; }
-    .compare-hd { padding: 24px 32px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .compare-hd-title { font-size: 16px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 4px; }
-    .compare-hd-sub { font-size: 12px; color: rgba(255,255,255,0.35); }
-    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; }
-    .compare-col { padding: 20px 32px; }
-    .compare-col:first-child { border-right: 1px solid rgba(255,255,255,0.06); }
-    .compare-col-title { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 14px; }
-    .compare-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
-    .compare-item.bad { color: rgba(255,100,100,0.55); }
-    .compare-item.good { color: rgba(255,255,255,0.6); }
-
-    .faq-wrap { padding: 48px 56px 100px; }
-    .faq-label { text-align: center; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 20px; }
-    .faq { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .faq-item { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px 18px; }
-    .faq-q { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); margin-bottom: 5px; }
-    .faq-a { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.65; }
-
-    @media (max-width: 960px) {
-      .cards { grid-template-columns: 1fr 1fr; }
-      .card.featured { transform: none; }
-      .p-hero, .toggle-wrap, .cards-wrap, .compare-wrap, .faq-wrap { padding-left: 24px; padding-right: 24px; }
-      .faq { grid-template-columns: 1fr; }
-      .compare-grid { grid-template-columns: 1fr; }
-      .compare-col:first-child { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      /* Spacing */
+      --s4:  4px;
+      --s8:  8px;
+      --s12: 12px;
+      --s16: 16px;
+      --s20: 20px;
+      --s24: 24px;
+      --s32: 32px;
+      --s48: 48px;
+      --s64: 64px;
     }
+
+    /* ── Reset ───────────────────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      font-family: var(--body);
+      color: var(--text-1);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Hero ────────────────────────────────────────────────────────── */
+    .hero {
+      padding: clamp(100px, 13vw, 148px) var(--s48) var(--s64);
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-eyebrow {
+      display: inline-block;
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      margin-bottom: var(--s20);
+    }
+
+    .hero-title {
+      font-family: var(--display);
+      font-size: clamp(34px, 5.5vw, 62px);
+      font-weight: 800;
+      letter-spacing: -2.5px;
+      line-height: 1.02;
+      margin-bottom: var(--s20);
+    }
+
+    .hero-title-dim {
+      color: var(--text-2);
+    }
+
+    .hero-sub {
+      font-size: clamp(14px, 1.5vw, 16px);
+      font-weight: 400;
+      color: var(--text-2);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.75;
+    }
+
+    /* ── Toggle ──────────────────────────────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s12);
+      padding: var(--s48) var(--s48) 0;
+    }
+
+    .toggle-pill {
+      display: flex;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: var(--s4);
+    }
+
+    .toggle-opt {
+      padding: 7px 20px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--body);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-2);
+      transition: background 0.18s, color 0.18s;
+    }
+
+    .toggle-opt.active {
+      background: var(--text-1);
+      color: var(--bg);
+    }
+
+    .save-chip {
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--amber);
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-border);
+      border-radius: 100px;
+      padding: 5px 12px;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────── */
+    .cards-section {
+      padding: var(--s48) var(--s48) 0;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--s12);
+      max-width: 1200px;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    /* ── Base Card ───────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: var(--s24);
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .card-plain:hover {
+      border-color: var(--border-mid);
+    }
+
+    /* ── Featured Card (Pro) ─────────────────────────────────────────── */
+    .card-featured {
+      background: var(--feat-bg);
+      color: var(--feat-ink);
+      border-color: transparent;
+      transform: translateY(-10px);
+      box-shadow:
+        0 28px 56px oklch(0% 0 0 / 28%),
+        0 8px 20px oklch(0% 0 0 / 16%);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: var(--display);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      white-space: nowrap;
+      border: 1px solid var(--border-mid);
+    }
+
+    /* ── Locked Card (Teams) ─────────────────────────────────────────── */
+    .card-locked {
+      border-style: dashed;
+      border-color: oklch(100% 0 0 / 9%);
+      cursor: default;
+    }
+
+    .card-locked .card-tier,
+    .card-locked .price-amt,
+    .card-locked .price-per,
+    .card-locked .card-tagline {
+      color: var(--text-3);
+    }
+
+    .card-locked .feat-text { color: var(--text-3); }
+
+    .card-locked .feat-yes .feat-mark {
+      background: oklch(100% 0 0 / 4%);
+      color: var(--text-3);
+    }
+
+    /* Coming soon block inside Teams */
+    .coming-block {
+      margin-bottom: var(--s8);
+    }
+
+    .coming-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s8);
+      padding: 10px var(--s12);
+      border: 1px solid oklch(100% 0 0 / 8%);
+      border-radius: 9px;
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: var(--s8);
+    }
+
+    .coming-state svg { flex-shrink: 0; }
+
+    .waitlist-link {
+      display: block;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: color 0.18s;
+    }
+
+    .waitlist-link:hover { color: var(--text-1); }
+
+    /* ── Card Internals ──────────────────────────────────────────────── */
+    .card-tier {
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: var(--s16);
+    }
+
+    .card-featured .card-tier { color: var(--feat-ink-2); }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--s4);
+      margin-bottom: var(--s8);
+    }
+
+    .price-amt {
+      font-family: var(--display);
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -2.5px;
+      line-height: 1;
+      color: var(--text-1);
+    }
+
+    .card-featured .price-amt { color: var(--feat-ink); }
+
+    .price-per {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-3);
+    }
+
+    .card-featured .price-per { color: var(--feat-ink-2); }
+
+    .card-tagline {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.65;
+      margin-bottom: var(--s20);
+      min-height: 38px;
+    }
+
+    .card-featured .card-tagline { color: var(--feat-ink-2); }
+
+    /* Buttons */
+    .card-btn {
+      display: block;
+      width: 100%;
+      padding: 11px var(--s16);
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--body);
+      cursor: pointer;
+      border: none;
+      text-align: center;
+      margin-bottom: var(--s8);
+      transition: background 0.18s, opacity 0.18s, color 0.18s;
+    }
+
+    /* Ghost — least visual weight */
+    .btn-ghost {
+      background: oklch(100% 0 0 / 6%);
+      color: var(--text-2);
+    }
+    .btn-ghost:hover {
+      background: oklch(100% 0 0 / 11%);
+      color: var(--text-1);
+    }
+
+    /* Primary — highest visual weight, Pro only */
+    .btn-primary {
+      background: var(--feat-ink);
+      color: var(--feat-bg);
+    }
+    .btn-primary:hover {
+      background: oklch(17% 0.012 255);
+    }
+
+    .card-note {
+      font-size: 10px;
+      color: var(--text-3);
+      text-align: center;
+      margin-bottom: var(--s20);
+    }
+
+    .card-featured .card-note { color: var(--feat-ink-3); }
+
+    .card-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: var(--s16);
+    }
+
+    .card-featured .card-divider { background: oklch(0% 0 0 / 8%); }
+
+    .feats {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s8);
+    }
+
+    .feat {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--s8);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .feat-text { color: var(--text-2); }
+    .feat-no .feat-text { color: var(--text-3); }
+    .card-featured .feat-text { color: var(--feat-ink-2); }
+
+    .feat-mark {
+      font-size: 9px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .feat-yes .feat-mark {
+      background: oklch(100% 0 0 / 7%);
+      color: var(--text-2);
+    }
+
+    .card-featured .feat-yes .feat-mark {
+      background: oklch(0% 0 0 / 8%);
+      color: var(--feat-ink-2);
+    }
+
+    .feat-no .feat-mark {
+      background: transparent;
+      color: var(--text-3);
+    }
+
+    /* ── Value Section ───────────────────────────────────────────────── */
+    .value-section {
+      padding: var(--s64) var(--s48) 0;
+    }
+
+    .value-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .value-head {
+      padding: var(--s24) var(--s32) var(--s20);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .value-head-title {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      color: var(--text-1);
+      margin-bottom: var(--s4);
+    }
+
+    .value-head-sub {
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    .value-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .value-col {
+      padding: var(--s24) var(--s32);
+    }
+
+    .value-col:first-child {
+      border-right: 1px solid var(--border);
+    }
+
+    .value-col-label {
+      font-family: var(--display);
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: var(--s16);
+    }
+
+    .value-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--s8);
+      margin-bottom: var(--s12);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .value-sym { flex-shrink: 0; margin-top: 1px; }
+
+    .value-item.bad { color: oklch(67% 0.065 18); }
+    .value-item.good { color: var(--text-1); }
+
+    .value-total {
+      display: flex;
+      align-items: baseline;
+      gap: var(--s8);
+      margin-top: var(--s20);
+      padding-top: var(--s16);
+      border-top: 1px solid var(--border);
+    }
+
+    .value-total-num {
+      font-family: var(--display);
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+    }
+
+    .bad-total { color: oklch(67% 0.065 18); }
+    .good-total { color: var(--text-1); }
+
+    .value-total-label {
+      font-size: 12px;
+      color: var(--text-2);
+    }
+
+    /* ── FAQ ─────────────────────────────────────────────────────────── */
+    .faq-section {
+      padding: var(--s48) var(--s48) 100px;
+    }
+
+    .faq-eyebrow {
+      text-align: center;
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: var(--s24);
+    }
+
+    .faq-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s12);
+    }
+
+    .faq-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: var(--s20);
+      transition: border-color 0.2s;
+    }
+
+    .faq-item:hover { border-color: var(--border-mid); }
+
+    .faq-q {
+      font-family: var(--display);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: var(--s8);
+    }
+
+    .faq-a {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--s64) var(--s48) 40px;
+      background: var(--bg);
+    }
+
+    .footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: var(--s48);
+      margin-bottom: 56px;
+    }
+
+    .footer-brand { display: flex; flex-direction: column; gap: var(--s16); }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--s8);
+      font-family: var(--display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-1);
+      width: fit-content;
+    }
+
+    .footer-logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--text-1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .footer-tagline {
+      font-size: 13px;
+      color: var(--text-3);
+      line-height: 1.65;
+      max-width: 280px;
+    }
+
+    .footer-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s8);
+      background: var(--text-1);
+      color: var(--bg);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 8px var(--s16);
+      border-radius: 8px;
+      transition: opacity 0.18s;
+      width: fit-content;
+    }
+
+    .footer-cta:hover { opacity: 0.86; }
+
+    .footer-col { display: flex; flex-direction: column; gap: 10px; }
+
+    .footer-col-label {
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: var(--s4);
+    }
+
+    .footer-link {
+      font-size: 13px;
+      color: var(--text-3);
+      transition: color 0.18s;
+      width: fit-content;
+    }
+
+    .footer-link:hover { color: var(--text-2); }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--s16);
+      padding-top: var(--s24);
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-copy { font-size: 11px; color: var(--text-3); }
+    .footer-copy span { color: var(--text-2); }
+
+    .footer-legal { display: flex; gap: var(--s20); }
+
+    .footer-legal a {
+      font-size: 11px;
+      color: var(--text-3);
+      transition: color 0.18s;
+    }
+
+    .footer-legal a:hover { color: var(--text-2); }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .cards-grid { grid-template-columns: 1fr 1fr; }
+      .card-featured { transform: none; }
+    }
+
+    @media (max-width: 768px) {
+      .hero,
+      .toggle-row,
+      .cards-section,
+      .value-section,
+      .faq-section,
+      .site-footer {
+        padding-left: var(--s20);
+        padding-right: var(--s20);
+      }
+      .faq-grid { grid-template-columns: 1fr; }
+      .value-cols { grid-template-columns: 1fr; }
+      .value-col:first-child {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .footer-top { grid-template-columns: 1fr 1fr; gap: var(--s32); }
+    }
+
     @media (max-width: 600px) {
-      .cards { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .footer-top { grid-template-columns: 1fr; }
     }
+
+    /* ── Reduced motion ──────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+
+    /* ── Scrollbar ───────────────────────────────────────────────────── */
+    html { scrollbar-width: none; }
+    html::-webkit-scrollbar { display: none; }
   </style>
 </head>
-<body class="scrollbar-hide">
+<body>
 
   {% include "includes/public_navbar.html" %}
 
-  <!-- HERO -->
-  <div class="p-hero">
-    <div class="p-label">Pricing</div>
-    <h1 class="p-title">The best time to start<br><span class="p-dim">was yesterday. This is now.</span></h1>
-    <p class="p-sub">Most people keep juggling apps, missing streaks, and wondering why nothing sticks. You don't have to. Start free — no card, no catch.</p>
-  </div>
+  <!-- HERO ────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <span class="hero-eyebrow">Pricing</span>
+    <h1 class="hero-title">
+      Pay for what you use.<br>
+      <span class="hero-title-dim">Keep what you build.</span>
+    </h1>
+    <p class="hero-sub">Start free with everything you need to build consistency. Upgrade when you're ready for AI that knows your patterns, guides your days, and keeps you accountable.</p>
+  </section>
 
-  <!-- TOGGLE -->
-  <div class="toggle-wrap">
-    <div class="toggle">
-      <button class="toggle-btn active" onclick="setBilling('monthly',this)">Monthly</button>
-      <button class="toggle-btn" onclick="setBilling('yearly',this)">Yearly</button>
+  <!-- TOGGLE ──────────────────────────────────────────────────────── -->
+  <div class="toggle-row">
+    <div class="toggle-pill">
+      <button class="toggle-opt active" onclick="setBilling('monthly', this)">Monthly</button>
+      <button class="toggle-opt" onclick="setBilling('yearly', this)">Yearly</button>
     </div>
-    <div class="save-badge" id="save-badge">Save up to 30% yearly</div>
+    <span class="save-chip" id="save-chip">Save up to 30%</span>
   </div>
 
-  <!-- CARDS -->
-  <div class="cards-wrap">
-    <div class="cards">
+  <!-- PRICING CARDS ───────────────────────────────────────────────── -->
+  <div class="cards-section">
+    <div class="cards-grid">
 
       <!-- FREE -->
-      <div class="card">
+      <div class="card card-plain">
         <div class="card-tier">Free</div>
-        <div class="price-wrap"><span class="price-amt">$0</span><span class="price-per">forever</span></div>
-        <div class="tagline">Everything you need to build consistency and start winning your days.</div>
+        <div class="price-row">
+          <span class="price-amt">$0</span>
+          <span class="price-per">forever</span>
+        </div>
+        <div class="card-tagline">Everything you need to build consistency and start winning your days.</div>
         <a href="/register" class="card-btn btn-ghost">Get started free →</a>
         <div class="card-note">No card. No time limit.</div>
-        <div class="divider"></div>
+        <div class="card-divider"></div>
         <div class="feats">
-          <div class="feat"><div class="feat-icon">✓</div>Tasks & goals</div>
-          <div class="feat"><div class="feat-icon">✓</div>Habit tracking + streaks</div>
-          <div class="feat"><div class="feat-icon">✓</div>Journal & notes</div>
-          <div class="feat"><div class="feat-icon">✓</div>Calendar</div>
-          <div class="feat"><div class="feat-icon">✓</div>Daily Growth Score</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>AI life coach</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>Focus Mode</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>Weekly AI summary</div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Tasks &amp; goals</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Habit tracking + streaks</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Journal &amp; notes</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Calendar</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Daily Growth Score</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">AI life coach</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">Focus Mode</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">Weekly AI summary</span></div>
         </div>
       </div>
 
       <!-- PLUS -->
-      <div class="card">
+      <div class="card card-plain">
         <div class="card-tier">Plus</div>
-        <div class="price-wrap"><span class="price-amt" id="plus-price">$5</span><span class="price-per" id="plus-per">/month</span></div>
-        <div class="tagline">Smarter habits. AI-powered insights. For people ready to level up.</div>
+        <div class="price-row">
+          <span class="price-amt" id="plus-price">$5</span>
+          <span class="price-per" id="plus-per">/month</span>
+        </div>
+        <div class="card-tagline">AI-powered insights for people ready to take their growth seriously.</div>
         <a href="/register" class="card-btn btn-ghost">Start your flow →</a>
         <div class="card-note" id="plus-note">7-day free trial.</div>
-        <div class="divider"></div>
+        <div class="card-divider"></div>
         <div class="feats">
-          <div class="feat"><div class="feat-icon">✓</div>Everything in Free</div>
-          <div class="feat"><div class="feat-icon">✓</div>AI life coach (50 msgs/mo)</div>
-          <div class="feat"><div class="feat-icon">✓</div>Focus Mode + Pomodoro</div>
-          <div class="feat"><div class="feat-icon">✓</div>Weekly AI summary</div>
-          <div class="feat"><div class="feat-icon">✓</div>Consistency Map</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>Unlimited AI messages</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>Pattern detection</div>
-          <div class="feat feat-muted"><div class="feat-icon">—</div>Priority support</div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Everything in Free</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">AI life coach (50 msgs/mo)</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Focus Mode + Pomodoro</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Weekly AI summary</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Consistency Map</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">Unlimited AI messages</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">Pattern detection</span></div>
+          <div class="feat feat-no"><div class="feat-mark">—</div><span class="feat-text">Priority support</span></div>
         </div>
       </div>
 
-      <!-- PRO FEATURED -->
-      <div class="card featured">
-        <div class="badge">Most popular</div>
+      <!-- PRO — FEATURED -->
+      <div class="card card-featured">
+        <div class="popular-badge">Most popular</div>
         <div class="card-tier">Pro</div>
-        <div class="price-wrap"><span class="price-amt" id="pro-price">$9</span><span class="price-per" id="pro-per">/month</span></div>
-        <div class="tagline">The full experience. AI that knows you, guides you, and keeps you accountable.</div>
-        <a href="/register" class="card-btn btn-dark">Build your system →</a>
+        <div class="price-row">
+          <span class="price-amt" id="pro-price">$9</span>
+          <span class="price-per" id="pro-per">/month</span>
+        </div>
+        <div class="card-tagline">The full experience. AI that knows you, guides you, and keeps you accountable.</div>
+        <a href="/register" class="card-btn btn-primary">Build your system →</a>
         <div class="card-note" id="pro-note">7-day free trial. Cancel anytime.</div>
-        <div class="divider"></div>
+        <div class="card-divider"></div>
         <div class="feats">
-          <div class="feat"><div class="feat-icon">✓</div>Everything in Plus</div>
-          <div class="feat"><div class="feat-icon">✓</div>Unlimited AI messages</div>
-          <div class="feat"><div class="feat-icon">✓</div>Pattern detection & nudges</div>
-          <div class="feat"><div class="feat-icon">✓</div>AI daily planning</div>
-          <div class="feat"><div class="feat-icon">✓</div>Advanced journal analysis</div>
-          <div class="feat"><div class="feat-icon">✓</div>Accountability tools</div>
-          <div class="feat"><div class="feat-icon">✓</div>Priority support</div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Everything in Plus</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Unlimited AI messages</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Pattern detection &amp; nudges</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">AI daily planning</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Advanced journal analysis</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Accountability tools</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Priority support</span></div>
         </div>
       </div>
 
-      <!-- TEAMS -->
-      <div class="card">
+      <!-- TEAMS — LOCKED / COMING SOON -->
+      <div class="card card-locked">
         <div class="card-tier">Teams</div>
-        <div class="price-wrap"><span class="price-amt">Custom</span></div>
-        <div class="tagline">Build a culture of consistency. TaskFlow for teams — coming soon.</div>
-        <a href="/contact" class="card-btn btn-ghost">Join the waitlist →</a>
-        <div class="card-note">First to know when it launches.</div>
-        <div class="divider"></div>
+        <div class="price-row">
+          <span class="price-amt">Custom</span>
+        </div>
+        <div class="card-tagline">Build a culture of consistency. TaskFlow for teams — in development.</div>
+        <div class="coming-block">
+          <div class="coming-state">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="none" aria-hidden="true">
+              <rect x="0.75" y="5" width="8.5" height="6.25" rx="1.25" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Launching 2026
+          </div>
+          <a href="/contact" class="waitlist-link">Get early access →</a>
+        </div>
+        <div class="card-divider"></div>
         <div class="feats">
-          <div class="feat"><div class="feat-icon">✓</div>Everything in Pro</div>
-          <div class="feat"><div class="feat-icon">✓</div>Shared team dashboards</div>
-          <div class="feat"><div class="feat-icon">✓</div>Group accountability</div>
-          <div class="feat"><div class="feat-icon">✓</div>Team AI insights</div>
-          <div class="feat"><div class="feat-icon">✓</div>Admin controls</div>
-          <div class="feat"><div class="feat-icon">✓</div>Dedicated onboarding</div>
-          <div class="feat"><div class="feat-icon">✓</div>SLA support</div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Everything in Pro</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Shared team dashboards</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Group accountability</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Team AI insights</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Admin controls</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">Dedicated onboarding</span></div>
+          <div class="feat feat-yes"><div class="feat-mark">✓</div><span class="feat-text">SLA support</span></div>
         </div>
       </div>
 
     </div>
   </div>
 
-  <!-- COMPARE -->
-  <div class="compare-wrap">
-    <div class="compare">
-      <div class="compare-hd">
-        <div class="compare-hd-title">What does staying the same actually cost you?</div>
-        <div class="compare-hd-sub">Most people don't calculate the real price of not starting.</div>
+  <!-- VALUE SECTION ───────────────────────────────────────────────── -->
+  <div class="value-section">
+    <div class="value-inner">
+      <div class="value-head">
+        <div class="value-head-title">One system beats five apps.</div>
+        <div class="value-head-sub">Here's what most people actually pay for fragmented productivity.</div>
       </div>
-      <div class="compare-grid">
-        <div class="compare-col">
-          <div class="compare-col-title">Without TaskFlow</div>
-          <div class="compare-item bad"><span>✕</span>&nbsp;$54/month across 5 separate apps</div>
-          <div class="compare-item bad"><span>✕</span>&nbsp;Losing streaks because nothing connects</div>
-          <div class="compare-item bad"><span>✕</span>&nbsp;No AI that knows your actual patterns</div>
-          <div class="compare-item bad"><span>✕</span>&nbsp;Starting over every Monday with a new system</div>
-          <div class="compare-item bad"><span>✕</span>&nbsp;Wondering why progress never compounds</div>
+      <div class="value-cols">
+        <div class="value-col">
+          <div class="value-col-label">The fragmented stack</div>
+          <div class="value-item bad">
+            <span class="value-sym">✕</span>
+            <span>Notion ($16) + Todoist ($4) + Headspace ($13) + Bear ($3) + habit app ($8)</span>
+          </div>
+          <div class="value-item bad">
+            <span class="value-sym">✕</span>
+            <span>No data sharing — each app is completely siloed</span>
+          </div>
+          <div class="value-item bad">
+            <span class="value-sym">✕</span>
+            <span>No AI that sees your patterns across all of it</span>
+          </div>
+          <div class="value-item bad">
+            <span class="value-sym">✕</span>
+            <span>You manage the tools more than you use them</span>
+          </div>
+          <div class="value-total">
+            <span class="value-total-num bad-total">$44+</span>
+            <span class="value-total-label">per month, disconnected</span>
+          </div>
         </div>
-        <div class="compare-col">
-          <div class="compare-col-title">With TaskFlow Free</div>
-          <div class="compare-item good"><span>✓</span>&nbsp;$0 — free forever, no credit card needed</div>
-          <div class="compare-item good"><span>✓</span>&nbsp;Tasks, habits, journal, calendar in one place</div>
-          <div class="compare-item good"><span>✓</span>&nbsp;Daily Growth Score shows exactly how you did</div>
-          <div class="compare-item good"><span>✓</span>&nbsp;One system that compounds over time</div>
-          <div class="compare-item good"><span>✓</span>&nbsp;Progress that's actually visible every day</div>
+        <div class="value-col">
+          <div class="value-col-label">TaskFlow Pro</div>
+          <div class="value-item good">
+            <span class="value-sym">✓</span>
+            <span>Tasks, habits, journal, calendar, and AI — all connected</span>
+          </div>
+          <div class="value-item good">
+            <span class="value-sym">✓</span>
+            <span>AI coach that sees every streak, every miss, every pattern</span>
+          </div>
+          <div class="value-item good">
+            <span class="value-sym">✓</span>
+            <span>One system that gets smarter about you over time</span>
+          </div>
+          <div class="value-item good">
+            <span class="value-sym">✓</span>
+            <span>$0 to start — free forever until you're ready to go deeper</span>
+          </div>
+          <div class="value-total">
+            <span class="value-total-num good-total">$9</span>
+            <span class="value-total-label">per month, everything connected</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- FAQ -->
-  <div class="faq-wrap">
-    <div class="faq-label">Common questions</div>
-    <div class="faq">
-      <div class="faq-item"><div class="faq-q">Is the free plan actually free?</div><div class="faq-a">Yes — completely free, forever. No credit card, no expiration. Tasks, habits, journal, and calendar stay free forever.</div></div>
-      <div class="faq-item"><div class="faq-q">What's the difference between Plus and Pro?</div><div class="faq-a">Plus gives you AI with a monthly message limit and core smart features. Pro unlocks unlimited AI, pattern detection, and the full coaching experience.</div></div>
-      <div class="faq-item"><div class="faq-q">Can I switch plans anytime?</div><div class="faq-a">Yes. Upgrade, downgrade, or cancel whenever you want. If you cancel you keep access until the end of your billing period.</div></div>
-      <div class="faq-item"><div class="faq-q">Why start with the free plan?</div><div class="faq-a">Because there's literally nothing to lose. Start free, build the habit, upgrade when you're ready for the AI to start coaching you daily.</div></div>
+  <!-- FAQ ─────────────────────────────────────────────────────────── -->
+  <div class="faq-section">
+    <div class="faq-eyebrow">Common questions</div>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">Is the free plan actually free?</div>
+        <div class="faq-a">Yes — completely free, forever. No credit card, no expiration. Tasks, habits, journal, and calendar stay free forever.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What's the difference between Plus and Pro?</div>
+        <div class="faq-a">Plus gives you AI with a monthly message limit and core smart features. Pro unlocks unlimited AI, pattern detection, and the full coaching experience.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I switch plans anytime?</div>
+        <div class="faq-a">Yes. Upgrade, downgrade, or cancel whenever you want. If you cancel, you keep access until the end of your billing period.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why start with the free plan?</div>
+        <div class="faq-a">Because there's nothing to lose. Start free, build the habit, upgrade when you're ready for the AI to start coaching you daily.</div>
+      </div>
     </div>
   </div>
 
-  <!-- FOOTER -->
-  <footer class="w-full border-t border-white/[0.07] px-6 md:px-[56px] pt-16 pb-10 bg-[#0A0A0A] text-white">
-    <div class="max-w-[1280px] mx-auto">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-14">
-        <div class="flex flex-col gap-4 md:col-span-2">
-          <a href="/" class="flex items-center gap-2 text-white/90 font-bold text-base w-fit">
-            <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <!-- FOOTER ──────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="footer-logo">
+            <div class="footer-logo-mark">
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14" aria-hidden="true">
+                <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             TaskFlow
           </a>
-          <p class="text-sm text-white/35 leading-relaxed max-w-[280px]">Your personal growth OS. Tasks, habits, journal, accountability, and AI — all in one place. Free forever.</p>
-          <a href="/register" class="inline-flex items-center gap-1.5 bg-white text-gray-900 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-white/88 transition w-fit">Start for free →</a>
+          <p class="footer-tagline">Your personal growth OS. Tasks, habits, journal, accountability, and AI — all in one place. Free forever.</p>
+          <a href="/register" class="footer-cta">Start for free →</a>
         </div>
-        <div class="flex flex-col gap-3">
-          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Product</div>
-          <a href="/features" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Features</a>
-          <a href="/pricing" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Pricing</a>
-          <a href="/premium" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Premium</a>
+        <div class="footer-col">
+          <div class="footer-col-label">Product</div>
+          <a href="/features" class="footer-link">Features</a>
+          <a href="/pricing" class="footer-link">Pricing</a>
+          <a href="/premium" class="footer-link">Premium</a>
         </div>
-        <div class="flex flex-col gap-3">
-          <div class="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Company</div>
-          <a href="/about" class="text-sm text-white/35 hover:text-white/70 transition w-fit">About</a>
-          <a href="/contact" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Contact</a>
-          <a href="/privacy" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Privacy Policy</a>
-          <a href="/terms" class="text-sm text-white/35 hover:text-white/70 transition w-fit">Terms of Service</a>
+        <div class="footer-col">
+          <div class="footer-col-label">Company</div>
+          <a href="/about" class="footer-link">About</a>
+          <a href="/contact" class="footer-link">Contact</a>
+          <a href="/privacy" class="footer-link">Privacy Policy</a>
+          <a href="/terms" class="footer-link">Terms of Service</a>
         </div>
       </div>
-      <div class="flex items-center justify-between flex-wrap gap-4 pt-7 border-t border-white/[0.06]">
-        <div class="text-xs text-white/22">© 2026 <span class="text-white/40">TaskFlow</span>. Built by <span class="text-white/40">Donny Fabuluje</span>.</div>
-        <div class="flex gap-5">
-          <a href="/privacy" class="text-xs text-white/22 hover:text-white/50 transition">Privacy</a>
-          <a href="/terms" class="text-xs text-white/22 hover:text-white/50 transition">Terms</a>
-          <a href="/contact" class="text-xs text-white/22 hover:text-white/50 transition">Contact</a>
+      <div class="footer-bottom">
+        <span class="footer-copy">© 2026 <span>TaskFlow</span>. Built by <span>Donny Fabuluje</span>.</span>
+        <div class="footer-legal">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
         </div>
       </div>
     </div>
   </footer>
 
   <script>
-    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('translate-x-full'));
-    document.getElementById('menuClose').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+    // Mobile nav (IDs from public_navbar.html)
+    const menuOpen  = document.getElementById('menuOpen');
+    const menuClose = document.getElementById('menuClose');
+    const mobileMenu = document.getElementById('mobileMenu');
+    if (menuOpen)  menuOpen.addEventListener('click',  () => mobileMenu.classList.remove('translate-x-full'));
+    if (menuClose) menuClose.addEventListener('click', () => mobileMenu.classList.add('translate-x-full'));
 
+    // Billing toggle
     const prices = {
-      monthly: { plus: '$5', pro: '$9', plusNote: '7-day free trial.', proNote: '7-day free trial. Cancel anytime.', badge: 'Save up to 30% yearly' },
-      yearly:  { plus: '$3', pro: '$6', plusNote: 'Billed $36/year.', proNote: 'Billed $72/year. 7-day free trial.', badge: '✦ You save up to $36/year' }
+      monthly: {
+        plus: '$5', pro: '$9',
+        plusPer: '/month', proPer: '/month',
+        plusNote: '7-day free trial.',
+        proNote:  '7-day free trial. Cancel anytime.',
+        chip: 'Save up to 30%'
+      },
+      yearly: {
+        plus: '$3', pro: '$6',
+        plusPer: '/month', proPer: '/month',
+        plusNote: 'Billed $36/year.',
+        proNote:  'Billed $72/year. 7-day free trial.',
+        chip: '✦ You save up to $36/year'
+      }
     };
+
     function setBilling(type, btn) {
-      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.toggle-opt').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const p = prices[type];
       document.getElementById('plus-price').textContent = p.plus;
-      document.getElementById('pro-price').textContent = p.pro;
-      document.getElementById('plus-note').textContent = p.plusNote;
-      document.getElementById('pro-note').textContent = p.proNote;
-      document.getElementById('save-badge').textContent = p.badge;
+      document.getElementById('pro-price').textContent  = p.pro;
+      document.getElementById('plus-per').textContent   = p.plusPer;
+      document.getElementById('pro-per').textContent    = p.proPer;
+      document.getElementById('plus-note').textContent  = p.plusNote;
+      document.getElementById('pro-note').textContent   = p.proNote;
+      document.getElementById('save-chip').textContent  = p.chip;
     }
   </script>
 
