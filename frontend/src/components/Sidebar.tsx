@@ -127,7 +127,7 @@ export const SIDEBAR_COLLAPSED_KEY = 'tf-sidebar-collapsed'
 /* ─── Component ──────────────────────────────────────────────────── */
 export default function Sidebar() {
   const pathname     = usePathname()
-  const marketingUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
+  const marketingUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || '/landing').replace(/\/$/, '')
 
   const [user, setUser]               = useState<{ name: string; username: string; profile_image?: string } | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)

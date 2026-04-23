@@ -5,7 +5,7 @@ import { apiUrl } from '@/lib/api-base'
 
 export default function LoginPage() {
   const router = useRouter()
-  const landingPageUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || 'https://tflow.live').replace(/\/$/, '')
+  const landingPageUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || '/landing').replace(/\/$/, '')
   const [infoMessage, setInfoMessage] = useState('')
   const [oauthError, setOauthError] = useState('')
   const [identifier, setIdentifier] = useState('')

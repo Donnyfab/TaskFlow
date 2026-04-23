@@ -35,6 +35,7 @@ const nextConfig = {
       { source: '/terms', destination: `${backendOrigin}/terms` },
       { source: '/privacy', destination: `${backendOrigin}/privacy` },
       { source: '/logout', destination: `${backendOrigin}/logout` },
+      { source: '/landing', destination: `${backendOrigin}/` },
     ]
   },
 }
