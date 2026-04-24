@@ -369,10 +369,7 @@ export default function Sidebar() {
                   </Link>
                 ))}
                 <div style={{ height: '1px', background: t.dropdownSep, margin: '4px 0' }}/>
-                <button onClick={async () => {
-                  await fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' })
-                  window.location.href = marketingUrl
-                }} style={{
+                <button onClick={() => { window.location.href = '/logout' }} style={{
                   display: 'block', width: '100%', padding: '9px 12px', fontSize: '13px',
                   color: t.logoutText, background: 'transparent', border: 'none',
                   textAlign: 'left', cursor: 'pointer', borderRadius: '8px',

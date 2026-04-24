@@ -121,7 +121,7 @@ export default function SettingsPage() {
   async function deleteAccount() {
     if (modalInput.trim() !== 'DELETE') { setModalError(true); return }
     await fetch(apiUrl('/api/settings/delete-account'), { method: 'POST', credentials: 'include' })
-    window.location.href = apiUrl('/logout')
+    window.location.href = '/logout'
   }
 
   const initials = data?.username ? data.username.slice(0, 2).toUpperCase() : 'TF'
