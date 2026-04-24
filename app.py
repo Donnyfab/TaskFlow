@@ -3034,7 +3034,7 @@ def about_page():
 @app.route("/register", methods=["GET", "POST"])
 def register_page():
     if logged_in():
-        return redirect(url_for("home_page"))
+        return redirect(APP_PUBLIC_URL + "/home")
     if request.method == "POST":
         first = request.form.get("first_name", "").strip().capitalize()
         last = request.form.get("last_name", "").strip().capitalize()
@@ -3097,7 +3097,7 @@ def register_page():
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if logged_in():
-        return redirect(url_for("home_page"))
+        return redirect(APP_PUBLIC_URL + "/home")
     error_identifier = None
     error_password = None
     info_message = None
@@ -3150,7 +3150,7 @@ def login_page():
                 error_password = "Invalid username/email or password."
             else:
                 begin_user_session(user[0], user[1], user[2])
-                return redirect(url_for("home_page"))
+                return redirect(APP_PUBLIC_URL + "/home")
 
     return render_template("auth/login.html",
                            error_identifier=error_identifier,
@@ -3189,7 +3189,7 @@ def verify_email():
     if not user["is_verified"]:
         mark_user_verified(user["id"])
 
-    return redirect(url_for("home_page"))
+    return redirect(APP_PUBLIC_URL + "/home")
 
 @app.route("/username_suggestions", methods=["POST"])
 def username_suggestions():
