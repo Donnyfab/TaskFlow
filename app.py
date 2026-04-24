@@ -152,6 +152,9 @@ app.config["SESSION_COOKIE_SAMESITE"] = (
     os.environ.get("SESSION_COOKIE_SAMESITE", "").strip() or SESSION_COOKIE_SAMESITE_DEFAULT
 )
 app.config["SESSION_COOKIE_SECURE"] = env_flag("SESSION_COOKIE_SECURE", SESSION_COOKIE_CROSS_SITE)
+_cookie_domain = os.environ.get("SESSION_COOKIE_DOMAIN", "").strip()
+if _cookie_domain:
+    app.config["SESSION_COOKIE_DOMAIN"] = _cookie_domain
 app.config["SESSION_REFRESH_EACH_REQUEST"] = True
 EMAIL_VERIFY_MAX_AGE = int(os.environ.get("EMAIL_VERIFY_MAX_AGE", "86400"))
 EMAIL_VERIFY_SALT = os.environ.get("EMAIL_VERIFY_SALT", "taskflow-email-verify")
