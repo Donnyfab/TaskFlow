@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface Habit {
   id: number; name: string; icon: string; frequency: string
@@ -119,9 +120,12 @@ export default function HabitsPage() {
 
       {/* TOPBAR */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 32px', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-        <div>
-          <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color:'rgba(255,255,255,0.92)' }}>Habits</div>
-          <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.3)', marginTop:'2px' }}>{data?.today_date} · {done}/{total} done today</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'12px', minWidth:0 }}>
+          <SidebarReopenButton />
+          <div>
+            <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color:'rgba(255,255,255,0.92)' }}>Habits</div>
+            <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.3)', marginTop:'2px' }}>{data?.today_date} · {done}/{total} done today</div>
+          </div>
         </div>
         <button onClick={() => setModal(true)} style={{ background:'#fff', color:'#0A0A0A', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
           + New habit

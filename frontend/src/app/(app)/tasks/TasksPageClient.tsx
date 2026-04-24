@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
-import { SIDEBAR_COLLAPSED_KEY } from '@/components/Sidebar'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 /* ─── Types ──────────────────────────────────────────────────────── */
 interface Task {
@@ -192,28 +192,6 @@ export default function TasksPageClient() {
   const [mtShowLoc,     setMtShowLoc]       = useState(false)
   const [mtShowSched,   setMtShowSched]     = useState(false)
   const mtInputRef = useRef<HTMLInputElement>(null)
-
-  // ── Nav sidebar collapsed state (shared via localStorage) ────────
-  const [navCollapsed, setNavCollapsed] = useState(true)
-  useEffect(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
-    if (saved !== null) setNavCollapsed(saved === 'true')
-  }, [])
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === SIDEBAR_COLLAPSED_KEY && e.newValue !== null) {
-        setNavCollapsed(e.newValue === 'true')
-      }
-    }
-    window.addEventListener('storage', handler)
-    return () => window.removeEventListener('storage', handler)
-  }, [])
-  const toggleNavSidebar = () => {
-    const next = !navCollapsed
-    setNavCollapsed(next)
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
-    window.dispatchEvent(new StorageEvent('storage', { key: SIDEBAR_COLLAPSED_KEY, newValue: String(next) }))
-  }
 
   // ── Brain Dump (Voice) state ─────────────────────────────────────
   const [bdOpen,       setBdOpen]       = useState(false)
@@ -537,33 +515,7 @@ export default function TasksPageClient() {
 
           {/* ── Brain Dump button row (hamburger + Brain Dump inline) ── */}
           <div style={{ padding:'0 10px', marginBottom:'12px', display:'flex', alignItems:'center', gap:'6px' }}>
-            {/* Hamburger — only visible when nav sidebar is collapsed */}
-            {navCollapsed && (
-              <button
-                onClick={toggleNavSidebar}
-                title="Expand sidebar"
-                style={{
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  width:'36px', height:'36px', flexShrink:0,
-                  borderRadius:'10px', border:'none', cursor:'pointer',
-                  background:'transparent',
-                  color: theme==='light' ? '#888' : 'rgba(255,255,255,0.4)',
-                  transition:'background 0.12s, color 0.12s',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)'
-                  e.currentTarget.style.color = theme==='light' ? '#1C1C1E' : 'rgba(255,255,255,0.9)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = theme==='light' ? '#888' : 'rgba(255,255,255,0.4)'
-                }}
-              >
-                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M2 4h12M2 8h12M2 12h12"/>
-                </svg>
-              </button>
-            )}
+            <SidebarReopenButton theme={theme} />
             <button
               onClick={() => setBdOpen(true)}
               style={{

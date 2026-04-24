@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 const C = 552.9
 
 interface Task { id: number; title: string }
@@ -30,7 +31,6 @@ export default function FocusPage() {
   const [showQuit, setShowQuit]     = useState(false)
   const [taskDone, setTaskDone]     = useState<boolean | null>(null)
   const [reflection, setReflection] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeLeftRef = useRef(timeLeft)
   const runningRef  = useRef(running)
@@ -132,6 +132,9 @@ export default function FocusPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0A', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 20 }}>
+        <SidebarReopenButton />
+      </div>
 
       {/* SETUP SCREEN */}
       {screen === 'setup' && (

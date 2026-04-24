@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { apiUrl } from '@/lib/api-base'
+import { SIDEBAR_COLLAPSED_KEY, syncSidebarCollapsed } from '@/components/sidebar-state'
 
 /* ─── SVG Icons ──────────────────────────────────────────────────── */
 const IconHome = () => (
@@ -122,8 +123,6 @@ const THEMES = {
   },
 }
 
-export const SIDEBAR_COLLAPSED_KEY = 'tf-sidebar-collapsed'
-
 /* ─── Component ──────────────────────────────────────────────────── */
 export default function Sidebar() {
   const pathname     = usePathname()
@@ -168,8 +167,7 @@ export default function Sidebar() {
   const collapse = () => {
     setCollapsed(true)
     setProfileOpen(false)
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true')
-    window.dispatchEvent(new StorageEvent('storage', { key: SIDEBAR_COLLAPSED_KEY, newValue: 'true' }))
+    syncSidebarCollapsed(true)
   }
 
   const t = THEMES[theme]

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface CalEvent { id: number; title: string; date: string; time: string; category: string; color: string }
 interface Task { id: number; title: string }
@@ -208,6 +209,7 @@ export default function CalendarPage() {
         {/* Topbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <SidebarReopenButton />
             <div onClick={() => changeMonth(-1)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '7px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>‹</div>
             <div onClick={() => changeMonth(1)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '7px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>›</div>
             <div style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '-0.5px', color: 'rgba(255,255,255,0.9)', minWidth: '170px' }}>{MONTHS[curMonth]} {curYear}</div>

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface HomeData {
   greeting: string
@@ -191,9 +192,12 @@ export default function HomePage() {
 
       {/* TOPBAR */}
       <div style={s.topbar}>
-        <div style={{ display:'flex', flexDirection:'column', gap:'2px' }}>
-          <div style={s.topbarTitle}>Good {data.greeting}, {data.name}</div>
-          <div style={s.topbarSub}>{data.today_date} · {data.streak} day streak · {data.habits_due} habits due today</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'12px', minWidth:0 }}>
+          <SidebarReopenButton />
+          <div style={{ display:'flex', flexDirection:'column', gap:'2px', minWidth:0 }}>
+            <div style={s.topbarTitle}>Good {data.greeting}, {data.name}</div>
+            <div style={s.topbarSub}>{data.today_date} · {data.streak} day streak · {data.habits_due} habits due today</div>
+          </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
           <button style={s.aiBtnStyle} onClick={planMyDay}>✦ Plan my day</button>

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface UserData {
   name: string; username: string; email: string
@@ -135,7 +136,10 @@ export default function SettingsPage() {
       {/* SETTINGS NAV */}
       <div style={{ borderRight:'1px solid rgba(255,255,255,0.05)', padding:'32px 0 0', position:'sticky', top:0, height:'100vh', overflowY:'auto', display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'0 20px 20px', borderBottom:'1px solid rgba(255,255,255,0.05)', marginBottom:'16px' }}>
-          <div style={{ fontSize:'17px', fontWeight:800, letterSpacing:'-0.4px', color:'rgba(255,255,255,0.9)' }}>Settings</div>
+          <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'10px' }}>
+            <SidebarReopenButton />
+            <div style={{ fontSize:'17px', fontWeight:800, letterSpacing:'-0.4px', color:'rgba(255,255,255,0.9)' }}>Settings</div>
+          </div>
           <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.3)', marginTop:'3px' }}>Manage your preferences</div>
         </div>
         {NAV.map(n => (

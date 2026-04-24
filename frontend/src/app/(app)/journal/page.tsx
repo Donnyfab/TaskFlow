@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface Entry { id: number; title: string; preview: string; word_count: number; time_label: string; content: string }
 
@@ -189,7 +190,10 @@ export default function JournalPage() {
       {/* ENTRIES LIST */}
       <div style={{ borderRight:'1px solid rgba(255,255,255,0.05)', display:'flex', flexDirection:'column', height:'100vh', overflowY:'auto' }}>
         <div style={{ padding:'22px 20px 0', flexShrink:0 }}>
-          <div style={{ fontSize:'17px', fontWeight:800, letterSpacing:'-0.5px', marginBottom:'14px', color:'rgba(255,255,255,0.9)' }}>Journal</div>
+          <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px' }}>
+            <SidebarReopenButton />
+            <div style={{ fontSize:'17px', fontWeight:800, letterSpacing:'-0.5px', color:'rgba(255,255,255,0.9)' }}>Journal</div>
+          </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search entries..."
             style={{ width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', color:'#fff', outline:'none', marginBottom:'12px', boxSizing:'border-box' }}
           />

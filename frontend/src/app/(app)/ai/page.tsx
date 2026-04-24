@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { apiUrl } from '@/lib/api-base'
+import SidebarReopenButton from '@/components/SidebarReopenButton'
 
 interface Message { role: 'user' | 'assistant'; content: string; timeLabel?: string }
 interface ActionCard { id: number; title: string; confirmation_text: string; type?: string }
@@ -172,6 +173,7 @@ export default function AIPage() {
         {/* Topbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <SidebarReopenButton />
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', position: 'relative', flexShrink: 0 }}>
               ✦
               <div style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '9px', height: '9px', borderRadius: '50%', background: 'rgba(80,220,130,0.9)', border: '2px solid #0A0A0A' }} />
