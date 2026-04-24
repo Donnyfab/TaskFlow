@@ -1150,7 +1150,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
               <div class="stats-row">
                 <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">14 days</div></div>
                 <div class="stat-card"><div class="stat-label">Tasks</div><div class="stat-value">5 / 7</div></div>
-                <div class="stat-card"><div class="stat-label">Discipline</div><div class="stat-value">22 days</div></div>
+                <div class="stat-card"><div class="stat-label">Discipline streak</div><div class="stat-value">22 days</div></div>
               </div>
               <div class="ai-card">
                 <div class="ai-pip">✦</div>
@@ -1161,7 +1161,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
               <div class="task-item"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Journal entry</div><div class="task-tag">Habit</div></div>
               <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Deploy Taskflow</div><div class="task-tag">Task</div></div>
               <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Rebuild landing page</div><div class="task-tag">Task</div></div>
-              <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Discipline check-in</div><div class="task-tag">Accountability</div></div>
+              <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Daily check-in</div><div class="task-tag">Accountability</div></div>
             </div>
        
             <!-- TASKS -->
@@ -1225,18 +1225,18 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
             <!-- ACCOUNTABILITY -->
             <div class="panel" id="panel-accountability">
               <div class="greeting">Accountability</div>
-              <div class="greeting-sub">NoFap / NoPorn tracker</div>
+              <div class="greeting-sub">Momentum tracker</div>
               <div class="acc-streak">
                 <div class="acc-num" id="acc-days">22</div>
-                <div class="acc-label">days clean</div>
+                <div class="acc-label">days consistent</div>
               </div>
               <div class="acc-btns">
-                <button class="acc-checkin" onclick="document.getElementById('acc-days').textContent = parseInt(document.getElementById('acc-days').textContent) + 1">✓ Check in today</button>
+                <button class="acc-checkin" onclick="document.getElementById('acc-days').textContent = parseInt(document.getElementById('acc-days').textContent) + 1">✓ Log today</button>
                 <button class="acc-reset" onclick="document.getElementById('acc-days').textContent = '0'">Reset</button>
               </div>
               <div class="section-title" style="margin-bottom:6px;">Last 30 days</div>
               <div class="acc-bar" id="acc-bar-demo"></div>
-              <div class="acc-reflection">✦ "You've made it 22 days. The urge is temporary — your streak is permanent. What are you doing instead right now?"</div>
+              <div class="acc-reflection">✦ "You've made it 22 days. Momentum compounds when you protect it. What's one good choice you can lock in right now?"</div>
             </div>
        
           </div>
@@ -1296,7 +1296,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
               <div class="hiw-arow"><div class="hiw-aicon">✅</div><div class="hiw-aname">Deploy Taskflow to production</div><div class="hiw-achk">✓</div></div>
               <div class="hiw-arow"><div class="hiw-aicon">🔁</div><div class="hiw-aname">Morning workout — daily</div><div class="hiw-achk">✓</div></div>
               <div class="hiw-arow"><div class="hiw-aicon">📓</div><div class="hiw-aname">Journal entry — daily</div><div class="hiw-achk">✓</div></div>
-              <div class="hiw-arow"><div class="hiw-aicon">🚫</div><div class="hiw-aname">NoFap tracker</div><div class="hiw-achk">✓</div></div>
+              <div class="hiw-arow"><div class="hiw-aicon">🚫</div><div class="hiw-aname">Discipline streak</div><div class="hiw-achk">✓</div></div>
               <div class="hiw-arow"><div class="hiw-aicon" style="color:rgba(255,255,255,0.25);">+</div><div class="hiw-aname" style="color:rgba(255,255,255,0.25);">Add more...</div></div>
             </div>
           </div>
@@ -1314,7 +1314,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
             <div class="hiw-bar"><div class="hiw-dot"></div><div class="hiw-dot"></div><div class="hiw-dot"></div></div>
             <div class="hiw-body">
               <div class="hiw-ins"><div class="hiw-ipip">↑</div><div class="hiw-itxt"><b>Pattern found:</b> You complete 40% more tasks on days you exercise first.</div></div>
-              <div class="hiw-ins"><div class="hiw-ipip">↓</div><div class="hiw-itxt"><b>Slip detected:</b> You've skipped journaling 3 days — productivity is dropping.</div></div>
+              <div class="hiw-ins"><div class="hiw-ipip">↓</div><div class="hiw-itxt"><b>Drift detected:</b> You've skipped journaling for 3 days and your momentum is dropping.</div></div>
               <div class="hiw-ins"><div class="hiw-ipip">✦</div><div class="hiw-itxt"><b>Insight:</b> Your best days start before 9am with no phone for the first hour.</div></div>
               <div style="display:flex;align-items:center;gap:4px;padding:8px 0;">
                 <span class="hiw-tdot"></span><span class="hiw-tdot"></span><span class="hiw-tdot"></span>
@@ -1338,10 +1338,10 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
               <div class="hiw-chat-sugs">
                 <button class="hiw-csug" onclick="hiwSendSug(this)">Plan my day</button>
                 <button class="hiw-csug" onclick="hiwSendSug(this)">I'm unmotivated</button>
-                <button class="hiw-csug" onclick="hiwSendSug(this)">I relapsed</button>
+                <button class="hiw-csug" onclick="hiwSendSug(this)">I fell off today</button>
               </div>
               <div class="hiw-chat-msgs" id="hiw-msgs">
-                <div class="hiw-cmsg ai"><div class="hiw-cname">Taskflow AI</div><div class="hiw-cbubble ai">Hey Donny 👋 I know your streaks, habits, and goals. Ask me anything.</div></div>
+                <div class="hiw-cmsg ai"><div class="hiw-cname">Taskflow AI</div><div class="hiw-cbubble ai">Hey Donny 👋 I know your routines, streaks, habits, and goals. Ask me anything.</div></div>
               </div>
               <div class="hiw-chat-wrap">
                 <input class="hiw-cinput" id="hiw-cinput" placeholder="Ask your AI coach..." onkeydown="if(event.key==='Enter')hiwSendMsg()">
@@ -1369,7 +1369,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
               <div class="hiw-pblock"><div class="hiw-ptime">7:00am</div><div class="hiw-pname">Morning workout</div><div class="hiw-ptag">Habit</div></div>
               <div class="hiw-pblock"><div class="hiw-ptime">8:30am</div><div class="hiw-pname">Deep work — Deploy Taskflow</div><div class="hiw-ptag">Task</div></div>
               <div class="hiw-pblock"><div class="hiw-ptime">12:00pm</div><div class="hiw-pname">Record music session</div><div class="hiw-ptag">Task</div></div>
-              <div class="hiw-pblock"><div class="hiw-ptime">9:00pm</div><div class="hiw-pname">Journal + NoFap check-in</div><div class="hiw-ptag">Habit</div></div>
+              <div class="hiw-pblock"><div class="hiw-ptime">9:00pm</div><div class="hiw-pname">Journal + daily check-in</div><div class="hiw-ptag">Habit</div></div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);">
                 <span style="font-size:9px;color:rgba(255,255,255,0.25);">Yesterday's growth score</span>
                 <span style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.7);">78 / 100</span>
@@ -1497,13 +1497,13 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
       <div style="background:#111; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
         <div style="padding:22px 22px 16px;">
           <p style="font-size:10px; font-weight:500; color:rgba(255,255,255,0.28); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">AI Nudges</p>
-          <h3 style="font-size:15px; font-weight:700; letter-spacing:-0.3px; margin-bottom:6px; color:rgba(255,255,255,0.88); line-height:1.3;">Proactive check-ins before slipping becomes a habit.</h3>
+          <h3 style="font-size:15px; font-weight:700; letter-spacing:-0.3px; margin-bottom:6px; color:rgba(255,255,255,0.88); line-height:1.3;">Proactive check-ins before a small drift becomes a bigger setback.</h3>
           <p style="font-size:11.5px; color:rgba(255,255,255,0.36); line-height:1.65;">Taskflow notices when you're off track and nudges you back — before it becomes a pattern.</p>
         </div>
         <div style="background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.05); padding:14px 16px; display:flex; flex-direction:column; gap:7px;">
           <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:7px;">
             <div style="width:16px; height:16px; border-radius:4px; background:rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; margin-top:1px;">💬</div>
-            <p style="font-size:10.5px; color:rgba(255,255,255,0.5); line-height:1.5;"><strong style="color:rgba(255,255,255,0.75); font-weight:500;">3 days no journal.</strong> Want to do a quick 2-minute check-in?</p>
+            <p style="font-size:10.5px; color:rgba(255,255,255,0.5); line-height:1.5;"><strong style="color:rgba(255,255,255,0.75); font-weight:500;">3 days without journaling.</strong> Want to do a quick 2-minute reset?</p>
           </div>
           <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:7px;">
             <div style="width:16px; height:16px; border-radius:4px; background:rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; margin-top:1px;">💬</div>
@@ -1511,7 +1511,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           </div>
           <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:7px;">
             <div style="width:16px; height:16px; border-radius:4px; background:rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; margin-top:1px;">💬</div>
-            <p style="font-size:10.5px; color:rgba(255,255,255,0.5); line-height:1.5;"><strong style="color:rgba(255,255,255,0.75); font-weight:500;">22-day streak at risk.</strong> You haven't checked in today. Don't break it now.</p>
+            <p style="font-size:10.5px; color:rgba(255,255,255,0.5); line-height:1.5;"><strong style="color:rgba(255,255,255,0.75); font-weight:500;">22-day consistency streak at risk.</strong> You haven't logged today. Keep it going.</p>
           </div>
         </div>
       </div>
@@ -1543,7 +1543,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
     <div class="max-w-[860px] mx-auto mb-10 bg-[#111] border border-white/9 rounded-[20px] px-6 md:px-11 py-8 md:py-10 relative overflow-hidden">
       <div class="absolute top-[-20px] left-8 text-[160px] font-bold text-white/[0.03] leading-none pointer-events-none select-none">"</div>
       <p class="text-[22px] font-bold leading-[1.45] text-white/88 mb-7 max-w-[680px] relative z-10" style="letter-spacing:-0.5px;">
-        "I've tried every productivity app out there. Taskflow is the <span class="text-white">first one that actually feels like it's on my side.</span> The AI knows when I'm slipping before I do."
+        "I've tried every productivity app out there. Taskflow is the <span class="text-white">first one that actually feels like it's on my side.</span> The AI knows when I'm drifting off course before I do."
       </p>
       <div class="flex items-center gap-4">
         <div class="w-11 h-11 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-sm font-bold text-white/70 flex-shrink-0">JM</div>
@@ -1560,7 +1560,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
  
       <div class="bg-[#111] border border-white/7 rounded-2xl p-5 hover:border-white/14 transition-colors">
         <div class="text-white/50 text-xs mb-3">★★★★★</div>
-        <p class="text-sm text-white/60 leading-relaxed mb-4">"The NoFap tracker alone is worth it. <strong class="text-white/82 font-medium">I couldn't find anything free like this anywhere.</strong> 47 days clean and counting."</p>
+        <p class="text-sm text-white/60 leading-relaxed mb-4">"The accountability tracker alone is worth it. <strong class="text-white/82 font-medium">I couldn't find anything this polished for free anywhere.</strong> 47 days consistent and counting."</p>
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold text-white/60 flex-shrink-0">AT</div>
           <div><div class="text-xs font-semibold text-white/70">Alex T.</div><div class="text-[10px] text-white/30">College senior</div></div>
@@ -1705,7 +1705,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
 
       <!-- Row 5 -->
       <div class="grid border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" style="grid-template-columns: 1fr 140px 140px;">
-        <div class="px-5 py-3 flex items-center gap-3"><span class="text-sm">🚫</span><span class="text-xs text-white/65">Accountability tracker (NoFap etc.)</span></div>
+        <div class="px-5 py-3 flex items-center gap-3"><span class="text-sm">🚫</span><span class="text-xs text-white/65">Accountability tracker (any habit or challenge)</span></div>
         <div class="px-5 py-3 flex items-center justify-center"><span class="text-xs font-semibold text-red-400/70">$12/mo</span></div>
         <div class="px-5 py-3 flex items-center justify-center"><div class="w-[18px] h-[18px] rounded-full bg-white/8 flex items-center justify-center text-[8px] text-white/60">✓</div></div>
       </div>
@@ -1888,7 +1888,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           <span class="text-white/28">Start becoming.</span>
         </h2>
         <p class="text-[15px] text-white/40 leading-[1.7] mb-9 max-w-[420px]">
-          You've been juggling apps, missing habits, and losing streaks. Taskflow puts everything in one place — with an AI that actually knows you and guides you forward.
+          You've been juggling apps, missing habits, and losing momentum. Taskflow puts everything in one place — with an AI that actually knows you and guides you forward.
         </p>
         <div class="flex items-center gap-3 mb-8">
           <a href="/register" class="bg-white text-gray-900 text-sm font-semibold px-6 py-3 rounded-[9px] hover:bg-white/90 active:scale-[0.97] transition-[background-color,transform] duration-[160ms] ease-out">Start for free →</a>
@@ -1916,7 +1916,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           </div>
           <div class="p-5">
             <div class="text-[15px] font-bold text-white/88 mb-0.5">Good morning, Donny 👋</div>
-            <div class="text-[10px] text-white/25 mb-4">Your streak is on the line. Don't break it.</div>
+            <div class="text-[10px] text-white/25 mb-4">Your consistency streak is on the line. Keep it going.</div>
             <div class="flex items-center justify-between bg-white/[0.03] border border-white/7 rounded-xl p-4 mb-3">
               <div>
                 <div class="text-[11px] text-white/40 mb-1">Daily growth score</div>
@@ -1930,7 +1930,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
             <div class="grid grid-cols-3 gap-1.5 mb-3">
               <div class="bg-white/[0.03] border border-white/6 rounded-lg p-2.5"><div class="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Streak</div><div class="text-[15px] font-bold text-white/85">14d</div></div>
               <div class="bg-white/[0.03] border border-white/6 rounded-lg p-2.5"><div class="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Tasks</div><div class="text-[15px] font-bold text-white/85">5/7</div></div>
-              <div class="bg-white/[0.03] border border-white/6 rounded-lg p-2.5"><div class="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">NoFap</div><div class="text-[15px] font-bold text-white/85">22d</div></div>
+              <div class="bg-white/[0.03] border border-white/6 rounded-lg p-2.5"><div class="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Discipline streak</div><div class="text-[15px] font-bold text-white/85">22d</div></div>
             </div>
             <div class="bg-white/[0.03] border border-white/8 rounded-lg p-3 flex gap-2">
               <div class="w-[18px] h-[18px] rounded bg-white/8 flex items-center justify-center text-[9px] text-white/50 flex-shrink-0 mt-0.5">✦</div>
@@ -2047,7 +2047,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           <div class="faq-icon">+</div>
         </div>
         <div class="faq-a">
-          <div class="faq-a-inner">The AI studies everything you put into Taskflow — your task completion rates, habit streaks, journal entries, and time patterns. Over time it finds correlations you'd never notice yourself and uses those insights to guide your daily plan, give you proactive nudges, and coach you when you're slipping.</div>
+          <div class="faq-a-inner">The AI studies everything you put into Taskflow — your task completion rates, habit streaks, journal entries, and time patterns. Over time it finds correlations you'd never notice yourself and uses those insights to guide your daily plan, give you proactive nudges, and coach you when you're drifting off track.</div>
         </div>
       </div>
 
@@ -2067,7 +2067,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           <div class="faq-icon">+</div>
         </div>
         <div class="faq-a">
-          <div class="faq-a-inner">The accountability tracker lets you track streaks for things most apps won't touch — NoFap, NoPorn, screen time limits, junk food, or any custom challenge you create. It has a day counter, reset logging, and AI reflection prompts when you relapse. It's private, free, and built for real people dealing with real struggles.</div>
+          <div class="faq-a-inner">The accountability tracker lets you track streaks for the habits and challenges that matter to you — screen time limits, nutrition goals, spending control, consistency goals, or any custom challenge you create. It includes a day counter, reset logging, and AI reflection prompts when you fall off pace. It's private, free, and built for real life.</div>
         </div>
       </div>
 
@@ -2077,7 +2077,7 @@ class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-
           <div class="faq-icon">+</div>
         </div>
         <div class="faq-a">
-          <div class="faq-a-inner">Your data is yours. We encrypt everything and never sell your information to third parties. Your journal entries, accountability data, and personal habits are private by default. You control what you share and what stays private — especially important because Taskflow deals with sensitive personal data.</div>
+          <div class="faq-a-inner">Your data is yours. We encrypt everything and never sell your information to third parties. Your journal entries, accountability data, and personal habits are private by default. You control what you share and what stays private — especially important because Taskflow handles deeply personal data.</div>
         </div>
       </div>
 
@@ -2292,7 +2292,7 @@ async function sendChat() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: `You are Taskflow AI — a personal coach, accountability partner, and life improvement assistant built into the Taskflow app. You know the user's data: 14-day streak, 5/7 tasks done today, 22-day NoFap streak, habits include morning workout, journaling, reading. You speak like a supportive but real friend — not corporate, not robotic. Keep responses SHORT (2-4 sentences max). Be direct, warm, and genuinely helpful. You help with motivation, planning, accountability, and self-improvement.`,
+        system: `You are Taskflow AI — a personal coach, accountability partner, and life improvement assistant built into the Taskflow app. You know the user's data: 14-day streak, 5/7 tasks done today, 22-day discipline streak, habits include morning workout, journaling, reading. You speak like a supportive but real friend — not corporate, not robotic. Keep responses SHORT (2-4 sentences max). Be direct, warm, and genuinely helpful. You help with motivation, planning, accountability, and self-improvement.`,
         messages: chatHistory
       })
     });
@@ -2367,7 +2367,7 @@ async function hiwSendMsg() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: `You are Taskflow AI — a personal coach and accountability partner. You know the user: 14-day streak, 5/7 tasks done, 22-day NoFap streak, habits include morning workout and journaling. Speak like a real supportive friend. Keep responses SHORT (2-3 sentences max). Be direct and warm.`,
+        system: `You are Taskflow AI — a personal coach and accountability partner. You know the user: 14-day streak, 5/7 tasks done, 22-day discipline streak, habits include morning workout and journaling. Speak like a real supportive friend. Keep responses SHORT (2-3 sentences max). Be direct and warm.`,
         messages: hiwHistory
       })
     });
