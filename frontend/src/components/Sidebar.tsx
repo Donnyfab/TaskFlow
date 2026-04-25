@@ -3,7 +3,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { apiUrl } from '@/lib/api-base'
-import { SIDEBAR_COLLAPSED_KEY, syncSidebarCollapsed } from '@/components/sidebar-state'
+import {
+  readSidebarCollapsed,
+  SIDEBAR_COLLAPSED_KEY,
+  syncSidebarCollapsed,
+} from '@/components/sidebar-state'
 
 /* ─── SVG Icons ──────────────────────────────────────────────────── */
 const IconHome = () => (
@@ -126,22 +130,19 @@ const THEMES = {
 /* ─── Component ──────────────────────────────────────────────────── */
 export default function Sidebar() {
   const pathname     = usePathname()
-  const marketingUrl = (process.env.NEXT_PUBLIC_MARKETING_URL || '/landing').replace(/\/$/, '')
 
   const [user, setUser]               = useState<{ name: string; username: string; profile_image?: string } | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [theme, setTheme]             = useState<'dark' | 'light'>('dark')
-  const [collapsed, setCollapsed]     = useState(true)
+  const [theme, setTheme]             = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    return localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark'
+  })
+  const [collapsed, setCollapsed]     = useState(() => {
+    if (typeof window === 'undefined') return false
+    return readSidebarCollapsed()
+  })
   const [hovered, setHovered]         = useState<string | null>(null)
   const [sidebarHovered, setSidebarHovered] = useState(false)
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('tf-theme') as 'dark' | 'light' | null
-    if (savedTheme) setTheme(savedTheme)
-
-    const savedCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
-    if (savedCollapsed !== null) setCollapsed(savedCollapsed === 'true')
-  }, [])
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

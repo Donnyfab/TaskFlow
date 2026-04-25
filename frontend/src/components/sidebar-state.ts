@@ -1,5 +1,10 @@
 export const SIDEBAR_COLLAPSED_KEY = 'tf-sidebar-collapsed'
 
+export function readSidebarCollapsed() {
+  const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+  return saved === 'true'
+}
+
 export function syncSidebarCollapsed(next: boolean) {
   localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
   window.dispatchEvent(

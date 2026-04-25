@@ -2,7 +2,11 @@
 
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
-import { SIDEBAR_COLLAPSED_KEY, syncSidebarCollapsed } from '@/components/sidebar-state'
+import {
+  readSidebarCollapsed,
+  SIDEBAR_COLLAPSED_KEY,
+  syncSidebarCollapsed,
+} from '@/components/sidebar-state'
 
 type ButtonTheme = 'dark' | 'light'
 
@@ -40,8 +44,7 @@ export default function SidebarReopenButton({
         return
       }
 
-      const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
-      setCollapsed(saved === null ? true : saved === 'true')
+      setCollapsed(readSidebarCollapsed())
     }
 
     syncFromStorage()
