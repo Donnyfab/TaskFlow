@@ -113,11 +113,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: calc(var(--header-height) + 48px) 40px 0;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--header-height) 40px 60px;
   gap: 0;
 }
-
-
 
 .hero-left {
   display: flex;
@@ -131,16 +131,13 @@
 
 .hero-right {
   width: 100%;
-  max-width: 960px;       /* constrain width — not edge to edge */
+  max-width: 960px;
   padding: 0;
 }
 
-
-
-
 @media (max-width: 900px) {
   .hero {
-    padding: calc(var(--header-height) + 32px) 20px 0;
+    padding: var(--header-height) 20px 48px;
   }
 }
 
@@ -240,7 +237,10 @@
     .cta-secondary:active { transform: scale(0.97); }
    
     .social-proof {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  margin-top: 28px;
   margin-bottom: 0;
 }
 
@@ -683,7 +683,9 @@
   }
 
   .hero {
-    padding: calc(var(--header-height) + 24px) 20px 48px;
+    padding: var(--header-height) 20px 48px;
+    min-height: 100vh;
+    justify-content: center;
   }
 
   .hero-sub {
@@ -959,24 +961,39 @@
 
   <section class="hero">
     <div class="hero-left">
-  
+
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        Now with AI-powered daily scheduling
+      </div>
+
       <h1>
         Stop juggling apps.<br>
         <span class="dim">Start becoming who</span><br>
         you're supposed to be.
       </h1>
-  
+
       <p class="hero-sub">
-        Not another productivity app. An AI that studies your behavior, 
+        Not another productivity app. An AI that studies your behavior,
         connects every part of your life, and gets smarter every day.
       </p>
-      
-  
+
       <div class="hero-ctas">
         <button class="cta-main">Start for free →</button>
         <button class="cta-secondary">See how it works</button>
       </div>
-  
+
+      <div class="social-proof">
+        <div class="avatars">
+          <div class="avatar">JK</div>
+          <div class="avatar">MR</div>
+          <div class="avatar">AS</div>
+          <div class="avatar">TL</div>
+          <div class="avatar">+</div>
+        </div>
+        <span style="font-size:13px;color:rgba(255,255,255,0.35);margin-left:10px;">Joined by 14,000+ people building better lives</span>
+      </div>
+
     </div>
   
     <div class="hero-right">
