@@ -635,7 +635,7 @@ export default function TasksPageClient() {
             <SidebarItem key={item.id}
               Icon={item.Icon} label={item.label}
               count={null} active={!listId && smartActive===item.id} C={C} theme={theme}
-              onClick={() => { if (item.id === 'trash') openTaskView('trash') }}
+              onClick={() => openTaskView(item.id)}
             />
           ))}
 
