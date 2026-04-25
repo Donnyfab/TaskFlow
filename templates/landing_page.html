@@ -114,9 +114,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: var(--header-height) 40px 60px;
+  height: 100vh;
+  padding: var(--header-height) 40px 0;
   gap: 0;
+  box-sizing: border-box;
 }
 
 .hero-left {
@@ -126,18 +127,21 @@
   text-align: center;
   max-width: 680px;
   width: 100%;
-  margin-bottom: 52px;
 }
 
 .hero-right {
   width: 100%;
   max-width: 960px;
-  padding: 0;
+  padding: 60px 40px 0;
+  margin: 0 auto;
 }
 
 @media (max-width: 900px) {
   .hero {
-    padding: var(--header-height) 20px 48px;
+    padding: var(--header-height) 20px 0;
+  }
+  .hero-right {
+    padding: 48px 20px 0;
   }
 }
 
@@ -683,8 +687,8 @@
   }
 
   .hero {
-    padding: var(--header-height) 20px 48px;
-    min-height: 100vh;
+    padding: var(--header-height) 20px 0;
+    height: 100vh;
     justify-content: center;
   }
 
@@ -995,8 +999,11 @@
       </div>
 
     </div>
-  
-    <div class="hero-right">
+
+  </section>
+
+  <!-- DASHBOARD PREVIEW (below the fold) -->
+  <div class="hero-right">
       <div class="dashboard-preview">
 
         <!-- Browser chrome -->
@@ -1213,9 +1220,8 @@
 
         <div class="preview-fade"></div>
       </div>
-      
+
     </div>
-  </section>
 
   <div class="features-strip">
     <div class="feature-pill"><div class="pill-check">✓</div> Tasks & Goals</div>
