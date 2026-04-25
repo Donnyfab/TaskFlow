@@ -791,47 +791,159 @@
   }
 }
 
-/* ===== DASHBOARD DEMO ANIMATIONS ===== */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-10px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes breatheGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0), 0 0 0 0 rgba(255,255,255,0); }
-  50%       { box-shadow: 0 0 0 1px rgba(255,255,255,0.07), 0 0 22px 6px rgba(255,255,255,0.03); }
-}
-@keyframes cursorBlink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
+/* ===== DP DASHBOARD COMPONENT STYLES ===== */
 
-.demo-enter-sidebar     { animation: slideInLeft 0.5s ease forwards; opacity: 0; }
-.demo-enter-greeting    { animation: fadeSlideUp 0.4s ease 0.35s forwards; opacity: 0; }
-.demo-enter-stats       { animation: fadeSlideUp 0.4s ease 0.62s forwards; opacity: 0; }
-.demo-enter-ai          { animation: fadeSlideUp 0.4s ease 0.85s forwards; opacity: 0; }
-.demo-enter-tasks-header{ animation: fadeSlideUp 0.35s ease 1.05s forwards; opacity: 0; }
-.demo-task-item         { opacity: 0; }
+/* Browser chrome */
+.dp-chrome { display:flex; align-items:center; gap:6px; padding:10px 16px; background:#0F0F0F; border-bottom:1px solid rgba(255,255,255,0.05); }
+.dp-dot-r,.dp-dot-y,.dp-dot-g { width:8px; height:8px; border-radius:50%; background:#2d2d2d; display:inline-block; }
+.dp-url-bar { flex:1; text-align:center; font-size:11px; color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); padding:3px 0; border-radius:5px; max-width:200px; margin:0 auto; transition:color 0.3s; }
+.dp-chrome-r { width:50px; }
 
-.demo-streak-glow { animation: breatheGlow 2.8s ease-in-out infinite; }
+/* Sidebar */
+.dp-sidebar { border-right:1px solid rgba(255,255,255,0.05); padding:16px 0; background:rgba(0,0,0,0.3); display:flex; flex-direction:column; }
+.dp-logo-row { display:flex; align-items:center; gap:7px; padding:0 14px 14px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:8px; }
+.dp-logo-icon { width:18px; height:18px; background:rgba(255,255,255,0.9); border-radius:4px; flex-shrink:0; }
+.dp-logo-text { font-size:13px; font-weight:600; color:rgba(255,255,255,0.8); }
+.dp-nav { flex:1; }
+.dp-nav-item { display:flex; align-items:center; gap:8px; padding:6px 14px; font-size:12px; color:rgba(255,255,255,0.3); cursor:pointer; transition:all 0.2s; }
+.dp-nav-item.dp-nav-active { color:rgba(255,255,255,0.85); background:rgba(255,255,255,0.05); border-left:2px solid rgba(255,255,255,0.45); padding-left:12px; }
+.dp-nav-pip { width:2px; height:12px; border-radius:2px; background:rgba(255,255,255,0.1); flex-shrink:0; transition:background 0.2s; }
+.dp-pip-on { background:rgba(255,255,255,0.6); }
+.dp-sidebar-div { height:1px; background:rgba(255,255,255,0.05); margin:8px 0; }
+.dp-user-row { display:flex; align-items:center; gap:8px; padding:8px 14px; }
+.dp-user-av { width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.1); flex-shrink:0; }
+.dp-user-name { font-size:11px; color:rgba(255,255,255,0.45); }
+.dp-user-plan { font-size:9px; color:rgba(255,255,255,0.2); margin-top:1px; }
 
-.ai-cursor {
-  display: inline-block;
-  width: 1.5px;
-  height: 11px;
-  background: rgba(255,255,255,0.5);
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  animation: cursorBlink 0.75s step-end infinite;
-}
-.ai-cursor.hidden { display: none; }
+/* Panel container */
+.dp-main { padding:18px 20px; overflow:hidden; }
+.dp-panel { display:none; }
+.dp-panel-active { display:block; animation:dpIn 0.32s ease; }
+@keyframes dpIn { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+.dp-heading { font-size:15px; font-weight:600; color:rgba(255,255,255,0.9); letter-spacing:-0.3px; margin-bottom:2px; }
+.dp-sub { font-size:11px; color:rgba(255,255,255,0.25); margin-bottom:14px; }
 
-.sidebar-item.active {
-  border-left: 2px solid rgba(255,255,255,0.45);
-  padding-left: 12px;
+/* Stats grid (home) */
+.dp-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px; }
+.dp-stat-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:7px; padding:8px 10px; }
+.dp-stat-lbl { font-size:9px; color:rgba(255,255,255,0.25); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px; }
+.dp-stat-val { font-size:16px; font-weight:600; letter-spacing:-0.5px; color:rgba(255,255,255,0.85); }
+.dp-stat-unit { font-size:10px; font-weight:400; color:rgba(255,255,255,0.3); }
+
+/* AI card */
+.dp-ai-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:flex-start; gap:9px; }
+.dp-ai-pip { width:18px; height:18px; border-radius:5px; background:rgba(255,255,255,0.07); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; color:rgba(255,255,255,0.5); margin-top:1px; }
+.dp-ai-content { flex:1; min-width:0; }
+.dp-ai-lbl { font-size:9px; font-weight:600; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+.dp-ai-msg { font-size:11px; color:rgba(255,255,255,0.5); line-height:1.5; }
+.dp-ai-msg strong { color:rgba(255,255,255,0.75); font-weight:500; }
+.dp-ai-action .dp-ai-lbl { color:rgba(255,255,255,0.45); }
+
+/* Row headers */
+.dp-row-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+.dp-row-title { font-size:10px; font-weight:500; color:rgba(255,255,255,0.25); letter-spacing:0.5px; text-transform:uppercase; }
+.dp-row-act { font-size:10px; color:rgba(255,255,255,0.2); cursor:pointer; }
+
+/* Task lines (home panel) */
+.dp-task-line { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11.5px; }
+.dp-chk { width:13px; height:13px; border-radius:50%; border:1px solid rgba(255,255,255,0.15); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:7px; color:rgba(255,255,255,0.6); transition:all 0.25s; }
+.dp-chk-on { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.12); }
+.dp-tname { flex:1; color:rgba(255,255,255,0.65); transition:all 0.25s; }
+.dp-tname-done { text-decoration:line-through; color:rgba(255,255,255,0.2); }
+.dp-tag { font-size:8.5px; padding:2px 6px; border-radius:3px; background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.25); }
+.dp-tag-hi { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.45); }
+
+/* Cursor */
+.dp-cursor { display:inline-block; width:1.5px; height:11px; background:rgba(255,255,255,0.5); margin-left:1px; vertical-align:text-bottom; animation:dpBlink 0.75s step-end infinite; }
+.dp-cursor-j { height:10px; }
+@keyframes dpBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Filter row (tasks panel) */
+.dp-filter-row { display:flex; gap:6px; margin-bottom:10px; }
+.dp-filter { font-size:10px; padding:3px 10px; border-radius:100px; border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.3); cursor:pointer; }
+.dp-filter-on { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); }
+
+/* Task rows (tasks panel) */
+.dp-trow { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.dp-tdot { width:4px; height:4px; border-radius:50%; flex-shrink:0; }
+.dp-tdot-hi { background:rgba(255,255,255,0.65); }
+.dp-tdot-med { background:rgba(255,255,255,0.3); }
+.dp-tdot-lo { background:rgba(255,255,255,0.12); }
+.dp-trow-info { flex:1; min-width:0; }
+.dp-trow-title { font-size:11px; color:rgba(255,255,255,0.7); }
+.dp-trow-meta { font-size:9.5px; color:rgba(255,255,255,0.25); margin-top:1px; }
+.dp-trow-time { font-size:10px; color:rgba(255,255,255,0.25); white-space:nowrap; }
+
+/* Progress bar */
+.dp-prog-row { display:flex; justify-content:space-between; align-items:center; margin-top:12px; margin-bottom:4px; }
+.dp-prog-lbl { font-size:10px; color:rgba(255,255,255,0.25); }
+.dp-prog-count { font-size:10px; color:rgba(255,255,255,0.35); }
+.dp-prog-track { height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+.dp-prog-fill { height:100%; background:rgba(255,255,255,0.35); border-radius:2px; transition:width 1.2s ease; }
+
+/* Habit rows */
+.dp-habit-row { display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.dp-hchk { width:20px; height:20px; border-radius:5px; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; color:rgba(255,255,255,0.3); transition:all 0.2s; }
+.dp-hchk-on { background:rgba(255,255,255,0.12); border-color:transparent; color:rgba(255,255,255,0.7); }
+.dp-habit-info { flex:1; }
+.dp-habit-name { font-size:11px; color:rgba(255,255,255,0.7); }
+.dp-habit-meta { font-size:9.5px; color:rgba(255,255,255,0.25); margin-top:1px; }
+.dp-habit-pct { font-size:11px; color:rgba(255,255,255,0.35); }
+.dp-pct-warn { color:rgba(255,180,60,0.7); }
+.dp-at-risk { color:rgba(255,180,60,0.7); }
+
+/* 30-day habit grid */
+.dp-grid-30 { display:grid; grid-template-columns:repeat(15,1fr); gap:3px; }
+.dp-grid-cell { height:10px; border-radius:2px; }
+
+/* Journal */
+.dp-mood-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.dp-mood-lbl { font-size:10px; color:rgba(255,255,255,0.25); white-space:nowrap; }
+.dp-moods { display:flex; gap:5px; }
+.dp-mood { font-size:14px; opacity:0.3; cursor:pointer; }
+.dp-mood-sel { opacity:1; }
+.dp-j-prompt { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-left:2px solid rgba(255,255,255,0.14); border-radius:6px; padding:9px 11px; margin-bottom:10px; }
+.dp-j-prompt-lbl { font-size:9px; font-weight:600; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.dp-j-prompt-txt { font-size:11px; color:rgba(255,255,255,0.45); line-height:1.5; font-style:italic; }
+.dp-j-box { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:10px 12px; min-height:64px; font-size:11px; color:rgba(255,255,255,0.6); line-height:1.65; }
+.dp-j-txt { display:inline; }
+.dp-ai-analysis { transition:opacity 0.5s ease; }
+
+/* Goals */
+.dp-goal-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:11px 13px; margin-bottom:8px; }
+.dp-goal-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; }
+.dp-goal-name { font-size:12px; color:rgba(255,255,255,0.75); font-weight:500; }
+.dp-goal-badge { font-size:9px; padding:2px 7px; border-radius:3px; font-weight:500; }
+.dp-badge-ok { background:rgba(100,255,150,0.08); color:rgba(100,255,150,0.7); }
+.dp-badge-warn { background:rgba(255,180,60,0.08); color:rgba(255,180,60,0.7); }
+.dp-goal-meta { font-size:10px; color:rgba(255,255,255,0.25); margin-bottom:8px; }
+.dp-goal-track { height:3px; background:rgba(255,255,255,0.06); border-radius:2px; margin-bottom:5px; overflow:hidden; }
+.dp-goal-bar { height:100%; background:rgba(255,255,255,0.4); border-radius:2px; transition:width 1.5s cubic-bezier(0.4,0,0.2,1); }
+.dp-bar-warn { background:rgba(255,180,60,0.5); }
+.dp-goal-pct-row { display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,0.45); }
+.dp-goal-right { color:rgba(255,255,255,0.2); }
+.dp-pct-warn { color:rgba(255,180,60,0.6); }
+
+/* Insights panel */
+.dp-insights-hdr { display:flex; align-items:flex-start; gap:7px; font-size:11px; color:rgba(255,255,255,0.35); margin-bottom:12px; line-height:1.5; }
+.dp-ih-pip { font-size:10px; color:rgba(255,255,255,0.4); flex-shrink:0; margin-top:1px; }
+.dp-insight-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:11px 13px; margin-bottom:8px; transition:opacity 0.45s ease, transform 0.45s ease; }
+.dp-ic-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+.dp-ic-cat { font-size:10px; font-weight:500; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.4px; }
+.dp-ic-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:3px; }
+.dp-ic-pos { background:rgba(100,255,150,0.08); color:rgba(100,255,150,0.8); }
+.dp-ic-neu { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.5); }
+.dp-ic-body { font-size:11px; color:rgba(255,255,255,0.45); line-height:1.55; margin-bottom:7px; }
+.dp-ic-cta { font-size:10px; color:rgba(255,255,255,0.28); cursor:pointer; }
+
+/* Breathing glow on streak card */
+@keyframes dpBreath { 0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} 50%{box-shadow:0 0 0 1px rgba(255,255,255,0.06),0 0 18px 3px rgba(255,255,255,0.025)} }
+.dp-stat-glow { animation:dpBreath 2.8s ease-in-out infinite; }
+
+/* Mobile: hide sidebar in dp-panel layout too */
+@media (max-width: 768px) {
+  .dp-sidebar { display:none; }
+  .dp-stats-grid { grid-template-columns:repeat(2,1fr); }
 }
   </style>
   
@@ -869,121 +981,219 @@
   
     <div class="hero-right">
       <div class="dashboard-preview">
-       
+
+        <!-- Browser chrome -->
+        <div class="dp-chrome">
+          <div class="dp-dots"><span class="dp-dot-r"></span><span class="dp-dot-y"></span><span class="dp-dot-g"></span></div>
+          <div class="dp-url-bar" id="dp-url">tflow.live</div>
+          <div class="dp-chrome-r"></div>
+        </div>
+
         <div class="preview-body">
-          <div class="sidebar demo-enter-sidebar">
-            <div class="sidebar-logo"><div class="s-icon"></div>TaskFlow</div>
-            <div class="sidebar-item active" onclick="switchTab('home', this)"><div class="si-line active"></div>Home</div>
-            <div class="sidebar-item" onclick="switchTab('tasks', this)"><div class="si-line"></div>Tasks</div>
-            <div class="sidebar-item" onclick="switchTab('habits', this)"><div class="si-line"></div>Habits</div>
-            <div class="sidebar-item" onclick="switchTab('journal', this)"><div class="si-line"></div>Journal</div>
-            <div class="sidebar-item" onclick="switchTab('calendar', this)"><div class="si-line"></div>Calendar</div>
-            <div class="sidebar-item" onclick="switchTab('accountability', this)"><div class="si-line"></div>Accountability</div>
+
+          <!-- Sidebar -->
+          <div class="dp-sidebar">
+            <div class="dp-logo-row">
+              <div class="dp-logo-icon"></div>
+              <span class="dp-logo-text">Taskflow</span>
+            </div>
+            <div class="dp-nav">
+              <div class="dp-nav-item dp-nav-active" data-tab="home"><div class="dp-nav-pip dp-pip-on"></div>Home</div>
+              <div class="dp-nav-item" data-tab="tasks"><div class="dp-nav-pip"></div>Tasks</div>
+              <div class="dp-nav-item" data-tab="habits"><div class="dp-nav-pip"></div>Habits</div>
+              <div class="dp-nav-item" data-tab="journal"><div class="dp-nav-pip"></div>Journal</div>
+              <div class="dp-nav-item" data-tab="goals"><div class="dp-nav-pip"></div>Goals</div>
+              <div class="dp-nav-item" data-tab="insights"><div class="dp-nav-pip"></div>AI Insights</div>
+            </div>
+            <div class="dp-sidebar-div"></div>
+            <div class="dp-user-row">
+              <div class="dp-user-av"></div>
+              <div>
+                <div class="dp-user-name">Your account</div>
+                <div class="dp-user-plan">Pro · All Access</div>
+              </div>
+            </div>
           </div>
-       
-          <div class="main-content">
-       
+
+          <!-- Panels -->
+          <div class="dp-main">
+
             <!-- HOME -->
-            <div class="panel active" id="panel-home">
-              <div class="greeting demo-enter-greeting">Good morning 👋</div>
-              <div class="greeting-sub demo-enter-greeting demo-greeting-sub"></div>
-              <div class="stats-row demo-enter-stats">
-                <div class="stat-card demo-streak-card"><div class="stat-label">Streak</div><div class="stat-value"><span id="demo-streak-val">0</span> days</div></div>
-                <div class="stat-card"><div class="stat-label">Tasks</div><div class="stat-value" id="demo-tasks-val">0/8</div></div>
-                <div class="stat-card"><div class="stat-label">Discipline streak</div><div class="stat-value"><span id="demo-disc-val">0</span> days</div></div>
-              </div>
-              <div class="ai-card demo-enter-ai">
-                <div class="ai-pip">✦</div>
-                <div class="ai-text"><strong>AI insight —</strong> <span id="demo-ai-text"></span><span class="ai-cursor" id="demo-ai-cursor">|</span></div>
-              </div>
-              <div class="section-header demo-enter-tasks-header"><div class="section-title">Today's priorities</div><div class="section-add">+ Add</div></div>
-              <div class="task-item demo-task-item" data-predone="true"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Morning routine</div><div class="task-tag">Habit</div></div>
-              <div class="task-item demo-task-item" data-predone="true"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Daily review</div><div class="task-tag">Habit</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Finish project proposal</div><div class="task-tag">Task</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">30-minute workout</div><div class="task-tag">Task</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Read for 20 minutes</div><div class="task-tag">Task</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Team standup prep</div><div class="task-tag">Task</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Deep work block</div><div class="task-tag">Focus</div></div>
-              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Plan tomorrow</div><div class="task-tag">Task</div></div>
-            </div>
-       
-            <!-- TASKS -->
-            <div class="panel" id="panel-tasks">
-              <div class="greeting">Tasks</div>
-              <div class="greeting-sub">Manage your to-dos and goals</div>
-              <input class="task-input-new" id="new-task-input" placeholder="Add a new task..." onkeydown="if(event.key==='Enter')addTask()">
-              <button class="add-task-btn" onclick="addTask()">+ Add Task</button>
-              <div class="section-header"><div class="section-title">All tasks</div></div>
-              <div id="task-list-demo">
-                <div class="task-item"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Morning workout</div><div class="task-tag">Habit</div></div>
-                <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Deploy Taskflow</div><div class="task-tag">Task</div></div>
-                <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Record music session</div><div class="task-tag">Task</div></div>
-                <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Read 20 pages</div><div class="task-tag">Task</div></div>
-              </div>
-            </div>
-       
-            <!-- HABITS -->
-            <div class="panel" id="panel-habits">
-              <div class="greeting">Habits</div>
-              <div class="greeting-sub">Build consistency one day at a time</div>
-              <div class="section-header"><div class="section-title">Today's habits</div></div>
-              <div class="habit-item"><div class="habit-btn done" onclick="toggleHabit(this)">✓</div><div class="habit-name">Morning workout</div><div class="habit-streak">🔥 14 days</div></div>
-              <div class="habit-item"><div class="habit-btn done" onclick="toggleHabit(this)">✓</div><div class="habit-name">Journal entry</div><div class="habit-streak">🔥 7 days</div></div>
-              <div class="habit-item"><div class="habit-btn" onclick="toggleHabit(this)"></div><div class="habit-name">Read 20 pages</div><div class="habit-streak">3 days</div></div>
-              <div class="habit-item"><div class="habit-btn" onclick="toggleHabit(this)"></div><div class="habit-name">No junk food</div><div class="habit-streak">5 days</div></div>
-              <div class="habit-item"><div class="habit-btn" onclick="toggleHabit(this)"></div><div class="habit-name">Cold shower</div><div class="habit-streak">2 days</div></div>
-              <div class="habit-item"><div class="habit-btn" onclick="toggleHabit(this)"></div><div class="habit-name">Wake up before 7am</div><div class="habit-streak">🔥 10 days</div></div>
-            </div>
-       
-            <!-- JOURNAL -->
-            <div class="panel" id="panel-journal">
-              <div class="greeting">Journal</div>
-              <div class="greeting-sub">Saturday, March 28, 2026</div>
-              <div class="journal-prompt">✦ AI prompt: "You completed 5 tasks today. What drove that momentum — and how do you keep it tomorrow?"</div>
-              <textarea class="journal-area" placeholder="Write your thoughts here..."></textarea>
-              <button class="save-btn">Save entry</button>
-            </div>
-       
-            <!-- CALENDAR -->
-            <div class="panel" id="panel-calendar">
-              <div class="greeting">Calendar</div>
-              <div class="cal-header">
-                <div class="cal-month">March 2026</div>
-                <div style="display:flex;gap:4px;">
-                  <button class="cal-nav">‹</button>
-                  <button class="cal-nav">›</button>
+            <div class="dp-panel dp-panel-active" id="dp-home">
+              <div class="dp-heading">Good morning 👋</div>
+              <div class="dp-sub" id="dp-home-sub"></div>
+              <div class="dp-stats-grid">
+                <div class="dp-stat-card dp-stat-glow">
+                  <div class="dp-stat-lbl">Streak</div>
+                  <div class="dp-stat-val"><span id="dp-s-streak">0</span><span class="dp-stat-unit"> days</span></div>
+                </div>
+                <div class="dp-stat-card">
+                  <div class="dp-stat-lbl">Tasks done</div>
+                  <div class="dp-stat-val" id="dp-s-tasks">0/8</div>
+                </div>
+                <div class="dp-stat-card">
+                  <div class="dp-stat-lbl">Focus score</div>
+                  <div class="dp-stat-val"><span id="dp-s-focus">0</span><span class="dp-stat-unit">%</span></div>
+                </div>
+                <div class="dp-stat-card">
+                  <div class="dp-stat-lbl">Discipline</div>
+                  <div class="dp-stat-val"><span id="dp-s-disc">0</span><span class="dp-stat-unit">d</span></div>
                 </div>
               </div>
-              <div class="cal-grid">
-                <div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div><div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>
-                <div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day has-task">1</div>
-                <div class="cal-day has-task">2</div><div class="cal-day has-task">3</div><div class="cal-day">4</div><div class="cal-day has-task">5</div><div class="cal-day has-task">6</div><div class="cal-day">7</div><div class="cal-day has-task">8</div>
-                <div class="cal-day has-task">9</div><div class="cal-day">10</div><div class="cal-day has-task">11</div><div class="cal-day has-task">12</div><div class="cal-day">13</div><div class="cal-day has-task">14</div><div class="cal-day has-task">15</div>
-                <div class="cal-day">16</div><div class="cal-day has-task">17</div><div class="cal-day has-task">18</div><div class="cal-day">19</div><div class="cal-day has-task">20</div><div class="cal-day has-task">21</div><div class="cal-day">22</div>
-                <div class="cal-day has-task">23</div><div class="cal-day has-task">24</div><div class="cal-day">25</div><div class="cal-day has-task">26</div><div class="cal-day has-task">27</div><div class="cal-day today">28</div><div class="cal-day">29</div>
-                <div class="cal-day">30</div><div class="cal-day">31</div>
+              <div class="dp-ai-card">
+                <div class="dp-ai-pip">✦</div>
+                <div class="dp-ai-content">
+                  <div class="dp-ai-lbl">AI Insight</div>
+                  <div class="dp-ai-msg"><span id="dp-home-ai-txt"></span><span class="dp-cursor" id="dp-home-cursor">|</span></div>
+                </div>
+              </div>
+              <div class="dp-row-hdr"><span class="dp-row-title">Today's priorities</span><span class="dp-row-act">+ Add</span></div>
+              <div class="dp-task-line dp-tl-done"><div class="dp-chk dp-chk-on">✓</div><span class="dp-tname dp-tname-done">Morning routine</span><span class="dp-tag">Habit</span></div>
+              <div class="dp-task-line dp-tl-done"><div class="dp-chk dp-chk-on">✓</div><span class="dp-tname dp-tname-done">30-min workout</span><span class="dp-tag">Habit</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Finish project proposal</span><span class="dp-tag dp-tag-hi">High</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Deep work block</span><span class="dp-tag">Focus</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Team standup prep</span><span class="dp-tag">Work</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Read for 20 minutes</span><span class="dp-tag">Growth</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Weekly review</span><span class="dp-tag">Reflect</span></div>
+              <div class="dp-task-line dp-tl-anim"><div class="dp-chk"></div><span class="dp-tname">Plan tomorrow</span><span class="dp-tag">Plan</span></div>
+            </div>
+
+            <!-- TASKS -->
+            <div class="dp-panel" id="dp-tasks">
+              <div class="dp-heading">Tasks</div>
+              <div class="dp-sub">Today · 6 remaining</div>
+              <div class="dp-ai-card dp-ai-action" id="dp-tasks-ai">
+                <div class="dp-ai-pip">✦</div>
+                <div class="dp-ai-content">
+                  <div class="dp-ai-lbl">AI reprioritized your day</div>
+                  <div class="dp-ai-msg">"Moved deep work to 9am — that's your peak focus window. Proposal follows at 11:30."</div>
+                </div>
+              </div>
+              <div class="dp-filter-row">
+                <span class="dp-filter dp-filter-on">All</span>
+                <span class="dp-filter">Today</span>
+                <span class="dp-filter">High priority</span>
+              </div>
+              <div id="dp-tasks-list">
+                <div class="dp-trow"><div class="dp-tdot dp-tdot-hi"></div><div class="dp-chk"></div><div class="dp-trow-info"><div class="dp-trow-title">Deep work block · 9–11am</div><div class="dp-trow-meta">AI scheduled · 2h focus block</div></div><div class="dp-trow-time">9:00 AM</div></div>
+                <div class="dp-trow"><div class="dp-tdot dp-tdot-hi"></div><div class="dp-chk"></div><div class="dp-trow-info"><div class="dp-trow-title">Finish project proposal</div><div class="dp-trow-meta">Due today · High priority</div></div><div class="dp-trow-time">11:30</div></div>
+                <div class="dp-trow"><div class="dp-tdot dp-tdot-med"></div><div class="dp-chk"></div><div class="dp-trow-info"><div class="dp-trow-title">Team standup</div><div class="dp-trow-meta">Recurring · 15 min</div></div><div class="dp-trow-time">1:00 PM</div></div>
+                <div class="dp-trow"><div class="dp-tdot dp-tdot-lo"></div><div class="dp-chk"></div><div class="dp-trow-info"><div class="dp-trow-title">Read for 20 minutes</div><div class="dp-trow-meta">Goal: 12 books this year</div></div><div class="dp-trow-time">7:00 PM</div></div>
+                <div class="dp-trow"><div class="dp-tdot dp-tdot-lo"></div><div class="dp-chk"></div><div class="dp-trow-info"><div class="dp-trow-title">Weekly review</div><div class="dp-trow-meta">Reflect · 20 min</div></div><div class="dp-trow-time">8:00 PM</div></div>
+              </div>
+              <div class="dp-prog-row"><span class="dp-prog-lbl">Today's progress</span><span class="dp-prog-count">2 / 8</span></div>
+              <div class="dp-prog-track"><div class="dp-prog-fill" id="dp-tasks-bar" style="width:0%"></div></div>
+            </div>
+
+            <!-- HABITS -->
+            <div class="dp-panel" id="dp-habits">
+              <div class="dp-heading">Habits</div>
+              <div class="dp-sub">18-day streak · building momentum</div>
+              <div class="dp-ai-card">
+                <div class="dp-ai-pip">✦</div>
+                <div class="dp-ai-content">
+                  <div class="dp-ai-lbl">AI spotted a pattern</div>
+                  <div class="dp-ai-msg">"Morning habits: 94% this month. Evening habits: 61% — let's close that gap."</div>
+                </div>
+              </div>
+              <div class="dp-row-hdr"><span class="dp-row-title">Today's habits</span></div>
+              <div class="dp-habit-row dp-habit-done"><div class="dp-hchk dp-hchk-on">✓</div><div class="dp-habit-info"><div class="dp-habit-name">Morning routine</div><div class="dp-habit-meta">🔥 23 days · best: 41</div></div><div class="dp-habit-pct">94%</div></div>
+              <div class="dp-habit-row dp-habit-done"><div class="dp-hchk dp-hchk-on">✓</div><div class="dp-habit-info"><div class="dp-habit-name">30-min workout</div><div class="dp-habit-meta">🔥 18 days</div></div><div class="dp-habit-pct">88%</div></div>
+              <div class="dp-habit-row"><div class="dp-hchk" id="dp-hchk-2"></div><div class="dp-habit-info"><div class="dp-habit-name">Read for 20 minutes</div><div class="dp-habit-meta">7 days · due tonight</div></div><div class="dp-habit-pct">78%</div></div>
+              <div class="dp-habit-row"><div class="dp-hchk" id="dp-hchk-3"></div><div class="dp-habit-info"><div class="dp-habit-name">Evening wind-down</div><div class="dp-habit-meta"><span class="dp-at-risk">⚠ At risk · missed 2 days</span></div></div><div class="dp-habit-pct dp-pct-warn">61%</div></div>
+              <div class="dp-habit-row"><div class="dp-hchk" id="dp-hchk-4"></div><div class="dp-habit-info"><div class="dp-habit-name">No phone before 9am</div><div class="dp-habit-meta">12 days</div></div><div class="dp-habit-pct">88%</div></div>
+              <div class="dp-row-hdr" style="margin-top:12px"><span class="dp-row-title">Last 30 days</span></div>
+              <div class="dp-grid-30" id="dp-habits-grid"></div>
+            </div>
+
+            <!-- JOURNAL -->
+            <div class="dp-panel" id="dp-journal">
+              <div class="dp-heading">Journal</div>
+              <div class="dp-sub" id="dp-journal-date"></div>
+              <div class="dp-mood-bar">
+                <span class="dp-mood-lbl">Today's mood</span>
+                <div class="dp-moods">
+                  <span class="dp-mood">😔</span><span class="dp-mood">😐</span><span class="dp-mood dp-mood-sel">🙂</span><span class="dp-mood">😊</span><span class="dp-mood">🤩</span>
+                </div>
+              </div>
+              <div class="dp-j-prompt">
+                <div class="dp-j-prompt-lbl">✦ AI prompt</div>
+                <div class="dp-j-prompt-txt">"You've hit 6 tasks in the last 3 days. What's been driving that momentum — and how do you protect it this week?"</div>
+              </div>
+              <div class="dp-j-box"><span class="dp-j-txt" id="dp-j-typing"></span><span class="dp-cursor dp-cursor-j" id="dp-j-cursor">|</span></div>
+              <div class="dp-ai-card dp-ai-analysis" id="dp-j-analysis" style="opacity:0;margin-top:10px">
+                <div class="dp-ai-pip">✦</div>
+                <div class="dp-ai-content">
+                  <div class="dp-ai-lbl">AI pattern analysis</div>
+                  <div class="dp-ai-msg">Mood trend: <strong>improving</strong> · Theme: <strong>focus & momentum</strong> · Stress: low this week</div>
+                </div>
               </div>
             </div>
-       
-            <!-- ACCOUNTABILITY -->
-            <div class="panel" id="panel-accountability">
-              <div class="greeting">Accountability</div>
-              <div class="greeting-sub">Momentum tracker</div>
-              <div class="acc-streak">
-                <div class="acc-num" id="acc-days">22</div>
-                <div class="acc-label">days consistent</div>
+
+            <!-- GOALS -->
+            <div class="dp-panel" id="dp-goals">
+              <div class="dp-heading">Goals</div>
+              <div class="dp-sub">3 active · AI tracking momentum</div>
+              <div class="dp-ai-card">
+                <div class="dp-ai-pip">✦</div>
+                <div class="dp-ai-content">
+                  <div class="dp-ai-lbl">AI momentum check</div>
+                  <div class="dp-ai-msg">"2 of 3 goals on pace. Reading goal needs 3 more sessions this week to stay on track."</div>
+                </div>
               </div>
-              <div class="acc-btns">
-                <button class="acc-checkin" onclick="document.getElementById('acc-days').textContent = parseInt(document.getElementById('acc-days').textContent) + 1">✓ Log today</button>
-                <button class="acc-reset" onclick="document.getElementById('acc-days').textContent = '0'">Reset</button>
+              <div class="dp-goal-card">
+                <div class="dp-goal-top"><div class="dp-goal-name">Read 12 books this year</div><div class="dp-goal-badge dp-badge-ok">On pace</div></div>
+                <div class="dp-goal-meta">7 of 12 · 3 months remaining</div>
+                <div class="dp-goal-track"><div class="dp-goal-bar" data-pct="58" style="width:0%"></div></div>
+                <div class="dp-goal-pct-row"><span>58%</span><span class="dp-goal-right">Goal: 12 books</span></div>
               </div>
-              <div class="section-title" style="margin-bottom:6px;">Last 30 days</div>
-              <div class="acc-bar" id="acc-bar-demo"></div>
-              <div class="acc-reflection">✦ "You've made it 22 days. Momentum compounds when you protect it. What's one good choice you can lock in right now?"</div>
+              <div class="dp-goal-card">
+                <div class="dp-goal-top"><div class="dp-goal-name">Exercise 4× per week</div><div class="dp-goal-badge dp-badge-ok">Ahead</div></div>
+                <div class="dp-goal-meta">4.2× avg this month · personal best</div>
+                <div class="dp-goal-track"><div class="dp-goal-bar" data-pct="87" style="width:0%"></div></div>
+                <div class="dp-goal-pct-row"><span>87%</span><span class="dp-goal-right">4.2 / 4 per week</span></div>
+              </div>
+              <div class="dp-goal-card">
+                <div class="dp-goal-top"><div class="dp-goal-name">Save 3 months expenses</div><div class="dp-goal-badge dp-badge-warn">Needs focus</div></div>
+                <div class="dp-goal-meta">6 weeks behind target pace</div>
+                <div class="dp-goal-track"><div class="dp-goal-bar dp-bar-warn" data-pct="34" style="width:0%"></div></div>
+                <div class="dp-goal-pct-row dp-pct-warn"><span>34%</span><span class="dp-goal-right">Behind schedule</span></div>
+              </div>
             </div>
-       
-          </div>
-        </div>
+
+            <!-- AI INSIGHTS -->
+            <div class="dp-panel" id="dp-insights">
+              <div class="dp-heading">AI Insights</div>
+              <div class="dp-sub">Cross-domain patterns · updated today</div>
+              <div class="dp-insights-hdr">
+                <span class="dp-ih-pip">✦</span>
+                Analyzed 47 days of your data and found 4 patterns worth your attention.
+              </div>
+              <div class="dp-insight-card" id="dp-ic-0">
+                <div class="dp-ic-top"><div class="dp-ic-cat">Productivity × Exercise</div><div class="dp-ic-badge dp-ic-pos">+47%</div></div>
+                <div class="dp-ic-body">You complete 47% more tasks on days you work out. You've missed 3 workouts this week — your output is already down.</div>
+                <div class="dp-ic-cta">Schedule workout →</div>
+              </div>
+              <div class="dp-insight-card" id="dp-ic-1">
+                <div class="dp-ic-top"><div class="dp-ic-cat">Sleep × Deep Work</div><div class="dp-ic-badge dp-ic-pos">+31%</div></div>
+                <div class="dp-ic-body">Deep work output is 31% higher after 7+ hours of sleep. You've averaged 6.2h this week — protect tonight's wind-down.</div>
+                <div class="dp-ic-cta">Adjust wind-down habit →</div>
+              </div>
+              <div class="dp-insight-card" id="dp-ic-2">
+                <div class="dp-ic-top"><div class="dp-ic-cat">Journal × Habit completion</div><div class="dp-ic-badge dp-ic-neu">↑ correlation</div></div>
+                <div class="dp-ic-body">On weeks you journal 4+ times, habits complete at 89%. Last week: 2 entries, 61% completion. The data is clear.</div>
+                <div class="dp-ic-cta">Open journal →</div>
+              </div>
+              <div class="dp-insight-card" id="dp-ic-3">
+                <div class="dp-ic-top"><div class="dp-ic-cat">Consistency streak</div><div class="dp-ic-badge dp-ic-pos">Top 8%</div></div>
+                <div class="dp-ic-body">You're in the top 8% for 30-day consistency. One more strong week puts you in the all-time top 5%.</div>
+                <div class="dp-ic-cta">View full streak →</div>
+              </div>
+            </div>
+
+          </div><!-- .dp-main -->
+        </div><!-- .preview-body -->
+
         <div class="preview-fade"></div>
       </div>
       
@@ -2134,120 +2344,192 @@ function hiwAddTyping() {
 }
 function hiwSendSug(btn) { document.getElementById('hiw-cinput').value = btn.textContent; hiwSendMsg(); }
 
-// ===== DASHBOARD DEMO ANIMATIONS =====
-(function initDashboardDemo() {
-  const panel = document.getElementById('panel-home');
-  if (!panel) return;
+// ===== DASHBOARD DEMO ORCHESTRATOR =====
+(function() {
+  var TABS      = ['home','tasks','habits','journal','goals','insights'];
+  var DURATIONS = [8000, 6500, 7500, 9000, 6500, 7500];
+  var current   = 0;
+  var cycleTimer = null;
+  var tabTimers  = [];
 
-  // Dynamic date in greeting-sub
-  const subEl = panel.querySelector('.demo-greeting-sub');
-  if (subEl) {
-    const d = new Date();
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    subEl.textContent = days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate() + ' · 8 tasks · 2 habits due';
+  function cancelTabTimers() { tabTimers.forEach(function(t){ clearTimeout(t); clearInterval(t); }); tabTimers = []; }
+  function later(fn, ms) { var t = setTimeout(fn, ms); tabTimers.push(t); return t; }
+  function laterInterval(fn, ms) { var t = setInterval(fn, ms); tabTimers.push(t); return t; }
+
+  function countUp(el, target, ms) {
+    if (!el) return;
+    var n = 0, step = Math.max(1, Math.round(target / (ms / 40)));
+    var t = laterInterval(function() {
+      n = Math.min(n + step, target); el.textContent = n;
+      if (n >= target) { clearInterval(t); tabTimers = tabTimers.filter(function(x){ return x !== t; }); }
+    }, 40);
   }
 
-  // Stagger task items entrance
-  const taskItems = panel.querySelectorAll('.demo-task-item');
-  taskItems.forEach(function(item, i) {
-    item.style.animation = 'fadeSlideUp 0.35s ease ' + (1.1 + i * 0.09) + 's forwards';
+  function typewrite(el, cursor, text, speed, done) {
+    if (!el) return;
+    el.textContent = '';
+    if (cursor) cursor.style.opacity = '1';
+    var i = 0;
+    var t = laterInterval(function() {
+      el.textContent = text.slice(0, ++i);
+      if (i >= text.length) {
+        clearInterval(t);
+        later(function() { if (cursor) cursor.style.opacity = '0'; if (done) done(); }, 900);
+      }
+    }, speed);
+  }
+
+  function slideIn(el, delay) {
+    if (!el) return;
+    el.style.opacity = '0'; el.style.transform = 'translateX(-8px)';
+    later(function() { el.style.transition = 'opacity 0.3s ease, transform 0.3s ease'; el.style.opacity = '1'; el.style.transform = 'translateX(0)'; }, delay);
+  }
+
+  // ── tab switch ─────────────────────────────────────
+  function activateTab(name) {
+    cancelTabTimers();
+    document.querySelectorAll('.dp-nav-item').forEach(function(el) {
+      var on = el.dataset.tab === name;
+      el.classList.toggle('dp-nav-active', on);
+      var pip = el.querySelector('.dp-nav-pip');
+      if (pip) pip.classList.toggle('dp-pip-on', on);
+    });
+    var urlEl = document.getElementById('dp-url');
+    if (urlEl) urlEl.textContent = 'tflow.live/' + name;
+    document.querySelectorAll('.dp-panel').forEach(function(p) { p.classList.remove('dp-panel-active'); });
+    var panel = document.getElementById('dp-' + name);
+    if (panel) panel.classList.add('dp-panel-active');
+    ({ home:animHome, tasks:animTasks, habits:animHabits, journal:animJournal, goals:animGoals, insights:animInsights })[name]();
+  }
+
+  function advance() {
+    current = (current + 1) % TABS.length;
+    activateTab(TABS[current]);
+    cycleTimer = setTimeout(advance, DURATIONS[current]);
+  }
+
+  document.querySelectorAll('.dp-nav-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      clearTimeout(cycleTimer);
+      var tab = el.dataset.tab; current = TABS.indexOf(tab);
+      activateTab(tab);
+      cycleTimer = setTimeout(advance, DURATIONS[current]);
+    });
   });
 
-  // Breathing glow on streak card after it enters
-  setTimeout(function() {
-    var sc = panel.querySelector('.demo-streak-card');
-    if (sc) sc.classList.add('demo-streak-glow');
-  }, 1400);
-
-  // Count-up helper
-  function countUp(el, target, duration, format) {
-    if (!el) return;
-    var start = 0;
-    var steps = Math.max(target, 1);
-    var delay = Math.round(duration / steps);
-    var timer = setInterval(function() {
-      start = Math.min(start + 1, target);
-      el.textContent = format ? format(start) : start;
-      if (start >= target) clearInterval(timer);
-    }, delay);
-  }
-
-  // Stat counters: streak and discipline count from 0, tasks ratio increments numerator
-  setTimeout(function() {
-    countUp(document.getElementById('demo-streak-val'), 18, 900, null);
-    countUp(document.getElementById('demo-disc-val'), 31, 1100, null);
-    countUp(document.getElementById('demo-tasks-val'), 6, 1000, function(n) { return n + '/8'; });
-  }, 700);
-
-  // Typewriter AI insight
-  var insightText = 'You complete 47% more tasks before noon. Your focus window starts now.';
-  var aiTextEl = document.getElementById('demo-ai-text');
-  var aiCursor = document.getElementById('demo-ai-cursor');
-  if (aiTextEl) {
-    setTimeout(function() {
-      var i = 0;
-      var tw = setInterval(function() {
-        aiTextEl.textContent = insightText.slice(0, ++i);
-        if (i >= insightText.length) {
-          clearInterval(tw);
-          setTimeout(function() { if (aiCursor) aiCursor.classList.add('hidden'); }, 900);
-        }
-      }, 26);
-    }, 1500);
-  }
-
-  // Task completion loop
-  function getUnchecked() {
-    return Array.from(panel.querySelectorAll('.demo-task-item')).filter(function(item) {
-      return !item.dataset.predone;
-    });
-  }
-  function checkItem(item) {
-    var chk = item.querySelector('.task-check');
-    var name = item.querySelector('.task-name');
-    if (chk) { chk.classList.add('done'); chk.textContent = '✓'; }
-    if (name) name.classList.add('done');
-  }
-  function uncheckItem(item) {
-    var chk = item.querySelector('.task-check');
-    var name = item.querySelector('.task-name');
-    if (chk) { chk.classList.remove('done'); chk.textContent = ''; }
-    if (name) name.classList.remove('done');
-  }
-  function resetPreDone() {
-    panel.querySelectorAll('[data-predone="true"]').forEach(function(item) {
-      checkItem(item);
-    });
-  }
-
-  function runLoop() {
-    var items = getUnchecked();
-    var idx = 0;
-    function next() {
-      if (idx >= items.length) {
-        // All complete — pause then reset
-        setTimeout(function() {
-          // Uncheck everything
-          panel.querySelectorAll('.demo-task-item').forEach(uncheckItem);
-          // Re-check the pre-done ones after a brief pause
-          setTimeout(function() {
-            resetPreDone();
-            // Restart loop after another pause
-            setTimeout(runLoop, 1000);
-          }, 500);
-        }, 2800);
-        return;
-      }
-      checkItem(items[idx]);
-      idx++;
-      setTimeout(next, 650);
+  // ── HOME ──────────────────────────────────────────
+  function animHome() {
+    var subEl = document.getElementById('dp-home-sub');
+    if (subEl) {
+      var d = new Date();
+      var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      subEl.textContent = days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate() + ' · 8 tasks · 2 habits due';
     }
-    setTimeout(next, 200);
+    document.querySelectorAll('#dp-home .dp-task-line.dp-tl-anim').forEach(function(row) {
+      var chk = row.querySelector('.dp-chk'), nm = row.querySelector('.dp-tname');
+      if (chk) { chk.classList.remove('dp-chk-on'); chk.textContent = ''; }
+      if (nm) nm.classList.remove('dp-tname-done');
+    });
+    later(function() {
+      countUp(document.getElementById('dp-s-streak'), 18, 900);
+      countUp(document.getElementById('dp-s-focus'),  82, 1000);
+      countUp(document.getElementById('dp-s-disc'),   31, 1100);
+      var tEl = document.getElementById('dp-s-tasks');
+      if (tEl) { tEl.textContent = '0/8'; var n=0; laterInterval(function(){ tEl.textContent=(++n)+'/8'; if(n>=6) cancelTabTimers(); }, 160); }
+    }, 300);
+    later(function() {
+      typewrite(document.getElementById('dp-home-ai-txt'), document.getElementById('dp-home-cursor'),
+        'You complete 47% more tasks before noon. Your peak focus window starts now.', 22, null);
+    }, 700);
+    document.querySelectorAll('#dp-home .dp-task-line').forEach(function(row, i) {
+      row.style.opacity = '0';
+      later(function() { row.style.transition = 'opacity 0.3s ease'; row.style.opacity = '1'; }, 400 + i * 80);
+    });
+    later(function() {
+      var rows = Array.from(document.querySelectorAll('#dp-home .dp-task-line.dp-tl-anim')), idx = 0;
+      function tick() {
+        if (idx >= rows.length) return;
+        var chk = rows[idx].querySelector('.dp-chk'), nm = rows[idx].querySelector('.dp-tname');
+        if (chk) { chk.classList.add('dp-chk-on'); chk.textContent = '✓'; }
+        if (nm) nm.classList.add('dp-tname-done');
+        idx++; later(tick, 660);
+      }
+      tick();
+    }, 2300);
   }
 
-  // Start loop after tasks have animated in
-  setTimeout(runLoop, 2400);
+  // ── TASKS ─────────────────────────────────────────
+  function animTasks() {
+    var ai = document.getElementById('dp-tasks-ai');
+    if (ai) { ai.style.opacity='0'; ai.style.transform='translateY(-5px)'; }
+    later(function() { if(ai){ai.style.transition='all 0.4s ease';ai.style.opacity='1';ai.style.transform='translateY(0)';} }, 250);
+    document.querySelectorAll('#dp-tasks-list .dp-trow').forEach(function(row,i){ slideIn(row, 360+i*110); });
+    var bar = document.getElementById('dp-tasks-bar');
+    if (bar) { bar.style.transition='none'; bar.style.width='0%'; }
+    later(function() { if(bar){bar.style.transition='width 1.2s ease';bar.style.width='25%';} }, 900);
+  }
+
+  // ── HABITS ────────────────────────────────────────
+  function animHabits() {
+    document.querySelectorAll('#dp-habits .dp-habit-row').forEach(function(row,i){
+      row.style.opacity='0';
+      later(function(){row.style.transition='opacity 0.35s ease';row.style.opacity='1';}, 200+i*120);
+    });
+    ['dp-hchk-2','dp-hchk-3','dp-hchk-4'].forEach(function(id){ var el=document.getElementById(id); if(el){el.classList.remove('dp-hchk-on');el.textContent='';} });
+    later(function(){ var r=document.getElementById('dp-hchk-2'); if(r){r.classList.add('dp-hchk-on');r.textContent='✓';} }, 2200);
+    var grid = document.getElementById('dp-habits-grid');
+    if (grid) {
+      grid.innerHTML='';
+      for (var i=0;i<30;i++) {
+        var cell=document.createElement('div'); cell.className='dp-grid-cell';
+        var r=Math.random(), op=r>0.82?0.55:r>0.58?0.32:r>0.26?0.16:0.06;
+        cell.style.background='rgba(255,255,255,'+op+')'; cell.style.opacity='0';
+        (function(c,d){ later(function(){c.style.transition='opacity 0.2s';c.style.opacity='1';},d); })(cell,500+i*28);
+        grid.appendChild(cell);
+      }
+    }
+  }
+
+  // ── JOURNAL ───────────────────────────────────────
+  function animJournal() {
+    var dateEl=document.getElementById('dp-journal-date');
+    if (dateEl){ var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; dateEl.textContent=days[d.getDay()]+' · '+months[d.getMonth()]+' '+d.getDate(); }
+    var jTxt=document.getElementById('dp-j-typing'), jCur=document.getElementById('dp-j-cursor'), jAn=document.getElementById('dp-j-analysis');
+    if(jTxt) jTxt.textContent='';
+    if(jCur) jCur.style.opacity='1';
+    if(jAn)  jAn.style.opacity='0';
+    later(function(){
+      typewrite(jTxt, jCur,
+        "The last few days feel more intentional. Protecting my mornings is paying off — focus sessions feel sharper. Need to keep this momentum.",
+        27, function(){ if(jAn){jAn.style.transition='opacity 0.5s ease';jAn.style.opacity='1';} });
+    }, 500);
+  }
+
+  // ── GOALS ─────────────────────────────────────────
+  function animGoals() {
+    document.querySelectorAll('#dp-goals .dp-goal-bar').forEach(function(bar){ bar.style.transition='none'; bar.style.width='0%'; });
+    document.querySelectorAll('#dp-goals .dp-goal-card').forEach(function(card,i){
+      card.style.opacity='0'; card.style.transform='translateY(8px)';
+      later(function(){
+        card.style.transition='opacity 0.4s ease,transform 0.4s ease'; card.style.opacity='1'; card.style.transform='translateY(0)';
+        later(function(){ var bar=card.querySelector('.dp-goal-bar'); if(bar){bar.style.transition='width 1.4s cubic-bezier(0.4,0,0.2,1)';bar.style.width=bar.dataset.pct+'%';} }, 200);
+      }, 260+i*220);
+    });
+  }
+
+  // ── INSIGHTS ──────────────────────────────────────
+  function animInsights() {
+    for(var i=0;i<4;i++){
+      var card=document.getElementById('dp-ic-'+i);
+      if(card){ card.style.opacity='0'; card.style.transform='translateY(10px)'; }
+      (function(c,d){ if(!c) return; later(function(){c.style.transition='opacity 0.45s ease,transform 0.45s ease';c.style.opacity='1';c.style.transform='translateY(0)';},d); })(card, 250+i*520);
+    }
+  }
+
+  // ── Boot ──────────────────────────────────────────
+  animHome();
+  cycleTimer = setTimeout(advance, DURATIONS[0]);
 })();
 
 </script>
