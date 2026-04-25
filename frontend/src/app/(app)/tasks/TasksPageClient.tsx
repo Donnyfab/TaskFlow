@@ -147,6 +147,15 @@ const DARK_C = {
 
 type Colors = typeof LIGHT_C
 
+/* ─── Calendar helpers ───────────────────────────────────────────── */
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const CAL_DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const LIST_COLORS = ['#9b7de0','#5ba4cf','#e07d5b','#5bc49b','#e0c45b','#cf5b8a']
+
+function calDaysInMonth(year: number, month: number) { return new Date(year, month + 1, 0).getDate() }
+function calFirstDow(year: number, month: number) { return new Date(year, month, 1).getDay() }
+function toIsoDate(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
 /* ─── Main Component ─────────────────────────────────────────────── */
 export default function TasksPageClient() {
   const router       = useRouter()
@@ -192,6 +201,13 @@ export default function TasksPageClient() {
   const [mtShowLoc,     setMtShowLoc]       = useState(false)
   const [mtShowSched,   setMtShowSched]     = useState(false)
   const mtInputRef = useRef<HTMLInputElement>(null)
+
+  // ── Upcoming calendar state ──────────────────────────────────────
+  const [calView,         setCalView]         = useState<'month'|'week'>('month')
+  const [viewYear,        setViewYear]        = useState(() => new Date().getFullYear())
+  const [viewMonth,       setViewMonth]       = useState(() => new Date().getMonth())
+  const [selectedCalDate, setSelectedCalDate] = useState(() => toIsoDate(new Date()))
+  const [showDayPanel,    setShowDayPanel]    = useState(true)
 
   // ── Brain Dump (Voice) state ─────────────────────────────────────
   const [bdOpen,       setBdOpen]       = useState(false)
@@ -363,6 +379,23 @@ export default function TasksPageClient() {
     setMtShowLoc(false); setMtShowSched(false)
     setMtLocation(listId ? String(listId) : smartActive)
     setShowTaskModal(true)
+  }
+
+  function openTaskModalForDate(date: string) {
+    setMtTitle(''); setMtPriority('none')
+    setMtLocation('upcoming'); setMtDate(date)
+    setMtShowLoc(false); setMtShowSched(false)
+    setShowTaskModal(true)
+    setTimeout(() => mtInputRef.current?.focus(), 60)
+  }
+
+  function prevCalMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  function nextCalMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
   }
 
   function mtGetLocationLabel() {
@@ -734,68 +767,273 @@ export default function TasksPageClient() {
 
       {/* ══ MAIN CONTENT ═════════════════════════════════════════════ */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, background:C.contentBg, overflow:'hidden' }}>
-        <div style={{ padding:'28px 40px 0', flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'3px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-              {currentIconEmoji && <span style={{ fontSize:'22px', lineHeight:1 }}>{currentIconEmoji}</span>}
-              <h1 style={{ fontSize:'22px', fontWeight:700, color:C.text, margin:0, letterSpacing:'-0.3px' }}>{currentTitle}</h1>
-            </div>
-            <button onClick={openTaskModal} style={{
-              background:C.blue, color:'#fff', border:'none', borderRadius:'8px',
-              padding:'7px 15px', fontSize:'13px', fontWeight:500, cursor:'pointer',
-              display:'flex', alignItems:'center', gap:'6px', fontFamily:'inherit',
-            }}>
-              <svg viewBox="0 0 11 11" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/>
-              </svg>
-              New To-Do
-            </button>
-          </div>
-          <div style={{ fontSize:'12px', color:C.muted, marginBottom:'16px' }}>
-            {incomplete.length} task{incomplete.length!==1?'s':''} · {done.length} completed
-          </div>
-          <div style={{ display:'flex', borderBottom:`1px solid ${C.border}` }}>
-            {(['all','active','completed'] as const).map(f => (
-              <button key={f} onClick={()=>setFilter(f)} style={{
-                background:'none', border:'none', cursor:'pointer', fontFamily:'inherit',
-                padding:'8px 0', marginRight:'20px', fontSize:'13px',
-                color: filter===f ? C.blue : C.muted,
-                borderBottom: filter===f ? `2px solid ${C.blue}` : '2px solid transparent',
-                marginBottom:'-1px', fontWeight: filter===f ? 500 : 400,
-                transition:'color 0.12s', textTransform:'capitalize',
-              }}>
-                {f.charAt(0).toUpperCase()+f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Scrollable task area */}
-        <div style={{ flex:1, overflowY:'auto', padding:'16px 40px 40px' }}>
-          {tasks.length===0 && (
-            <div style={{ textAlign:'center', padding:'70px 0', color:C.muted, fontSize:'13px', lineHeight:2 }}>
-              <div style={{ fontSize:'32px', marginBottom:'8px', opacity:0.3 }}>✓</div>
-              No tasks here yet.<br/>Hit the + button to add one.
-            </div>
-          )}
-
-          {(filter==='all'||filter==='active') && incomplete.length>0 && (
-            <>
-              <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Active</div>
-              {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
-              <div onClick={openTaskModal} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'pointer', opacity:0.4 }}>
-                <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px dashed ${C.checkBorder}`, flexShrink:0 }}/>
-                <span style={{ fontSize:'13.5px', color:C.muted }}>New To-Do</span>
+        {smartActive === 'upcoming' && !listId ? (
+          // ── Upcoming calendar view ──────────────────────────────────
+          <>
+            {/* Calendar header */}
+            <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
+              <IcUpcoming />
+              <span style={{ fontSize:'16px', fontWeight:700, color:C.text }}>Upcoming</span>
+              <span style={{ fontSize:'12px', color:C.muted }}>{tasks.length} tasks · {tasks.filter(t=>t.completed).length} completed</span>
+              <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:'8px' }}>
+                {/* View toggle */}
+                <div style={{ display:'flex', background:C.inputBg, borderRadius:'7px', padding:'2px', border:`1px solid ${C.border}`, gap:'2px' }}>
+                  {(['month','week'] as const).map(v => (
+                    <button key={v} onClick={() => setCalView(v)} style={{
+                      padding:'4px 10px', borderRadius:'5px', border:'none', cursor:'pointer',
+                      background: calView===v ? C.contentBg : 'transparent',
+                      color: calView===v ? C.text : C.muted,
+                      fontFamily:'inherit', fontSize:'12px', fontWeight: calView===v ? 500 : 400,
+                      transition:'all 0.15s', textTransform:'capitalize',
+                    }}>{v.charAt(0).toUpperCase()+v.slice(1)}</button>
+                  ))}
+                </div>
+                {/* Month nav */}
+                <div style={{ display:'flex', alignItems:'center', gap:'2px' }}>
+                  <button onClick={prevCalMonth} style={{ background:'none', border:'none', cursor:'pointer', color:C.muted, padding:'4px 6px', borderRadius:'5px' }}>
+                    <svg viewBox="0 0 8 12" width="8" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 10L2 6l4-4"/></svg>
+                  </button>
+                  <span style={{ fontSize:'13px', fontWeight:500, minWidth:'128px', textAlign:'center', color:C.text }}>{CAL_MONTHS[viewMonth]} {viewYear}</span>
+                  <button onClick={nextCalMonth} style={{ background:'none', border:'none', cursor:'pointer', color:C.muted, padding:'4px 6px', borderRadius:'5px' }}>
+                    <svg viewBox="0 0 8 12" width="8" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10l4-4-4-4"/></svg>
+                  </button>
+                </div>
+                <button onClick={() => { const n=new Date(); setViewYear(n.getFullYear()); setViewMonth(n.getMonth()); setSelectedCalDate(toIsoDate(n)) }} style={{ padding:'5px 10px', borderRadius:'6px', border:`1px solid ${C.border}`, background:'transparent', color:C.muted, cursor:'pointer', fontSize:'12px', fontFamily:'inherit' }}>Today</button>
+                <button onClick={() => openTaskModalForDate(selectedCalDate)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'7px', border:'none', background:C.blue, color:'#fff', cursor:'pointer', fontSize:'13px', fontFamily:'inherit', fontWeight:500 }}>
+                  <svg viewBox="0 0 11 11" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+                  New To-Do
+                </button>
               </div>
-            </>
-          )}
-          {(filter==='all'||filter==='completed') && done.length>0 && (
-            <div style={{ marginTop:filter==='all'?'22px':'0' }}>
-              <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Completed</div>
-              {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
             </div>
-          )}
-        </div>
+            {/* Calendar + Day panel */}
+            <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
+              <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+                {calView === 'month' ? (() => {
+                  const todayStr = toIsoDate(new Date())
+                  const daysInMonth = calDaysInMonth(viewYear, viewMonth)
+                  const firstDay = calFirstDow(viewYear, viewMonth)
+                  const daysInPrev = calDaysInMonth(viewYear, viewMonth - 1)
+                  const cells: { day: number; cur: boolean }[] = []
+                  for (let i = 0; i < firstDay; i++) cells.push({ day: daysInPrev - firstDay + 1 + i, cur: false })
+                  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, cur: true })
+                  while (cells.length < 42) cells.push({ day: cells.length - daysInMonth - firstDay + 1, cur: false })
+                  const byDate: Record<string, Task[]> = {}
+                  tasks.forEach(t => { if (t.scheduled_for) { if (!byDate[t.scheduled_for]) byDate[t.scheduled_for]=[]; byDate[t.scheduled_for].push(t) } })
+                  const listIdx = (data?.lists ?? []).reduce((a,l,i) => { a[l.name]=i; return a }, {} as Record<string,number>)
+                  const taskColor = (t: Task) => LIST_COLORS[listIdx[t.list_name] ?? 0] ?? C.blue
+                  return (
+                    <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+                        {CAL_DAYS.map(d => <div key={d} style={{ textAlign:'center', padding:'10px 0', fontSize:'11px', fontWeight:500, color:C.muted, textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>)}
+                      </div>
+                      <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(7,1fr)', gridTemplateRows:'repeat(6,1fr)', overflow:'hidden' }}>
+                        {cells.map((cell, i) => {
+                          const dateStr = cell.cur ? `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(cell.day).padStart(2,'0')}` : null
+                          const dayTasks = dateStr ? (byDate[dateStr] ?? []) : []
+                          const isToday = dateStr === todayStr
+                          const isSelected = dateStr === selectedCalDate
+                          const isWeekend = i%7===0 || i%7===6
+                          return (
+                            <div key={i} onClick={() => cell.cur && dateStr && (setSelectedCalDate(dateStr), setShowDayPanel(true))} style={{
+                              borderRight: i%7<6 ? `1px solid ${C.border}` : 'none',
+                              borderBottom: i<35 ? `1px solid ${C.border}` : 'none',
+                              padding:'7px 8px', cursor: cell.cur ? 'pointer' : 'default',
+                              background: isSelected ? (theme==='dark'?'rgba(26,127,232,0.12)':'rgba(26,127,232,0.07)') : isWeekend&&cell.cur ? (theme==='dark'?'rgba(255,255,255,0.015)':'rgba(0,0,0,0.015)') : 'transparent',
+                              display:'flex', flexDirection:'column', gap:'3px', overflow:'hidden', transition:'background 0.12s',
+                            }}>
+                              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'22px', height:'22px', borderRadius:'6px', fontSize:'12px', fontWeight:isToday?600:400, color:isToday?'#fff':cell.cur?C.text:C.muted, background:isToday?C.blue:'transparent', flexShrink:0 }}>{cell.day}</span>
+                                {cell.cur && isSelected && (
+                                  <button onClick={e => { e.stopPropagation(); dateStr && openTaskModalForDate(dateStr) }} style={{ background:theme==='dark'?'rgba(26,127,232,0.18)':'rgba(26,127,232,0.12)', border:'none', borderRadius:'4px', color:C.blue, cursor:'pointer', padding:'2px 5px', display:'flex', alignItems:'center', fontFamily:'inherit' }}>
+                                    <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
+                                  </button>
+                                )}
+                              </div>
+                              {dayTasks.slice(0,3).map((t,ti) => (
+                                <div key={ti} style={{ display:'flex', alignItems:'center', gap:'4px', padding:'2px 5px', borderRadius:'4px', background:`${taskColor(t)}18`, border:`1px solid ${taskColor(t)}30`, overflow:'hidden' }}>
+                                  <div style={{ width:'5px', height:'5px', borderRadius:'50%', background:taskColor(t), flexShrink:0 }}/>
+                                  <span style={{ fontSize:'10.5px', color:t.completed?C.muted:C.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, textDecoration:t.completed?'line-through':'none' }}>{t.title}</span>
+                                </div>
+                              ))}
+                              {dayTasks.length>3 && <div style={{ fontSize:'10px', color:C.muted, paddingLeft:'4px' }}>+{dayTasks.length-3} more</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })() : (() => {
+                  const todayStr = toIsoDate(new Date())
+                  const refDate = new Date(selectedCalDate+'T00:00:00')
+                  const dow = refDate.getDay()
+                  const weekStart = new Date(refDate); weekStart.setDate(weekStart.getDate() - dow)
+                  const days = Array.from({length:7},(_,i) => { const d=new Date(weekStart); d.setDate(d.getDate()+i); return d })
+                  const byDate: Record<string, Task[]> = {}
+                  tasks.forEach(t => { if (t.scheduled_for) { if (!byDate[t.scheduled_for]) byDate[t.scheduled_for]=[]; byDate[t.scheduled_for].push(t) } })
+                  const listIdx = (data?.lists ?? []).reduce((a,l,i) => { a[l.name]=i; return a }, {} as Record<string,number>)
+                  const taskColor = (t: Task) => LIST_COLORS[listIdx[t.list_name] ?? 0] ?? C.blue
+                  const hours = Array.from({length:16},(_,i)=>i+7)
+                  return (
+                    <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'52px repeat(7,1fr)', borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+                        <div style={{ borderRight:`1px solid ${C.border}` }}/>
+                        {days.map((d,i) => {
+                          const ds=toIsoDate(d); const isToday=ds===todayStr; const isSel=ds===selectedCalDate
+                          return (
+                            <div key={i} onClick={() => { setSelectedCalDate(ds); setShowDayPanel(true) }} style={{ textAlign:'center', padding:'10px 0', cursor:'pointer', borderRight:i<6?`1px solid ${C.border}`:'none', background:isSel?(theme==='dark'?'rgba(26,127,232,0.12)':'rgba(26,127,232,0.07)'):'transparent' }}>
+                              <div style={{ fontSize:'11px', color:C.muted, textTransform:'uppercase', letterSpacing:'0.05em' }}>{'SMTWTFS'[d.getDay()]}</div>
+                              <div style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'26px', height:'26px', borderRadius:'6px', marginTop:'2px', background:isToday?C.blue:'transparent', fontSize:'13px', fontWeight:isToday?600:400, color:isToday?'#fff':C.text }}>{d.getDate()}</div>
+                              {byDate[ds]?.length>0 && <div style={{ display:'flex', justifyContent:'center', gap:'2px', marginTop:'3px' }}>{byDate[ds].slice(0,3).map((t,ti) => <div key={ti} style={{ width:'4px', height:'4px', borderRadius:'50%', background:taskColor(t) }}/>)}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'52px repeat(7,1fr)', borderBottom:`1px solid ${C.border}`, flexShrink:0, minHeight:'36px' }}>
+                        <div style={{ borderRight:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', color:C.muted }}>ALL DAY</div>
+                        {days.map((d,i) => {
+                          const ds=toIsoDate(d); const dayTasks=byDate[ds]||[]
+                          return (
+                            <div key={i} style={{ borderRight:i<6?`1px solid ${C.border}`:'none', padding:'4px', display:'flex', flexDirection:'column', gap:'2px' }}>
+                              {dayTasks.map((t,ti) => <div key={ti} style={{ fontSize:'10px', padding:'2px 5px', borderRadius:'3px', background:`${taskColor(t)}20`, color:t.completed?C.muted:C.text, borderLeft:`2px solid ${taskColor(t)}`, textDecoration:t.completed?'line-through':'none', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{t.title}</div>)}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ flex:1, overflowY:'auto', display:'grid', gridTemplateColumns:'52px repeat(7,1fr)' }}>
+                        <div style={{ borderRight:`1px solid ${C.border}` }}>
+                          {hours.map(h => <div key={h} style={{ height:'48px', padding:'4px 8px 0 0', textAlign:'right', fontSize:'10px', color:C.muted, borderBottom:`1px solid ${C.border}20` }}>{h===12?'12pm':h>12?`${h-12}pm`:`${h}am`}</div>)}
+                        </div>
+                        {days.map((d,i) => (
+                          <div key={i} onClick={() => openTaskModalForDate(toIsoDate(d))} style={{ borderRight:i<6?`1px solid ${C.border}`:'none', cursor:'pointer' }}>
+                            {hours.map(h => <div key={h} style={{ height:'48px', borderBottom:`1px solid ${C.border}20` }}/>)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+              {/* Day panel */}
+              {showDayPanel && (() => {
+                const dt = new Date(selectedCalDate+'T00:00:00')
+                const dayTasks = tasks.filter(t => t.scheduled_for === selectedCalDate)
+                const doneCount = dayTasks.filter(t=>t.completed).length
+                const listIdx = (data?.lists ?? []).reduce((a,l,i) => { a[l.name]=i; return a }, {} as Record<string,number>)
+                const taskColor = (t: Task) => LIST_COLORS[listIdx[t.list_name] ?? 0] ?? C.blue
+                return (
+                  <div style={{ width:'272px', flexShrink:0, background:C.sidebarBg, borderLeft:`1px solid ${C.border}`, display:'flex', flexDirection:'column' }}>
+                    <div style={{ padding:'14px 16px 12px', borderBottom:`1px solid ${C.border}` }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                        <div>
+                          <div style={{ fontSize:'20px', fontWeight:600, color:C.text }}>{dt.getDate()}</div>
+                          <div style={{ fontSize:'12px', color:C.muted }}>{CAL_DAYS[dt.getDay()]}, {CAL_MONTHS[dt.getMonth()]} {dt.getFullYear()}</div>
+                        </div>
+                        <button onClick={() => setShowDayPanel(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px', color:C.muted, borderRadius:'5px' }}>
+                          <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+                        </button>
+                      </div>
+                      <div style={{ marginTop:'8px', fontSize:'12px', color:C.muted }}>{dayTasks.length} tasks · {doneCount} done</div>
+                    </div>
+                    <div style={{ flex:1, overflowY:'auto', padding:'6px 0' }}>
+                      {dayTasks.length===0 ? (
+                        <div style={{ padding:'28px 16px', textAlign:'center', color:C.muted, fontSize:'13px', opacity:0.5 }}>No tasks scheduled</div>
+                      ) : dayTasks.map(task => (
+                        <div key={task.id} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'7px 14px' }}>
+                          <button onClick={() => toggleTask(task.id)} style={{ width:'16px', height:'16px', borderRadius:'4px', flexShrink:0, border:`1.5px solid ${task.completed ? taskColor(task) : C.checkBorder}`, background:task.completed?taskColor(task):'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
+                            {task.completed && <svg viewBox="0 0 10 8" width="10" height="8" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4l3 3 5-6"/></svg>}
+                          </button>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:'13px', color:task.completed?C.muted:C.text, textDecoration:task.completed?'line-through':'none', lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{task.title}</div>
+                            <div style={{ display:'flex', alignItems:'center', gap:'4px', marginTop:'2px' }}>
+                              <div style={{ width:'5px', height:'5px', borderRadius:'50%', background:taskColor(task) }}/>
+                              <span style={{ fontSize:'11px', color:C.muted }}>{task.list_name}</span>
+                              {task.priority==='high' && <span style={{ fontSize:'10px', color:'#e07d5b' }}>🚩</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => deleteTask(task.id)} style={{ background:'none', border:'none', cursor:'pointer', color:C.muted, opacity:0.4, padding:'2px', flexShrink:0 }}>
+                            <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l8 8M9 1L1 9"/></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ padding:'10px 14px', borderTop:`1px solid ${C.border}` }}>
+                      <button onClick={() => openTaskModalForDate(selectedCalDate)} style={{ display:'flex', alignItems:'center', gap:'8px', width:'100%', padding:'8px 10px', borderRadius:'7px', border:`1px dashed ${C.border}`, background:'transparent', color:C.muted, cursor:'pointer', fontSize:'13px', fontFamily:'inherit' }}>
+                        <svg viewBox="0 0 11 11" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+                        Add task
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </>
+        ) : (
+          // ── Standard task list view ──────────────────────────────────
+          <>
+            <div style={{ padding:'28px 40px 0', flexShrink:0 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'3px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                  {currentIconEmoji && <span style={{ fontSize:'22px', lineHeight:1 }}>{currentIconEmoji}</span>}
+                  <h1 style={{ fontSize:'22px', fontWeight:700, color:C.text, margin:0, letterSpacing:'-0.3px' }}>{currentTitle}</h1>
+                </div>
+                <button onClick={openTaskModal} style={{
+                  background:C.blue, color:'#fff', border:'none', borderRadius:'8px',
+                  padding:'7px 15px', fontSize:'13px', fontWeight:500, cursor:'pointer',
+                  display:'flex', alignItems:'center', gap:'6px', fontFamily:'inherit',
+                }}>
+                  <svg viewBox="0 0 11 11" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/>
+                  </svg>
+                  New To-Do
+                </button>
+              </div>
+              <div style={{ fontSize:'12px', color:C.muted, marginBottom:'16px' }}>
+                {incomplete.length} task{incomplete.length!==1?'s':''} · {done.length} completed
+              </div>
+              <div style={{ display:'flex', borderBottom:`1px solid ${C.border}` }}>
+                {(['all','active','completed'] as const).map(f => (
+                  <button key={f} onClick={()=>setFilter(f)} style={{
+                    background:'none', border:'none', cursor:'pointer', fontFamily:'inherit',
+                    padding:'8px 0', marginRight:'20px', fontSize:'13px',
+                    color: filter===f ? C.blue : C.muted,
+                    borderBottom: filter===f ? `2px solid ${C.blue}` : '2px solid transparent',
+                    marginBottom:'-1px', fontWeight: filter===f ? 500 : 400,
+                    transition:'color 0.12s', textTransform:'capitalize',
+                  }}>
+                    {f.charAt(0).toUpperCase()+f.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable task area */}
+            <div style={{ flex:1, overflowY:'auto', padding:'16px 40px 40px' }}>
+              {tasks.length===0 && (
+                <div style={{ textAlign:'center', padding:'70px 0', color:C.muted, fontSize:'13px', lineHeight:2 }}>
+                  <div style={{ fontSize:'32px', marginBottom:'8px', opacity:0.3 }}>✓</div>
+                  No tasks here yet.<br/>Hit the + button to add one.
+                </div>
+              )}
+
+              {(filter==='all'||filter==='active') && incomplete.length>0 && (
+                <>
+                  <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Active</div>
+                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
+                  <div onClick={openTaskModal} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'pointer', opacity:0.4 }}>
+                    <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px dashed ${C.checkBorder}`, flexShrink:0 }}/>
+                    <span style={{ fontSize:'13.5px', color:C.muted }}>New To-Do</span>
+                  </div>
+                </>
+              )}
+              {(filter==='all'||filter==='completed') && done.length>0 && (
+                <div style={{ marginTop:filter==='all'?'22px':'0' }}>
+                  <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Completed</div>
+                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* ══ THINGS 3 BOTTOM ACTION BAR ══════════════════════════════ */}
         <div style={{
