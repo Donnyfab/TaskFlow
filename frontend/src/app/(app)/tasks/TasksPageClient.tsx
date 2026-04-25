@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import TasksTrashView from './TasksTrashView'
+import LogbookView from './LogbookView'
 
 /* ─── Types ──────────────────────────────────────────────────────── */
 interface Task {
@@ -169,7 +170,7 @@ export default function TasksPageClient() {
   // queryId distinguishes each smart list view in the cache
   const initialSmartView = !listId && viewParam && TASK_VIEW_IDS.has(viewParam) ? viewParam : 'inbox'
   const [smartActive, setSmartActive] = useState(initialSmartView)
-  const dataSmartActive = !listId && smartActive === 'trash' ? 'inbox' : smartActive
+  const dataSmartActive = !listId && (smartActive === 'trash' || smartActive === 'logbook') ? 'inbox' : smartActive
   const queryId: string | number = listId ?? dataSmartActive
 
   useEffect(() => {
@@ -178,7 +179,8 @@ export default function TasksPageClient() {
     setSmartActive(nextView)
   }, [listId, viewParam])
 
-  const isTrashView = !listId && smartActive === 'trash'
+  const isTrashView   = !listId && smartActive === 'trash'
+  const isLogbookView = !listId && smartActive === 'logbook'
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', queryId],
@@ -262,8 +264,8 @@ export default function TasksPageClient() {
   const C: Colors = theme === 'light' ? LIGHT_C : DARK_C
 
   useEffect(() => {
-    if (isTrashView) setDetail(null)
-  }, [isTrashView])
+    if (isTrashView || isLogbookView) setDetail(null)
+  }, [isTrashView, isLogbookView])
 
   /* ── Brain Dump functions ── */
   function bdHandleCommand(text: string): boolean {
@@ -791,6 +793,8 @@ export default function TasksPageClient() {
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, background:C.contentBg, overflow:'hidden' }}>
         {isTrashView ? (
           <TasksTrashView theme={theme} colors={C} />
+        ) : isLogbookView ? (
+          <LogbookView theme={theme} colors={C} />
         ) : smartActive === 'upcoming' && !listId ? (
           // ── Upcoming calendar view ──────────────────────────────────
           <>
@@ -1059,7 +1063,7 @@ export default function TasksPageClient() {
           </>
         )}
 
-        {!isTrashView && (
+        {!isTrashView && !isLogbookView && (
           <div style={{
             borderTop: `1px solid ${C.border}`,
             height: '52px',
@@ -1099,7 +1103,7 @@ export default function TasksPageClient() {
       </div>
 
       {/* ══ DETAIL PANEL ═════════════════════════════════════════════ */}
-      {!isTrashView && <div style={{
+      {!isTrashView && !isLogbookView && <div style={{
         position:'fixed', right:0, top:0, bottom:0, width:'320px',
         background:C.detailBg, borderLeft:`1px solid ${C.border}`,
         zIndex:50, display:'flex', flexDirection:'column', fontFamily:'inherit',
