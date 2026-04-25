@@ -3139,6 +3139,11 @@ def register_page():
     return render_template("auth/register.html")
 
 
+@app.route("/auth/register", methods=["GET"])
+def register_page_alias():
+    return redirect(url_for("register_page"))
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if logged_in():
@@ -3201,6 +3206,11 @@ def login_page():
                            error_identifier=error_identifier,
                            error_password=error_password,
                            info_message=info_message)
+
+
+@app.route("/auth/login", methods=["GET"])
+def login_page_alias():
+    return redirect(url_for("login_page"))
 
 
 @app.route("/verify-email")
