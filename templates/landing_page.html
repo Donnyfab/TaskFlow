@@ -125,7 +125,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 680px;
+  max-width: 860px;
   width: 100%;
 }
 
@@ -160,14 +160,14 @@
     .hero-badge {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 100px;
-  padding: 6px 14px;
-  font-size: 12px;
+  padding: 8px 18px;
+  font-size: 13px;
   color: rgba(255,255,255,0.5);
-  margin-bottom: 28px;
+  margin-bottom: 36px;
   letter-spacing: 0.2px;
   width: fit-content;
 }
@@ -181,38 +181,44 @@
    
     .hero h1 {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-  font-size: clamp(28px, 4vw, 58px);
+  font-size: clamp(42px, 6.5vw, 88px);
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -1.5px;
+  line-height: 1.08;
+  letter-spacing: -2.5px;
   max-width: 100%;
-  margin-bottom: 22px;
+  margin-bottom: 28px;
   color: #fff;
 }
    
     .hero h1 .dim { color: rgba(255,255,255,0.35); }
    
     .hero-sub {
-  max-width: 480px;
+  max-width: 560px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.5);
   margin-left: auto;
   margin-right: auto;
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 .hero-ctas {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 
    
     .cta-main {
       background: #fff;
       color: #0A0A0A;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 600;
       border: none;
       cursor: pointer;
-      padding: 12px 24px;
-      border-radius: 9px;
+      padding: 15px 32px;
+      border-radius: 10px;
       transition: background-color 160ms ease-out, transform 160ms ease-out;
       font-family: inherit;
       letter-spacing: -0.2px;
@@ -224,12 +230,12 @@
     .cta-secondary {
       background: transparent;
       color: rgba(255,255,255,0.45);
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 500;
       border: 1px solid rgba(255,255,255,0.1);
       cursor: pointer;
-      padding: 12px 20px;
-      border-radius: 9px;
+      padding: 15px 28px;
+      border-radius: 10px;
       transition: border-color 160ms ease-out, color 160ms ease-out, transform 160ms ease-out;
       font-family: inherit;
     }
@@ -244,7 +250,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 28px;
+  margin-top: 36px;
   margin-bottom: 0;
 }
 
@@ -682,8 +688,8 @@
 
     @media (max-width: 768px) {
   .hero h1 {
-    font-size: clamp(28px, 7vw, 40px);
-    letter-spacing: -1px;
+    font-size: clamp(36px, 9vw, 54px);
+    letter-spacing: -1.5px;
   }
 
   .hero {
