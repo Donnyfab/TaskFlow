@@ -790,6 +790,49 @@
     font-size: 28px !important;
   }
 }
+
+/* ===== DASHBOARD DEMO ANIMATIONS ===== */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes breatheGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0), 0 0 0 0 rgba(255,255,255,0); }
+  50%       { box-shadow: 0 0 0 1px rgba(255,255,255,0.07), 0 0 22px 6px rgba(255,255,255,0.03); }
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.demo-enter-sidebar     { animation: slideInLeft 0.5s ease forwards; opacity: 0; }
+.demo-enter-greeting    { animation: fadeSlideUp 0.4s ease 0.35s forwards; opacity: 0; }
+.demo-enter-stats       { animation: fadeSlideUp 0.4s ease 0.62s forwards; opacity: 0; }
+.demo-enter-ai          { animation: fadeSlideUp 0.4s ease 0.85s forwards; opacity: 0; }
+.demo-enter-tasks-header{ animation: fadeSlideUp 0.35s ease 1.05s forwards; opacity: 0; }
+.demo-task-item         { opacity: 0; }
+
+.demo-streak-glow { animation: breatheGlow 2.8s ease-in-out infinite; }
+
+.ai-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 11px;
+  background: rgba(255,255,255,0.5);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: cursorBlink 0.75s step-end infinite;
+}
+.ai-cursor.hidden { display: none; }
+
+.sidebar-item.active {
+  border-left: 2px solid rgba(255,255,255,0.45);
+  padding-left: 12px;
+}
   </style>
   
   
@@ -828,7 +871,7 @@
       <div class="dashboard-preview">
        
         <div class="preview-body">
-          <div class="sidebar">
+          <div class="sidebar demo-enter-sidebar">
             <div class="sidebar-logo"><div class="s-icon"></div>TaskFlow</div>
             <div class="sidebar-item active" onclick="switchTab('home', this)"><div class="si-line active"></div>Home</div>
             <div class="sidebar-item" onclick="switchTab('tasks', this)"><div class="si-line"></div>Tasks</div>
@@ -842,23 +885,26 @@
        
             <!-- HOME -->
             <div class="panel active" id="panel-home">
-              <div class="greeting">Good morning, Donny 👋</div>
-              <div class="greeting-sub">Saturday, March 28 · 7 tasks · 3 habits due</div>
-              <div class="stats-row">
-                <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">14 days</div></div>
-                <div class="stat-card"><div class="stat-label">Tasks</div><div class="stat-value">5 / 7</div></div>
-                <div class="stat-card"><div class="stat-label">Discipline streak</div><div class="stat-value">22 days</div></div>
+              <div class="greeting demo-enter-greeting">Good morning 👋</div>
+              <div class="greeting-sub demo-enter-greeting demo-greeting-sub"></div>
+              <div class="stats-row demo-enter-stats">
+                <div class="stat-card demo-streak-card"><div class="stat-label">Streak</div><div class="stat-value"><span id="demo-streak-val">0</span> days</div></div>
+                <div class="stat-card"><div class="stat-label">Tasks</div><div class="stat-value" id="demo-tasks-val">0/8</div></div>
+                <div class="stat-card"><div class="stat-label">Discipline streak</div><div class="stat-value"><span id="demo-disc-val">0</span> days</div></div>
               </div>
-              <div class="ai-card">
+              <div class="ai-card demo-enter-ai">
                 <div class="ai-pip">✦</div>
-                <div class="ai-text"><strong>AI insight —</strong> You finish 40% more tasks on days you work out first. Your workout is at 8am today. Don't skip it.</div>
+                <div class="ai-text"><strong>AI insight —</strong> <span id="demo-ai-text"></span><span class="ai-cursor" id="demo-ai-cursor">|</span></div>
               </div>
-              <div class="section-header"><div class="section-title">Today's priorities</div><div class="section-add">+ Add</div></div>
-              <div class="task-item"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Morning workout</div><div class="task-tag">Habit</div></div>
-              <div class="task-item"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Journal entry</div><div class="task-tag">Habit</div></div>
-              <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Deploy Taskflow</div><div class="task-tag">Task</div></div>
-              <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Rebuild landing page</div><div class="task-tag">Task</div></div>
-              <div class="task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Daily check-in</div><div class="task-tag">Accountability</div></div>
+              <div class="section-header demo-enter-tasks-header"><div class="section-title">Today's priorities</div><div class="section-add">+ Add</div></div>
+              <div class="task-item demo-task-item" data-predone="true"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Morning routine</div><div class="task-tag">Habit</div></div>
+              <div class="task-item demo-task-item" data-predone="true"><div class="task-check done" onclick="toggleTask(this)">✓</div><div class="task-name done">Daily review</div><div class="task-tag">Habit</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Finish project proposal</div><div class="task-tag">Task</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">30-minute workout</div><div class="task-tag">Task</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Read for 20 minutes</div><div class="task-tag">Task</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Team standup prep</div><div class="task-tag">Task</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Deep work block</div><div class="task-tag">Focus</div></div>
+              <div class="task-item demo-task-item"><div class="task-check" onclick="toggleTask(this)"></div><div class="task-name">Plan tomorrow</div><div class="task-tag">Task</div></div>
             </div>
        
             <!-- TASKS -->
@@ -2088,7 +2134,121 @@ function hiwAddTyping() {
 }
 function hiwSendSug(btn) { document.getElementById('hiw-cinput').value = btn.textContent; hiwSendMsg(); }
 
+// ===== DASHBOARD DEMO ANIMATIONS =====
+(function initDashboardDemo() {
+  const panel = document.getElementById('panel-home');
+  if (!panel) return;
 
+  // Dynamic date in greeting-sub
+  const subEl = panel.querySelector('.demo-greeting-sub');
+  if (subEl) {
+    const d = new Date();
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    subEl.textContent = days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate() + ' · 8 tasks · 2 habits due';
+  }
+
+  // Stagger task items entrance
+  const taskItems = panel.querySelectorAll('.demo-task-item');
+  taskItems.forEach(function(item, i) {
+    item.style.animation = 'fadeSlideUp 0.35s ease ' + (1.1 + i * 0.09) + 's forwards';
+  });
+
+  // Breathing glow on streak card after it enters
+  setTimeout(function() {
+    var sc = panel.querySelector('.demo-streak-card');
+    if (sc) sc.classList.add('demo-streak-glow');
+  }, 1400);
+
+  // Count-up helper
+  function countUp(el, target, duration, format) {
+    if (!el) return;
+    var start = 0;
+    var steps = Math.max(target, 1);
+    var delay = Math.round(duration / steps);
+    var timer = setInterval(function() {
+      start = Math.min(start + 1, target);
+      el.textContent = format ? format(start) : start;
+      if (start >= target) clearInterval(timer);
+    }, delay);
+  }
+
+  // Stat counters: streak and discipline count from 0, tasks ratio increments numerator
+  setTimeout(function() {
+    countUp(document.getElementById('demo-streak-val'), 18, 900, null);
+    countUp(document.getElementById('demo-disc-val'), 31, 1100, null);
+    countUp(document.getElementById('demo-tasks-val'), 6, 1000, function(n) { return n + '/8'; });
+  }, 700);
+
+  // Typewriter AI insight
+  var insightText = 'You complete 47% more tasks before noon. Your focus window starts now.';
+  var aiTextEl = document.getElementById('demo-ai-text');
+  var aiCursor = document.getElementById('demo-ai-cursor');
+  if (aiTextEl) {
+    setTimeout(function() {
+      var i = 0;
+      var tw = setInterval(function() {
+        aiTextEl.textContent = insightText.slice(0, ++i);
+        if (i >= insightText.length) {
+          clearInterval(tw);
+          setTimeout(function() { if (aiCursor) aiCursor.classList.add('hidden'); }, 900);
+        }
+      }, 26);
+    }, 1500);
+  }
+
+  // Task completion loop
+  function getUnchecked() {
+    return Array.from(panel.querySelectorAll('.demo-task-item')).filter(function(item) {
+      return !item.dataset.predone;
+    });
+  }
+  function checkItem(item) {
+    var chk = item.querySelector('.task-check');
+    var name = item.querySelector('.task-name');
+    if (chk) { chk.classList.add('done'); chk.textContent = '✓'; }
+    if (name) name.classList.add('done');
+  }
+  function uncheckItem(item) {
+    var chk = item.querySelector('.task-check');
+    var name = item.querySelector('.task-name');
+    if (chk) { chk.classList.remove('done'); chk.textContent = ''; }
+    if (name) name.classList.remove('done');
+  }
+  function resetPreDone() {
+    panel.querySelectorAll('[data-predone="true"]').forEach(function(item) {
+      checkItem(item);
+    });
+  }
+
+  function runLoop() {
+    var items = getUnchecked();
+    var idx = 0;
+    function next() {
+      if (idx >= items.length) {
+        // All complete — pause then reset
+        setTimeout(function() {
+          // Uncheck everything
+          panel.querySelectorAll('.demo-task-item').forEach(uncheckItem);
+          // Re-check the pre-done ones after a brief pause
+          setTimeout(function() {
+            resetPreDone();
+            // Restart loop after another pause
+            setTimeout(runLoop, 1000);
+          }, 500);
+        }, 2800);
+        return;
+      }
+      checkItem(items[idx]);
+      idx++;
+      setTimeout(next, 650);
+    }
+    setTimeout(next, 200);
+  }
+
+  // Start loop after tasks have animated in
+  setTimeout(runLoop, 2400);
+})();
 
 </script>
 
