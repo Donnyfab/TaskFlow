@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
+import TasksTrashView from './TasksTrashView'
 
 /* ─── Types ──────────────────────────────────────────────────────── */
 interface Task {
@@ -77,6 +78,7 @@ const SYSTEM_LISTS = [
   { id: 'logbook', label: 'Logbook', Icon: IcLogbook },
   { id: 'trash',   label: 'Trash',   Icon: IcTrash   },
 ]
+const TASK_VIEW_IDS = new Set(['inbox', 'today', 'upcoming', 'someday', 'trash'])
 
 /* ─── Theme colour maps ──────────────────────────────────────────── */
 const LIGHT_C = {
@@ -161,18 +163,29 @@ export default function TasksPageClient() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const listId       = searchParams.get('list_id') ? Number(searchParams.get('list_id')) : null
+  const viewParam    = searchParams.get('view')
   const queryClient  = useQueryClient()
 
   // queryId distinguishes each smart list view in the cache
-  const [smartActive, setSmartActive] = useState('inbox')
-  const queryId: string | number = listId ?? smartActive
+  const initialSmartView = !listId && viewParam && TASK_VIEW_IDS.has(viewParam) ? viewParam : 'inbox'
+  const [smartActive, setSmartActive] = useState(initialSmartView)
+  const dataSmartActive = !listId && smartActive === 'trash' ? 'inbox' : smartActive
+  const queryId: string | number = listId ?? dataSmartActive
+
+  useEffect(() => {
+    if (listId) return
+    const nextView = viewParam && TASK_VIEW_IDS.has(viewParam) ? viewParam : 'inbox'
+    setSmartActive(nextView)
+  }, [listId, viewParam])
+
+  const isTrashView = !listId && smartActive === 'trash'
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', queryId],
     queryFn: async () => {
       const url = listId
         ? apiUrl(`/api/tasks/data?list_id=${listId}`)
-        : apiUrl(`/api/tasks/data?smart=${smartActive}`)
+        : apiUrl(`/api/tasks/data?smart=${dataSmartActive}`)
       const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) throw new Error('Failed to fetch tasks')
       return res.json() as Promise<Data>
@@ -247,6 +260,10 @@ export default function TasksPageClient() {
   }, [])
 
   const C: Colors = theme === 'light' ? LIGHT_C : DARK_C
+
+  useEffect(() => {
+    if (isTrashView) setDetail(null)
+  }, [isTrashView])
 
   /* ── Brain Dump functions ── */
   function bdHandleCommand(text: string): boolean {
@@ -507,6 +524,11 @@ export default function TasksPageClient() {
     setDpPriority(task.priority); setDpListId(task.list_id)
   }
 
+  function openTaskView(viewId: string) {
+    setSmartActive(viewId)
+    router.push(viewId === 'inbox' ? '/tasks' : `/tasks?view=${viewId}`)
+  }
+
   const incomplete   = tasks.filter(t => !t.completed)
   const done         = tasks.filter(t =>  t.completed)
   const currentTitle = listId
@@ -600,7 +622,7 @@ export default function TasksPageClient() {
               <SidebarItem key={item.id}
                 Icon={item.Icon} label={item.label}
                 count={count} active={isActive} C={C} theme={theme}
-                onClick={() => { setSmartActive(item.id); router.push('/tasks') }}
+                onClick={() => openTaskView(item.id)}
               />
             )
           })}
@@ -610,8 +632,8 @@ export default function TasksPageClient() {
           {SYSTEM_LISTS.map(item => (
             <SidebarItem key={item.id}
               Icon={item.Icon} label={item.label}
-              count={null} active={false} C={C} theme={theme}
-              onClick={() => {}}
+              count={null} active={!listId && smartActive===item.id} C={C} theme={theme}
+              onClick={() => { if (item.id === 'trash') openTaskView('trash') }}
             />
           ))}
 
@@ -767,7 +789,9 @@ export default function TasksPageClient() {
 
       {/* ══ MAIN CONTENT ═════════════════════════════════════════════ */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, background:C.contentBg, overflow:'hidden' }}>
-        {smartActive === 'upcoming' && !listId ? (
+        {isTrashView ? (
+          <TasksTrashView theme={theme} colors={C} />
+        ) : smartActive === 'upcoming' && !listId ? (
           // ── Upcoming calendar view ──────────────────────────────────
           <>
             {/* Calendar header */}
@@ -1035,46 +1059,47 @@ export default function TasksPageClient() {
           </>
         )}
 
-        {/* ══ THINGS 3 BOTTOM ACTION BAR ══════════════════════════════ */}
-        <div style={{
-          borderTop: `1px solid ${C.border}`,
-          height: '52px',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '96px',
-          background: C.contentBg,
-        }}>
-          <BarBtn title="New To-Do" C={C} onClick={openTaskModal}>
-            <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="11" y1="4" x2="11" y2="18"/>
-              <line x1="4" y1="11" x2="18" y2="11"/>
-            </svg>
-          </BarBtn>
-          <BarBtn title="Calendar View" C={C} onClick={() => router.push('/calendar')}>
-            <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="16" height="15" rx="2.5"/>
-              <path d="M3 8.5h16M7.5 2.5v3M14.5 2.5v3"/>
-              <path d="M7 13h2M10.5 13h2M14 13h2M7 16h2M10.5 16h2"/>
-            </svg>
-          </BarBtn>
-          <BarBtn title="Next" C={C} onClick={() => {}}>
-            <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 5l7 6-7 6"/>
-            </svg>
-          </BarBtn>
-          <BarBtn title="Search" C={C} onClick={() => {}}>
-            <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <circle cx="10" cy="10" r="6.5"/>
-              <path d="M15 15l4 4"/>
-            </svg>
-          </BarBtn>
-        </div>
+        {!isTrashView && (
+          <div style={{
+            borderTop: `1px solid ${C.border}`,
+            height: '52px',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '96px',
+            background: C.contentBg,
+          }}>
+            <BarBtn title="New To-Do" C={C} onClick={openTaskModal}>
+              <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="11" y1="4" x2="11" y2="18"/>
+                <line x1="4" y1="11" x2="18" y2="11"/>
+              </svg>
+            </BarBtn>
+            <BarBtn title="Calendar View" C={C} onClick={() => router.push('/calendar')}>
+              <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="16" height="15" rx="2.5"/>
+                <path d="M3 8.5h16M7.5 2.5v3M14.5 2.5v3"/>
+                <path d="M7 13h2M10.5 13h2M14 13h2M7 16h2M10.5 16h2"/>
+              </svg>
+            </BarBtn>
+            <BarBtn title="Next" C={C} onClick={() => {}}>
+              <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 5l7 6-7 6"/>
+              </svg>
+            </BarBtn>
+            <BarBtn title="Search" C={C} onClick={() => {}}>
+              <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <circle cx="10" cy="10" r="6.5"/>
+                <path d="M15 15l4 4"/>
+              </svg>
+            </BarBtn>
+          </div>
+        )}
       </div>
 
       {/* ══ DETAIL PANEL ═════════════════════════════════════════════ */}
-      <div style={{
+      {!isTrashView && <div style={{
         position:'fixed', right:0, top:0, bottom:0, width:'320px',
         background:C.detailBg, borderLeft:`1px solid ${C.border}`,
         zIndex:50, display:'flex', flexDirection:'column', fontFamily:'inherit',
@@ -1102,7 +1127,7 @@ export default function TasksPageClient() {
           <button onClick={saveDetail} style={{ flex:1, background:C.blue, color:'#fff', border:'none', borderRadius:'8px', padding:'9px', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Save changes</button>
           <button onClick={()=>detail&&deleteTask(detail.id)} style={{ background:C.deleteBg, border:`1px solid ${C.deleteBorder}`, borderRadius:'8px', padding:'9px 14px', fontSize:'13px', color:C.deleteText, cursor:'pointer', fontFamily:'inherit' }}>Delete</button>
         </div>
-      </div>
+      </div>}
 
       {/* ══ NEW TASK MODAL ══════════════════════════════════════════ */}
       {showTaskModal && (
