@@ -278,10 +278,9 @@
     </div>
   </footer>
 
-  <script>
-    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('translate-x-full'));
-    document.getElementById('menuClose').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+  {% include "includes/public_navbar_scripts.html" %}
 
+  <script>
     const prices = {
       monthly: { plus: '$5', pro: '$9', plusNote: '7-day free trial.', proNote: '7-day free trial. Cancel anytime.', badge: 'Save up to 30% yearly' },
       yearly:  { plus: '$3', pro: '$6', plusNote: 'Billed $36/year.', proNote: 'Billed $72/year. 7-day free trial.', badge: '✦ You save up to $36/year' }

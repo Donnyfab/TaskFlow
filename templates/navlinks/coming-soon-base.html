@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" class="scrollbar-hide">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block page_title %}Coming Soon{% endblock %} | TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="{% block meta_description %}This TaskFlow page is currently in development.{% endblock %}" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0A0A0A;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .soon-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 24px 48px;
+    }
+    .soon-card {
+      width: min(100%, 720px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 40px 36px;
+      text-align: center;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    .soon-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 20px;
+    }
+    .soon-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.65);
+    }
+    .soon-title {
+      font-size: clamp(34px, 5vw, 64px);
+      font-weight: 800;
+      line-height: 1.04;
+      letter-spacing: -2px;
+      margin-bottom: 14px;
+      color: rgba(255,255,255,0.92);
+    }
+    .soon-subtitle {
+      font-size: 16px;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.42);
+      max-width: 520px;
+      margin: 0 auto 28px;
+    }
+    .soon-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .soon-primary,
+    .soon-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.18s ease;
+    }
+    .soon-primary {
+      background: #fff;
+      color: #0A0A0A;
+    }
+    .soon-primary:hover {
+      background: rgba(255,255,255,0.9);
+      transform: translateY(-1px);
+    }
+    .soon-secondary {
+      color: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: transparent;
+    }
+    .soon-secondary:hover {
+      color: rgba(255,255,255,0.82);
+      border-color: rgba(255,255,255,0.2);
+    }
+    @media (max-width: 640px) {
+      .soon-card {
+        padding: 32px 24px;
+      }
+      .soon-actions {
+        flex-direction: column;
+      }
+      .soon-primary,
+      .soon-secondary {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="scrollbar-hide">
+  {% include "includes/public_navbar.html" %}
+
+  <main class="soon-shell">
+    <section class="soon-card">
+      <div class="soon-pill">
+        <span class="soon-dot"></span>
+        Coming Soon
+      </div>
+      <h1 class="soon-title">{% block soon_title %}Coming Soon{% endblock %}</h1>
+      <p class="soon-subtitle">{% block soon_subtitle %}This page is currently in development.{% endblock %}</p>
+      <div class="soon-actions">
+        <a href="/features" class="soon-primary">Explore TaskFlow</a>
+        <a href="/contact" class="soon-secondary">Contact support</a>
+      </div>
+    </section>
+  </main>
+
+  {% include "includes/public_navbar_scripts.html" %}
+</body>
+</html>

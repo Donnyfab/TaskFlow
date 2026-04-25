@@ -3028,6 +3028,48 @@ def pricing_page():
 @app.route("/about")
 def about_page():
     return render_template("navlinks/about.html")
+@app.route("/overview")
+def overview_page():
+    return render_template("navlinks/overview.html")
+@app.route("/ai-brain")
+def ai_brain_page():
+    return render_template("navlinks/ai-brain.html")
+@app.route("/growth-score")
+def growth_score_page():
+    return render_template("navlinks/growth-score.html")
+@app.route("/lift")
+def lift_page():
+    return render_template("navlinks/lift.html")
+@app.route("/eats")
+def eats_page():
+    return render_template("navlinks/eats.html")
+@app.route("/finance")
+def finance_page():
+    return render_template("navlinks/finance.html")
+@app.route("/changelog")
+def changelog_page():
+    return render_template("navlinks/changelog.html")
+@app.route("/roadmap")
+def roadmap_page():
+    return render_template("navlinks/roadmap.html")
+@app.route("/getting-started")
+def getting_started_page():
+    return render_template("navlinks/getting-started.html")
+@app.route("/faq")
+def faq_page():
+    return render_template("navlinks/faq.html")
+@app.route("/hub")
+def hub_page():
+    return render_template("navlinks/hub.html")
+@app.route("/satellite")
+def satellite_page():
+    return render_template("navlinks/satellite.html")
+@app.route("/support")
+def support_page():
+    return render_template("navlinks/support.html")
+@app.route("/learn")
+def learn_page():
+    return render_template("navlinks/learn.html")
 
 
 # ============================================================

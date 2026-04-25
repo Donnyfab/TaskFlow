@@ -494,31 +494,6 @@
 
   {% include "includes/public_navbar.html" %}
 
-
-  <div id="mobileMenu" class="fixed inset-0 z-[60] bg-[#0A0A0A] text-white translate-x-full transition-transform duration-300 ease-out">
-    <div class="h-[72px] flex items-center justify-between px-6 border-b border-white/10">
-      <a href="/" class="flex items-center gap-2 text-white font-bold">
-        <div class="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-          <svg viewBox="0 0 16 16" fill="none" width="13" height="13">
-            <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        TaskFlow
-      </a>
-      <button id="menuClose" class="text-2xl">✕</button>
-    </div>
-    <div class="px-6 py-8 flex flex-col gap-6 text-base">
-      <a href="/features" class="text-white/80 hover:text-white">Features</a>
-      <a href="/pricing" class="text-white/80 hover:text-white">Pricing</a>
-      <a href="/about" class="text-white/80 hover:text-white">About</a>
-      <a href="/contact" class="text-white/80 hover:text-white">Contact</a>
-      <div class="mt-8 flex flex-col gap-4">
-        <a href="/register" class="w-full text-center bg-white text-gray-900 py-3 rounded-md font-semibold">Sign up</a>
-        <a href="/login" class="w-full text-center border border-white/20 py-3 rounded-md">Log in</a>
-      </div>
-    </div>
-  </div>
-
   <section class="policy-hero">
     <div class="policy-hero-inner">
       <div class="policy-eyebrow">
@@ -589,13 +564,6 @@
     </div>
   </footer>
 
-  <script>
-    const menuOpen = document.getElementById("menuOpen");
-    const menuClose = document.getElementById("menuClose");
-    const mobileMenu = document.getElementById("mobileMenu");
-
-    menuOpen.addEventListener("click", () => mobileMenu.classList.remove("translate-x-full"));
-    menuClose.addEventListener("click", () => mobileMenu.classList.add("translate-x-full"));
-  </script>
+  {% include "includes/public_navbar_scripts.html" %}
 </body>
 </html>

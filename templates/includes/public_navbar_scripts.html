@@ -1,0 +1,23 @@
+<script>
+  (() => {
+    const menuOpen = document.getElementById('menuOpen');
+    const menuClose = document.getElementById('menuClose');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    if (!menuOpen || !menuClose || !mobileMenu) return;
+
+    const openMenu = () => mobileMenu.classList.remove('translate-x-full');
+    const closeMenu = () => mobileMenu.classList.add('translate-x-full');
+
+    menuOpen.addEventListener('click', openMenu);
+    menuClose.addEventListener('click', closeMenu);
+
+    mobileMenu.addEventListener('click', (event) => {
+      if (event.target === mobileMenu) closeMenu();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMenu();
+    });
+  })();
+</script>

@@ -350,11 +350,9 @@
     </div>
   </footer>
 
-  <script>
-    // Mobile menu
-    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('translate-x-full'));
-    document.getElementById('menuClose').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+  {% include "includes/public_navbar_scripts.html" %}
 
+  <script>
     // Growth Score
     function simulateScore() {
       ['sb-tasks','sb-habits','sb-journal','sb-streak'].forEach(id => document.getElementById(id).style.width = '100%');

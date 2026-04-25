@@ -2088,10 +2088,9 @@
     </footer>
   </div>
 
-  <script>
-    document.getElementById('menuOpen').addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('translate-x-full'));
-    document.getElementById('menuClose').addEventListener('click', () => document.getElementById('mobileMenu').classList.add('translate-x-full'));
+  {% include "includes/public_navbar_scripts.html" %}
 
+  <script>
     const toggleButtons = Array.from(document.querySelectorAll('.toggle-btn'));
     const priceNodes = Array.from(document.querySelectorAll('.plan-price[data-monthly]'));
     const periodNodes = Array.from(document.querySelectorAll('.plan-period[data-period-monthly]'));
