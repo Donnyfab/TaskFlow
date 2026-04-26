@@ -270,6 +270,12 @@ export default function TasksPageClient() {
     if (isTrashView || isLogbookView) setDetail(null)
   }, [isTrashView, isLogbookView])
 
+  useEffect(() => {
+    if (isTrashView && data && (data.trash_count ?? 0) === 0) {
+      router.replace('/tasks')
+    }
+  }, [isTrashView, data?.trash_count])
+
   /* ── Brain Dump functions ── */
   function bdHandleCommand(text: string): boolean {
     const t = text.toLowerCase().trim()
@@ -694,7 +700,7 @@ export default function TasksPageClient() {
           {/* ── System lists ── */}
           <div style={{ height:'1px', background:C.border, margin:'10px 12px' }}/>
           {SYSTEM_LISTS.map(item => {
-            if (item.id === 'trash' && !isTrashView && !(data?.trash_count ?? 0)) return null
+            if (item.id === 'trash' && !(data?.trash_count ?? 0)) return null
             return (
               <SidebarItem key={item.id}
                 Icon={item.Icon} label={item.label}
