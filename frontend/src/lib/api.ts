@@ -19,6 +19,12 @@ export const createTask = (data: { title: string }) => apiFetch('/api/tasks', { 
 export const updateTask = (id: number, data: any)   => apiFetch(`/api/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteTask = (id: number)              => apiFetch(`/api/tasks/${id}`, { method: 'DELETE' })
 
+// ── Task Trash ─────────────────────────────────────
+export const getTrashTasks  = ()           => apiFetch('/api/tasks/trash')
+export const restoreTask    = (id: number) => apiFetch(`/api/tasks/${id}/restore`, { method: 'POST' })
+export const purgeTask      = (id: number) => apiFetch(`/api/tasks/${id}/purge`, { method: 'POST' })
+export const emptyTrashTasks = ()          => apiFetch('/api/tasks/empty-trash', { method: 'POST' })
+
 // ── Habits ─────────────────────────────────────────
 export const getHabits  = ()           => apiFetch('/api/habits')
 export const logHabit   = (id: number) => apiFetch(`/api/habits/${id}/log`, { method: 'POST' })

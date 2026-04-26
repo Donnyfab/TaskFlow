@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { useDeferredValue, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { getTrashTasks, restoreTask, purgeTask, emptyTrashTasks } from '@/lib/api'
 
 type ThemeMode = 'dark' | 'light'
 
@@ -28,6 +29,7 @@ type SortMode = 'recent' | 'oldest' | 'name'
 type FilterMode = 'all' | TrashItemType
 
 interface TrashItem {
+  id: number
   key: string
   title: string
   type: TrashItemType
@@ -49,27 +51,12 @@ interface TasksTrashViewProps {
   theme: ThemeMode
 }
 
-const STORAGE_KEY = 'taskflow-trash-view-items'
-
 const SORT_LABELS: Record<SortMode, string> = {
   recent: 'Recently deleted',
   oldest: 'Oldest first',
   name: 'Name A–Z',
 }
 
-function buildSeedTrashItems(): TrashItem[] {
-  const now = Date.now()
-  const d = (h: number) => new Date(now - h * 3_600_000).toISOString()
-  return [
-    { key: 'task-101', title: 'Book follow-up with Taylor', type: 'task', deletedAt: d(9), originalLabel: 'Client work', secondaryLabel: 'Restores to Client work' },
-    { key: 'task-102', title: 'Rewrite Friday review notes', type: 'task', deletedAt: d(24), originalLabel: 'Journal sweep' },
-    { key: 'project-14', title: 'Q2 launch cleanup', type: 'project', deletedAt: d(31), originalLabel: 'Projects', secondaryLabel: '4 tasks inside', count: 4 },
-    { key: 'task-103', title: 'Send invoices for March retainers', type: 'task', deletedAt: d(42), originalLabel: 'Finance', secondaryLabel: 'Restores to Finance' },
-    { key: 'project-16', title: 'Reading backlog', type: 'project', deletedAt: d(60), originalLabel: 'Projects', secondaryLabel: '12 tasks inside', count: 12 },
-    { key: 'task-104', title: 'Draft Q1 retrospective', type: 'task', deletedAt: d(25 * 24), originalLabel: 'Team', secondaryLabel: 'Restores to Team' },
-    { key: 'task-105', title: 'Schedule design review', type: 'task', deletedAt: d(28 * 24), originalLabel: 'Design' },
-  ]
-}
 
 function formatRelativeTime(iso: string): string {
   const delta = Date.now() - new Date(iso).getTime()
@@ -123,20 +110,20 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) { setItems(buildSeedTrashItems()); setHydrated(true); return }
-    try {
-      const parsed = JSON.parse(raw) as TrashItem[]
-      setItems(Array.isArray(parsed) ? parsed : buildSeedTrashItems())
-    } catch { setItems(buildSeedTrashItems()) }
-    finally { setHydrated(true) }
+    getTrashTasks()
+      .then((data: { tasks: Array<{ id: number; title: string; deleted_at: string; list_name: string }> }) => {
+        setItems(data.tasks.map(t => ({
+          id: t.id,
+          key: `task-${t.id}`,
+          title: t.title,
+          type: 'task' as TrashItemType,
+          deletedAt: t.deleted_at,
+          originalLabel: t.list_name,
+        })))
+      })
+      .catch(() => setItems([]))
+      .finally(() => setHydrated(true))
   }, [])
-
-  useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  }, [items, hydrated])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -216,11 +203,21 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
   }
 
   async function handleRestore(keys: string[]) {
+    const ids = items.filter(i => keys.includes(i.key)).map(i => i.id)
+    await Promise.all(ids.map(id => restoreTask(id).catch(() => null)))
     await animateAndRemove(keys, keys.length === 1 ? 'Item restored' : `${keys.length} items restored`)
   }
 
   async function handleDelete(keys: string[]) {
+    const ids = items.filter(i => keys.includes(i.key)).map(i => i.id)
+    await Promise.all(ids.map(id => purgeTask(id).catch(() => null)))
     await animateAndRemove(keys, keys.length === 1 ? 'Item permanently deleted' : `${keys.length} items permanently deleted`)
+    setConfirmState(null)
+  }
+
+  async function handleEmptyTrash() {
+    await emptyTrashTasks().catch(() => null)
+    await animateAndRemove(items.map(i => i.key), 'Trash emptied')
     setConfirmState(null)
   }
 
@@ -602,7 +599,7 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
               </button>
               <button type="button"
                 onClick={() => {
-                  if (confirmState.variant === 'empty') void handleDelete(items.map(i => i.key))
+                  if (confirmState.variant === 'empty') void handleEmptyTrash()
                   else void handleDelete(confirmState.keys)
                 }}
                 style={{ flex: 1, height: '42px', borderRadius: '12px', border: 'none', background: C.deleteBg, color: C.deleteText, fontSize: '13px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>

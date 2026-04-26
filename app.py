@@ -913,6 +913,7 @@ def ensure_task_metadata_columns():
             "priority": "VARCHAR(16) NOT NULL DEFAULT 'medium'",
             "pinned_at": "DATETIME NULL DEFAULT NULL",
             "scheduled_for": "VARCHAR(32) NULL DEFAULT NULL",
+            "deleted_at": "DATETIME NULL DEFAULT NULL",
         }
 
         for column_name, column_definition in required_columns.items():
@@ -1008,7 +1009,7 @@ def fetch_task_for_user(task_id: int, user_id: int):
     ensure_task_metadata_columns()
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM tasks WHERE id=%s AND user_id=%s", (task_id, user_id))
+    cursor.execute("SELECT * FROM tasks WHERE id=%s AND user_id=%s AND deleted_at IS NULL", (task_id, user_id))
     task = cursor.fetchone()
     cursor.close()
     return task
@@ -3468,7 +3469,7 @@ def fetch_dashboard_tasks(user_id: int, limit: int = 7):
             tl.name AS list_name
         FROM tasks t
         LEFT JOIN task_lists tl ON tl.id = t.list_id
-        WHERE t.user_id = %s
+        WHERE t.user_id = %s AND t.deleted_at IS NULL
         ORDER BY t.completed ASC, t.created_at DESC
         LIMIT %s
         """,
@@ -3499,7 +3500,7 @@ def fetch_dashboard_task_counts(user_id: int):
             COUNT(*) AS total,
             COALESCE(SUM(completed), 0) AS completed_count
         FROM tasks
-        WHERE user_id = %s
+        WHERE user_id = %s AND deleted_at IS NULL
         """,
         (user_id,),
     )
@@ -5274,13 +5275,98 @@ def delete_task(task_id):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "DELETE FROM tasks WHERE id=%s AND user_id=%s",
+        "UPDATE tasks SET deleted_at = NOW() WHERE id=%s AND user_id=%s",
         (task_id, session["user_id"])
     )
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in (request.headers.get("Accept") or ""):
+        return jsonify({"ok": True})
     return redirect(url_for("home_page", list_id=task["list_id"]))
+
+
+@app.route("/api/tasks/trash")
+@login_required
+def api_tasks_trash():
+    user_id = session["user_id"]
+    ensure_task_metadata_columns()
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT t.id, t.title, t.deleted_at, t.list_id, tl.name AS list_name
+        FROM tasks t
+        LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
+        WHERE t.user_id = %s AND t.deleted_at IS NOT NULL
+        ORDER BY t.deleted_at DESC
+        """,
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    tasks = [
+        {
+            "id": r["id"],
+            "title": r["title"] or "Untitled",
+            "deleted_at": r["deleted_at"].isoformat() if r["deleted_at"] else None,
+            "list_name": r["list_name"] or "Inbox",
+        }
+        for r in rows
+    ]
+    return jsonify({"tasks": tasks})
+
+
+@app.route("/api/tasks/<int:task_id>/restore", methods=["POST"])
+@login_required
+def api_restore_task(task_id):
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE tasks SET deleted_at = NULL WHERE id=%s AND user_id=%s AND deleted_at IS NOT NULL",
+        (task_id, user_id),
+    )
+    affected = cursor.rowcount
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    if affected == 0:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tasks/<int:task_id>/purge", methods=["POST"])
+@login_required
+def api_purge_task(task_id):
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "DELETE FROM tasks WHERE id=%s AND user_id=%s AND deleted_at IS NOT NULL",
+        (task_id, user_id),
+    )
+    affected = cursor.rowcount
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    if affected == 0:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tasks/empty-trash", methods=["POST"])
+@login_required
+def api_empty_trash():
+    user_id = session["user_id"]
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "DELETE FROM tasks WHERE user_id=%s AND deleted_at IS NOT NULL",
+        (user_id,),
+    )
+    cursor.close()
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True})
+
 
 # ============================================================
 # SIDEBAR PAGES (login required)
@@ -7115,6 +7201,7 @@ def api_tasks_data():
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s AND t.list_id = %s AND tl.archived_at IS NULL
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id, active_list_id)
         )
@@ -7128,6 +7215,7 @@ def api_tasks_data():
             WHERE t.user_id = %s
               AND (t.list_id = %s OR t.list_id IS NULL)
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id, inbox_id)
         )
@@ -7139,6 +7227,7 @@ def api_tasks_data():
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s AND t.scheduled_for = 'today'
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id,)
         )
@@ -7152,6 +7241,7 @@ def api_tasks_data():
               AND t.scheduled_for REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
               AND t.scheduled_for >= CURDATE()
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id,)
         )
@@ -7163,6 +7253,7 @@ def api_tasks_data():
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s AND t.scheduled_for = 'anytime'
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id,)
         )
@@ -7174,6 +7265,7 @@ def api_tasks_data():
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s AND t.scheduled_for = 'someday'
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id,)
         )
@@ -7188,6 +7280,7 @@ def api_tasks_data():
               AND (t.list_id = %s OR t.list_id IS NULL)
               AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+              AND t.deleted_at IS NULL
             {base_order}
             """, (user_id, inbox_id)
         )
@@ -7208,6 +7301,7 @@ def api_tasks_data():
               AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.completed = 0
+              AND t.deleted_at IS NULL
             """, (user_id, inbox_id)
         )
         inbox_count = ic.fetchone()["cnt"]
