@@ -270,11 +270,6 @@ export default function TasksPageClient() {
     if (isTrashView || isLogbookView) setDetail(null)
   }, [isTrashView, isLogbookView])
 
-  useEffect(() => {
-    if (isTrashView && data && (data.trash_count ?? 0) === 0) {
-      router.replace('/tasks')
-    }
-  }, [isTrashView, data?.trash_count])
 
   /* ── Brain Dump functions ── */
   function bdHandleCommand(text: string): boolean {
