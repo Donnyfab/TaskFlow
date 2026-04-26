@@ -1432,6 +1432,23 @@ export default function TasksPageClient() {
         </div>
       )}
 
+      {/* ══ TASK CONTEXT MENU ════════════════════════════════════════ */}
+      {ctxMenu && (
+        <TaskContextMenu
+          ctx={ctxMenu}
+          C={C}
+          theme={theme}
+          lists={data?.lists ?? []}
+          onClose={() => setCtxMenu(null)}
+          onToggle={(id: number) => { toggleTask(id); setCtxMenu(null) }}
+          onDelete={(id: number) => { deleteTask(id); setCtxMenu(null) }}
+          onOpen={(t: Task) => { openDetail(t); setCtxMenu(null) }}
+          onDuplicate={(t: Task) => { duplicateTask(t); setCtxMenu(null) }}
+          onSchedule={(t: Task, w: string | null) => { scheduleTask(t, w); setCtxMenu(null) }}
+          onMove={(t: Task, lid: number | null) => { moveTask(t, lid); setCtxMenu(null) }}
+        />
+      )}
+
       <style>{`
         @keyframes bdFadeIn  { from{opacity:0}to{opacity:1} }
         @keyframes bdSlideUp { from{opacity:0;transform:scale(0.94) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)} }
@@ -1439,6 +1456,7 @@ export default function TasksPageClient() {
         @keyframes bdPulse   { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.35),0 10px 28px rgba(239,68,68,0.4)}55%{box-shadow:0 0 0 14px rgba(239,68,68,0),0 10px 28px rgba(239,68,68,0.4)} }
         @keyframes bdDot     { 0%,80%,100%{transform:scale(0.55);opacity:0.4}40%{transform:scale(1.1);opacity:1} }
         @keyframes bdCardIn  { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+        @keyframes ctxIn     { from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)} }
       `}</style>
     </div>
   )
@@ -1546,6 +1564,284 @@ function SidebarItemCustom({ label, count, active, C, theme, onClick }: {
         <span style={{ fontSize:'11.5px', fontWeight:500, color:active?C.activeItemTx:C.muted, flexShrink:0 }}>{count}</span>
       )}
     </div>
+  )
+}
+
+/* ─── Task Context Menu ──────────────────────────────────────────── */
+interface CtxMenuState { task: Task; x: number; y: number }
+
+function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, onOpen, onDuplicate, onSchedule, onMove }: {
+  ctx: CtxMenuState; C: Colors; theme: string; lists: TaskList[]
+  onClose: () => void
+  onToggle: (id: number) => void
+  onDelete: (id: number) => void
+  onOpen: (t: Task) => void
+  onDuplicate: (t: Task) => void
+  onSchedule: (t: Task, when: string | null) => void
+  onMove: (t: Task, listId: number | null) => void
+}) {
+  const [subMenu, setSubMenu] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos,    setPos]    = useState({ x: ctx.x, y: ctx.y })
+
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const { width, height } = el.getBoundingClientRect()
+    let x = ctx.x, y = ctx.y
+    if (x + width  > window.innerWidth  - 8) x = window.innerWidth  - width  - 8
+    if (y + height > window.innerHeight - 8) y = window.innerHeight - height - 8
+    if (x < 8) x = 8
+    if (y < 8) y = 8
+    setPos({ x, y })
+  }, [ctx.x, ctx.y])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const isLight   = theme === 'light'
+  const menuBg    = isLight ? '#FFFFFF' : '#1E1E1E'
+  const border    = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.09)'
+  const shadow    = isLight
+    ? '0 8px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.09), 0 0 0 0.5px rgba(0,0,0,0.06)'
+    : '0 8px 48px rgba(0,0,0,0.72), 0 2px 12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.07)'
+  const sep = <div style={{ height: '1px', background: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)', margin: '3px 0' }}/>
+
+  const today    = new Date().toISOString().slice(0, 10)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const hasLists = lists.filter(l => !l.is_inbox).length > 0
+
+  const itemBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '8px',
+    padding: '6px 10px', fontSize: '13px', borderRadius: '7px',
+    cursor: 'pointer', background: 'transparent', border: 'none',
+    width: '100%', textAlign: 'left', fontFamily: 'inherit',
+    color: C.text, transition: 'background 0.08s', position: 'relative',
+  }
+  const itemDisabled: React.CSSProperties = { ...itemBase, color: C.muted, opacity: 0.45, cursor: 'default', pointerEvents: 'none' }
+  const itemDanger:   React.CSSProperties = { ...itemBase, color: C.deleteText }
+
+  const subStyle: React.CSSProperties = {
+    position: 'absolute', left: 'calc(100% + 2px)', top: '-5px',
+    background: menuBg, border: `1px solid ${border}`, borderRadius: '13px',
+    padding: '5px', boxShadow: shadow, minWidth: '186px', zIndex: 1002,
+    animation: 'ctxIn 0.10s ease-out',
+  }
+
+  const ChevRight = () => (
+    <svg viewBox="0 0 6 10" width="6" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.45 }}>
+      <path d="M1 1l4 4-4 4"/>
+    </svg>
+  )
+
+  return (
+    <>
+      {/* Invisible backdrop */}
+      <div onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose() }} style={{ position: 'fixed', inset: 0, zIndex: 998 }}/>
+
+      {/* Menu */}
+      <div ref={menuRef} style={{
+        position: 'fixed', left: pos.x, top: pos.y, zIndex: 999,
+        background: menuBg, border: `1px solid ${border}`, borderRadius: '13px',
+        padding: '5px', boxShadow: shadow, minWidth: '222px',
+        animation: 'ctxIn 0.10s ease-out',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+      }}>
+
+        {/* When… */}
+        <div
+          style={itemBase}
+          onMouseEnter={e => { setSubMenu('when'); (e.currentTarget as HTMLElement).style.background = C.hoverItemBg }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/>
+          </svg>
+          <span style={{ flex: 1 }}>When…</span>
+          <ChevRight/>
+          {subMenu === 'when' && (
+            <div style={subStyle}>
+              {[
+                { label: 'Today',    value: today,    icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg> },
+                { label: 'Tomorrow', value: tomorrow, icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg> },
+                { label: 'Someday',  value: 'someday',icon: <svg viewBox="0 0 18 18" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4.5" width="14" height="11" rx="2.5"/><path d="M5.5 4.5V3a1 1 0 011-1h5a1 1 0 011 1v1.5"/></svg> },
+              ].map(opt => (
+                <button key={opt.label} onClick={() => onSchedule(ctx.task, opt.value)} style={itemBase}
+                  onMouseEnter={e => (e.currentTarget.style.background = C.hoverItemBg)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ color: C.muted }}>{opt.icon}</span>
+                  {opt.label}
+                </button>
+              ))}
+              {sep}
+              <button onClick={() => onSchedule(ctx.task, null)} style={{ ...itemBase, color: C.muted }}
+                onMouseEnter={e => (e.currentTarget.style.background = C.hoverItemBg)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+                No Date
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Move… */}
+        {hasLists && (
+          <div
+            style={itemBase}
+            onMouseEnter={e => { setSubMenu('move'); (e.currentTarget as HTMLElement).style.background = C.hoverItemBg }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13 8H3M8 3l-5 5 5 5"/>
+            </svg>
+            <span style={{ flex: 1 }}>Move…</span>
+            <ChevRight/>
+            {subMenu === 'move' && (
+              <div style={subStyle}>
+                {lists.filter(l => !l.is_inbox).map(lst => (
+                  <button key={lst.id} onClick={() => onMove(ctx.task, lst.id)} style={itemBase}
+                    onMouseEnter={e => (e.currentTarget.style.background = C.hoverItemBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: C.circleBorder, flexShrink: 0 }}/>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lst.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tags… — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.5 2H3a1 1 0 00-1 1v6.5l5.5 5.5 7-7L9.5 2z"/><circle cx="5.5" cy="5.5" r="1"/>
+          </svg>
+          Tags…
+        </div>
+
+        {/* Deadline… — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/>
+          </svg>
+          Deadline…
+        </div>
+
+        {sep}
+
+        {/* Complete / Uncomplete */}
+        <button style={itemBase} onClick={() => onToggle(ctx.task.id)}
+          onMouseEnter={e => { setSubMenu(null); e.currentTarget.style.background = C.hoverItemBg }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2.5 8.5l4 4 7-8"/>
+          </svg>
+          {ctx.task.completed ? 'Mark Incomplete' : 'Complete'}
+        </button>
+
+        {/* Shortcuts — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="1.5" y="4" width="5" height="3.5" rx="1"/><rect x="9.5" y="4" width="5" height="3.5" rx="1"/>
+            <rect x="1.5" y="9.5" width="5" height="3.5" rx="1"/><rect x="9.5" y="9.5" width="5" height="3.5" rx="1"/>
+          </svg>
+          <span style={{ flex: 1 }}>Shortcuts</span>
+          <ChevRight/>
+        </div>
+
+        {sep}
+
+        {/* Repeat… — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 9a7 7 0 0013.9-1"/><path d="M15 6a7 7 0 00-13.9 1"/>
+            <path d="M14.5 2.5l.5 3.5-3.5-.5"/><path d="M1.5 13.5l-.5-3.5 3.5.5"/>
+          </svg>
+          Repeat…
+        </div>
+
+        {/* Get Info… */}
+        <button style={itemBase} onClick={() => onOpen(ctx.task)}
+          onMouseEnter={e => { setSubMenu(null); e.currentTarget.style.background = C.hoverItemBg }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="8" r="6.5"/><path d="M8 7v5M8 4.5v.8"/>
+          </svg>
+          Get Info…
+        </button>
+
+        {/* Duplicate To-Do */}
+        <button style={itemBase} onClick={() => onDuplicate(ctx.task)}
+          onMouseEnter={e => { setSubMenu(null); e.currentTarget.style.background = C.hoverItemBg }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V4a2 2 0 012-2h7"/>
+          </svg>
+          Duplicate To-Do
+        </button>
+
+        {/* Delete To-Do */}
+        <button style={itemDanger} onClick={() => onDelete(ctx.task.id)}
+          onMouseEnter={e => { setSubMenu(null); e.currentTarget.style.background = C.deleteBg }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 5h10M7 5V3.5a.5.5 0 01.5-.5h1a.5.5 0 01.5.5V5M5.5 5l.5 8h4l.5-8"/>
+          </svg>
+          Delete To-Do
+        </button>
+
+        {sep}
+
+        {/* Remove From Project/Area — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>Remove From Project/Area</div>
+        {/* Show in Area — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>Show in Area</div>
+
+        {sep}
+
+        {/* Share… — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="4" r="1.8"/><circle cx="4" cy="8" r="1.8"/><circle cx="12" cy="12" r="1.8"/>
+            <path d="M5.7 9l4.6 2.2M5.7 7L10.3 4.8"/>
+          </svg>
+          Share…
+        </div>
+
+        {/* Log Completed — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M6 6.5l2 2 4-4M6 10.5h4"/>
+          </svg>
+          Log Completed
+        </div>
+
+        {sep}
+
+        {/* Show Writing Tools — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>Show Writing Tools</div>
+        {/* Summarize — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>Summarize</div>
+
+        {sep}
+
+        {/* Services — disabled */}
+        <div style={itemDisabled} onMouseEnter={() => setSubMenu(null)}>
+          <span style={{ flex: 1 }}>Services</span>
+          <ChevRight/>
+        </div>
+      </div>
+    </>
   )
 }
 
