@@ -284,13 +284,13 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', background: C.contentBg }}>
 
       {/* ── Header ── */}
-      <div className="tr-header" style={{ padding: '28px 32px 22px', flexShrink: 0 }}>
+      <div className="tr-header" style={{ padding: '18px 24px 14px', flexShrink: 0 }}>
         <div className="tr-headline">
           <div>
-            <h1 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, letterSpacing: '-0.05em', fontWeight: 700, color: tx1 }}>
+            <h1 style={{ margin: 0, fontSize: '20px', lineHeight: 1.1, letterSpacing: '-0.04em', fontWeight: 700, color: tx1 }}>
               Trash
             </h1>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: tx2, lineHeight: 1.5 }}>
+            <p style={{ margin: '3px 0 0', fontSize: '12px', color: tx2, lineHeight: 1.4 }}>
               {headerSubtitle}
             </p>
           </div>
@@ -299,11 +299,11 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
               type="button"
               onClick={() => { setSelectionMode(cur => !cur); if (selectionMode) setSelectedKeys([]) }}
               style={{
-                height: '36px', padding: '0 14px', borderRadius: '10px',
+                height: '30px', padding: '0 12px', borderRadius: '8px',
                 border: `1px solid ${selectionMode ? 'transparent' : cr}`,
                 background: selectionMode ? pillActiveBg : chromeBg,
                 color: selectionMode ? pillActiveTx : tx2,
-                fontSize: '12.5px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                fontSize: '12px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
               }}
             >
               {selectionMode ? 'Done' : 'Select'}
@@ -317,12 +317,12 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
                 body: 'All deleted items will be removed permanently. This cannot be undone.',
               })}
               style={{
-                height: '36px', padding: '0 14px', borderRadius: '10px',
-                display: 'flex', alignItems: 'center', gap: '7px',
+                height: '30px', padding: '0 12px', borderRadius: '8px',
+                display: 'flex', alignItems: 'center', gap: '6px',
                 border: `1px solid ${items.length === 0 ? cr : C.deleteBorder}`,
                 background: items.length === 0 ? chromeBg : C.deleteBg,
                 color: items.length === 0 ? tx3 : C.deleteText,
-                fontSize: '12.5px', fontWeight: 600, fontFamily: 'inherit',
+                fontSize: '12px', fontWeight: 600, fontFamily: 'inherit',
                 cursor: items.length === 0 ? 'not-allowed' : 'pointer',
                 opacity: items.length === 0 ? 0.4 : 1,
               }}
@@ -340,20 +340,20 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
       </div>
 
       {/* ── Separator ── */}
-      <div style={{ height: '1px', background: ln, flexShrink: 0, margin: '0 32px' }} className="tr-sep" />
+      <div style={{ height: '1px', background: ln, flexShrink: 0, margin: '0 24px' }} className="tr-sep" />
 
       {/* ── Toolbar ── */}
-      <div className="tr-toolbar" style={{ padding: '16px 32px 0', flexShrink: 0 }}>
+      <div className="tr-toolbar" style={{ padding: '10px 24px 0', flexShrink: 0 }}>
         <div className="tr-toolbar-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
 
           {/* Search */}
           <label style={{
-            display: 'flex', alignItems: 'center', gap: '9px',
+            display: 'flex', alignItems: 'center', gap: '8px',
             flex: '1 1 200px', minWidth: 0,
-            height: '36px', borderRadius: '10px', padding: '0 12px',
+            height: '30px', borderRadius: '8px', padding: '0 10px',
             background: sf, border: `1px solid ${cr}`, cursor: 'text',
           }}>
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke={tx3} strokeWidth="1.6" strokeLinecap="round">
+            <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke={tx3} strokeWidth="1.6" strokeLinecap="round">
               <circle cx="8.5" cy="8.5" r="5.5" />
               <path d="M13 13l4 4" />
             </svg>
@@ -361,7 +361,7 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search deleted items"
-              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: tx1, fontSize: '13px', fontFamily: 'inherit' }}
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: tx1, fontSize: '12px', fontFamily: 'inherit' }}
             />
             {search && (
               <button type="button" onClick={() => setSearch('')}
@@ -374,16 +374,16 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
           </label>
 
           {/* Filter pills */}
-          <div style={{ display: 'flex', gap: '2px', padding: '3px', borderRadius: '10px', background: sf, border: `1px solid ${cr}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: '2px', padding: '2px', borderRadius: '8px', background: sf, border: `1px solid ${cr}`, flexShrink: 0 }}>
             {filterOptions.map(opt => (
               <button
                 key={opt.id} type="button"
                 onClick={() => setTypeFilter(opt.id)}
                 style={{
-                  height: '30px', padding: '0 11px', borderRadius: '7px', border: 'none',
+                  height: '26px', padding: '0 9px', borderRadius: '6px', border: 'none',
                   background: typeFilter === opt.id ? pillActiveBg : 'transparent',
                   color: typeFilter === opt.id ? pillActiveTx : tx2,
-                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  fontSize: '11.5px', fontWeight: 600, cursor: 'pointer',
                   fontFamily: 'inherit', whiteSpace: 'nowrap',
                 }}
               >
@@ -396,9 +396,9 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <label style={{
               display: 'flex', alignItems: 'center', gap: '5px',
-              height: '36px', padding: '0 10px', borderRadius: '10px',
+              height: '30px', padding: '0 10px', borderRadius: '8px',
               border: `1px solid ${cr}`, background: sf, color: tx2,
-              fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+              fontSize: '11.5px', fontWeight: 500, cursor: 'pointer',
               whiteSpace: 'nowrap', userSelect: 'none',
             }}>
               {SORT_LABELS[sortMode]}
@@ -467,7 +467,7 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
       </div>
 
       {/* ── Content ── */}
-      <div className="tr-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 32px 32px' }}>
+      <div className="tr-scroll" style={{ flex: 1, overflowY: 'auto', padding: '10px 24px 24px' }}>
         {!hydrated ? (
           <>
             {Array.from({ length: 5 }, (_, i) => (
@@ -683,14 +683,9 @@ function TrashRow({
   const translateX = compact ? (openSwipe ? -trayWidth : 0) : 0
 
   const tx1    = isDark ? 'rgba(255,255,255,0.70)' : '#48484A'
-  const tx2    = isDark ? 'rgba(255,255,255,0.35)' : '#AEAEB2'
   const tx3    = isDark ? 'rgba(255,255,255,0.20)' : '#C7C7CC'
   const cr     = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'
-  const sf     = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.015)'
   const sfHov  = isDark ? 'rgba(255,255,255,0.05)'  : 'rgba(0,0,0,0.035)'
-
-  const isProject = item.type === 'project'
-  const typeLabel = item.type === 'note' ? 'note' : isProject ? 'project' : 'task'
 
   const { text: daysLeft, urgent } = formatDaysLeft(item.deletedAt)
   const relTime = formatRelativeTime(item.deletedAt)
@@ -706,7 +701,7 @@ function TrashRow({
       : cr
 
   return (
-    <div style={{ position: 'relative', marginBottom: '6px', borderRadius: '14px', overflow: compact ? 'hidden' : 'visible' }}>
+    <div style={{ position: 'relative', marginBottom: '2px', borderRadius: '8px', overflow: compact ? 'hidden' : 'visible' }}>
 
       {/* Mobile swipe tray */}
       {compact && (
@@ -717,11 +712,11 @@ function TrashRow({
           background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
         }}>
           <button type="button" onClick={onRestore}
-            style={{ width: '65px', border: 'none', background: C.activeItemBg, color: C.activeItemTx, fontFamily: 'inherit', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+            style={{ width: '60px', border: 'none', background: C.activeItemBg, color: C.activeItemTx, fontFamily: 'inherit', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
             Restore
           </button>
           <button type="button" onClick={onDelete}
-            style={{ width: '65px', border: 'none', background: C.deleteBg, color: C.deleteText, fontFamily: 'inherit', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+            style={{ width: '60px', border: 'none', background: C.deleteBg, color: C.deleteText, fontFamily: 'inherit', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
             Delete
           </button>
         </div>
@@ -748,24 +743,25 @@ function TrashRow({
           transform: `translateX(${translateX}px) scale(${pending ? 0.984 : 1})`,
           opacity: pending ? 0 : 1,
           transition: 'transform 180ms ease, opacity 180ms ease, background 120ms, border-color 120ms',
-          borderRadius: '14px',
+          borderRadius: '8px',
           border: `1px solid ${borderColor}`,
-          background: (hov || active) ? sfHov : sf,
-          padding: compact ? '13px 14px 13px 12px' : '13px 16px',
+          background: (hov || active) ? sfHov : 'transparent',
+          padding: '7px 10px',
           cursor: 'pointer',
           animation: 'trashRowIn 200ms ease-out both',
           ...style,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '11px' }}>
+        {/* Single-line compact row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
 
-          {/* Selection indicator */}
+          {/* Selection circle */}
           <button
             type="button"
             aria-label={selected ? 'Deselect' : 'Select'}
             onClick={e => { e.stopPropagation(); onActivate(); onSelectToggle() }}
             style={{
-              width: '18px', height: '18px', marginTop: '2px', flexShrink: 0,
+              width: '14px', height: '14px', flexShrink: 0,
               borderRadius: '50%',
               border: `1.5px solid ${selected ? C.blue : cr}`,
               background: selected ? C.blue : 'transparent',
@@ -774,80 +770,69 @@ function TrashRow({
               opacity: selectionMode || selected || hov ? 1 : 0,
               transition: 'opacity 120ms, border-color 120ms, background 120ms',
               cursor: 'pointer',
+              padding: 0,
             }}
           >
             {selected && (
-              <svg viewBox="0 0 10 8" width="9" height="7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 10 8" width="8" height="6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 4l2.5 2.5L9 1" />
               </svg>
             )}
           </button>
 
-          {/* Content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-
-            {/* Top row: type badge + relative time + days left */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
-              <span style={{
-                padding: '2px 7px', borderRadius: '5px',
-                fontSize: '10.5px', fontWeight: 600,
-                background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                color: tx3,
-              }}>
-                {typeLabel}
-              </span>
-              <span style={{ fontSize: '11.5px', color: tx2 }}>{relTime}</span>
-              <span style={{
-                marginLeft: 'auto', flexShrink: 0,
-                padding: urgent ? '2px 7px' : '0',
-                borderRadius: '5px',
-                fontSize: '10.5px', fontWeight: 600,
-                background: urgent ? amberBg : 'transparent',
-                color: urgent ? amberTx : tx3,
-                border: urgent ? `1px solid ${amberBd}` : 'none',
-              }}>
-                {daysLeft}
-              </span>
-            </div>
-
-            {/* Title */}
-            <div style={{
-              fontSize: isProject ? '15px' : '14px',
-              fontWeight: isProject ? 620 : 560,
-              letterSpacing: '-0.02em', lineHeight: 1.4,
-              color: tx1,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {item.title}
-            </div>
-
-            {/* Bottom row: origin + inline actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px' }}>
-              <span style={{ fontSize: '11.5px', color: tx3 }}>{item.originalLabel}</span>
-              {item.secondaryLabel && (
-                <span style={{ fontSize: '11.5px', color: tx3 }}>· {item.secondaryLabel}</span>
-              )}
-
-              {!compact && (
-                <div style={{
-                  marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0,
-                  opacity: hov || active || selected ? 1 : 0,
-                  transition: 'opacity 120ms',
-                }}>
-                  <button type="button"
-                    onClick={e => { e.stopPropagation(); onRestore() }}
-                    style={{ height: '28px', padding: '0 10px', borderRadius: '7px', border: 'none', background: C.activeItemBg, color: C.activeItemTx, fontSize: '11.5px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                    Restore
-                  </button>
-                  <button type="button"
-                    onClick={e => { e.stopPropagation(); onDelete() }}
-                    style={{ height: '28px', padding: '0 10px', borderRadius: '7px', border: `1px solid ${C.deleteBorder}`, background: C.deleteBg, color: C.deleteText, fontSize: '11.5px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                    Delete forever
-                  </button>
-                </div>
-              )}
-            </div>
+          {/* Title — grows to fill */}
+          <div style={{
+            flex: 1, minWidth: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            color: tx1,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {item.title}
           </div>
+
+          {/* Origin label */}
+          <span style={{ fontSize: '11px', color: tx3, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            {item.originalLabel}
+          </span>
+
+          {/* Time */}
+          <span style={{ fontSize: '11px', color: tx3, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            {relTime}
+          </span>
+
+          {/* Days left badge (urgent only) */}
+          {urgent && (
+            <span style={{
+              flexShrink: 0, padding: '1px 5px', borderRadius: '4px',
+              fontSize: '10px', fontWeight: 600,
+              background: amberBg, color: amberTx, border: `1px solid ${amberBd}`,
+              whiteSpace: 'nowrap',
+            }}>
+              {daysLeft}
+            </span>
+          )}
+
+          {/* Inline actions (desktop hover) */}
+          {!compact && (
+            <div style={{
+              display: 'flex', gap: '4px', flexShrink: 0,
+              opacity: hov || active || selected ? 1 : 0,
+              transition: 'opacity 120ms',
+            }}>
+              <button type="button"
+                onClick={e => { e.stopPropagation(); onRestore() }}
+                style={{ height: '24px', padding: '0 8px', borderRadius: '6px', border: 'none', background: C.activeItemBg, color: C.activeItemTx, fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                Restore
+              </button>
+              <button type="button"
+                onClick={e => { e.stopPropagation(); onDelete() }}
+                style={{ height: '24px', padding: '0 8px', borderRadius: '6px', border: `1px solid ${C.deleteBorder}`, background: C.deleteBg, color: C.deleteText, fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </article>
     </div>
