@@ -16,7 +16,7 @@ interface Task {
 }
 interface TaskList { id: number; name: string; pinned: boolean; task_count: number; is_inbox?: boolean }
 interface Data {
-  lists: TaskList[]; tasks: Task[]; active_list_id: number | null; all_tasks_count: number; inbox_count?: number
+  lists: TaskList[]; tasks: Task[]; active_list_id: number | null; all_tasks_count: number; inbox_count?: number; trash_count?: number
 }
 interface BdTask {
   id: number; title: string; priority: 'high' | 'medium' | 'low'; dueDate?: string
@@ -693,13 +693,17 @@ export default function TasksPageClient() {
 
           {/* ── System lists ── */}
           <div style={{ height:'1px', background:C.border, margin:'10px 12px' }}/>
-          {SYSTEM_LISTS.map(item => (
-            <SidebarItem key={item.id}
-              Icon={item.Icon} label={item.label}
-              count={null} active={!listId && smartActive===item.id} C={C} theme={theme}
-              onClick={() => openTaskView(item.id)}
-            />
-          ))}
+          {SYSTEM_LISTS.map(item => {
+            if (item.id === 'trash' && !isTrashView && !(data?.trash_count ?? 0)) return null
+            return (
+              <SidebarItem key={item.id}
+                Icon={item.Icon} label={item.label}
+                count={item.id === 'trash' && (data?.trash_count ?? 0) > 0 ? (data?.trash_count ?? null) : null}
+                active={!listId && smartActive===item.id} C={C} theme={theme}
+                onClick={() => openTaskView(item.id)}
+              />
+            )
+          })}
 
           {/* ── User lists ── */}
           {data?.lists && data.lists.filter(l => !l.is_inbox).length > 0 && (
@@ -854,7 +858,7 @@ export default function TasksPageClient() {
       {/* ══ MAIN CONTENT ═════════════════════════════════════════════ */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, background:C.contentBg, overflow:'hidden' }}>
         {isTrashView ? (
-          <TasksTrashView theme={theme} colors={C} />
+          <TasksTrashView theme={theme} colors={C} onTrashChange={() => queryClient.invalidateQueries({ queryKey: ['tasks', queryId] })} />
         ) : isLogbookView ? (
           <LogbookView theme={theme} colors={C} />
         ) : smartActive === 'upcoming' && !listId ? (

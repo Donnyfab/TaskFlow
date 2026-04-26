@@ -49,6 +49,7 @@ interface ConfirmState {
 interface TasksTrashViewProps {
   colors: TrashColors
   theme: ThemeMode
+  onTrashChange?: () => void
 }
 
 const SORT_LABELS: Record<SortMode, string> = {
@@ -92,7 +93,7 @@ function sortItems(items: TrashItem[], mode: SortMode): TrashItem[] {
   return next
 }
 
-export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps) {
+export default function TasksTrashView({ colors: C, theme, onTrashChange }: TasksTrashViewProps) {
   const [items, setItems] = useState<TrashItem[]>([])
   const [hydrated, setHydrated] = useState(false)
   const [search, setSearch] = useState('')
@@ -206,6 +207,7 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
     const ids = items.filter(i => keys.includes(i.key)).map(i => i.id)
     await Promise.all(ids.map(id => restoreTask(id).catch(() => null)))
     await animateAndRemove(keys, keys.length === 1 ? 'Item restored' : `${keys.length} items restored`)
+    onTrashChange?.()
   }
 
   async function handleDelete(keys: string[]) {
@@ -213,12 +215,14 @@ export default function TasksTrashView({ colors: C, theme }: TasksTrashViewProps
     await Promise.all(ids.map(id => purgeTask(id).catch(() => null)))
     await animateAndRemove(keys, keys.length === 1 ? 'Item permanently deleted' : `${keys.length} items permanently deleted`)
     setConfirmState(null)
+    onTrashChange?.()
   }
 
   async function handleEmptyTrash() {
     await emptyTrashTasks().catch(() => null)
     await animateAndRemove(items.map(i => i.key), 'Trash emptied')
     setConfirmState(null)
+    onTrashChange?.()
   }
 
   function openDeleteConfirm(keys: string[]) {

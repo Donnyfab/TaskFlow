@@ -7306,6 +7306,14 @@ def api_tasks_data():
         )
         inbox_count = ic.fetchone()["cnt"]
         ic.close()
+
+    tc = db.cursor(dictionary=True)
+    tc.execute(
+        "SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = %s AND deleted_at IS NOT NULL",
+        (user_id,),
+    )
+    trash_count = tc.fetchone()["cnt"]
+    tc.close()
     cursor.close()
 
     return jsonify({
@@ -7314,6 +7322,7 @@ def api_tasks_data():
         "active_list_id": active_list_id,
         "all_tasks_count": sum(l["task_count"] for l in lists),
         "inbox_count": inbox_count,
+        "trash_count": trash_count,
     })
 
 @app.route("/api/habits/data")
