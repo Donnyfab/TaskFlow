@@ -6956,6 +6956,7 @@ def tasks_page():
               ON tl.id = t.list_id
              AND tl.user_id = t.user_id
             WHERE t.user_id = %s
+              AND (t.list_id = %s OR t.list_id IS NULL)
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
             ORDER BY
               t.completed ASC,
@@ -6963,7 +6964,7 @@ def tasks_page():
               t.pinned_at DESC,
               t.created_at DESC
             """,
-            (user_id,),
+            (user_id, inbox_id),
         )
     else:
         cursor.execute(
@@ -7118,15 +7119,17 @@ def api_tasks_data():
             """, (user_id, active_list_id)
         )
     elif not col_ready:
-        # Column not yet created — show all tasks (graceful fallback)
+        # Column not yet created — keep Inbox isolated to the Inbox list
         cursor.execute(
             f"""
             SELECT t.*, tl.name AS list_name
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
-            WHERE t.user_id = %s AND (t.list_id IS NULL OR tl.archived_at IS NULL)
+            WHERE t.user_id = %s
+              AND (t.list_id = %s OR t.list_id IS NULL)
+              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
             {base_order}
-            """, (user_id,)
+            """, (user_id, inbox_id)
         )
     elif smart == "today":
         cursor.execute(
@@ -7175,22 +7178,23 @@ def api_tasks_data():
             """, (user_id,)
         )
     else:
-        # Inbox: tasks with no scheduled_for set
+        # Inbox: only tasks assigned to the Inbox list with no schedule
         cursor.execute(
             f"""
             SELECT t.*, tl.name AS list_name
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
+              AND (t.list_id = %s OR t.list_id IS NULL)
               AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
             {base_order}
-            """, (user_id,)
+            """, (user_id, inbox_id)
         )
 
     tasks = cursor.fetchall()
 
-    # Count of true Inbox tasks (scheduled_for IS NULL) for the sidebar badge
+    # Count only tasks that belong to the actual Inbox list
     inbox_count = 0
     if col_ready:
         ic = db.cursor(dictionary=True)
@@ -7200,10 +7204,11 @@ def api_tasks_data():
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
+              AND (t.list_id = %s OR t.list_id IS NULL)
               AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.completed = 0
-            """, (user_id,)
+            """, (user_id, inbox_id)
         )
         inbox_count = ic.fetchone()["cnt"]
         ic.close()
