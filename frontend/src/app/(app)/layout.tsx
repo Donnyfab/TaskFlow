@@ -1,5 +1,7 @@
-import AIWidget from '@/components/AIWidget'
+import dynamic from 'next/dynamic'
 import Sidebar from '@/components/Sidebar'
+
+const AIWidget = dynamic(() => import('@/components/AIWidget'), { ssr: false })
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

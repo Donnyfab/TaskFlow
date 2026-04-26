@@ -3556,7 +3556,8 @@ def fetch_today_journal_entry(user_id: int):
         WHERE user_id = %s
           AND folder_id = %s
           AND deleted_at IS NULL
-          AND DATE(created_at) = CURDATE()
+          AND created_at >= CURDATE()
+          AND created_at < CURDATE() + INTERVAL 1 DAY
         ORDER BY updated_at DESC, created_at DESC
         LIMIT 1
         """,
@@ -3636,7 +3637,7 @@ def calculate_habit_week_completion_pct(user_id: int, habits_total: int):
         SELECT COUNT(*) AS completion_count
         FROM habit_completions
         WHERE user_id = %s
-          AND DATE(completed_date) BETWEEN %s AND %s
+          AND completed_date BETWEEN %s AND %s
         """,
         (user_id, week_start, today),
     )
@@ -3661,7 +3662,7 @@ def build_habit_activity_map(user_id: int, habits_total: int, days: int = 91):
         SELECT DATE(completed_date) AS completed_day, COUNT(*) AS completion_count
         FROM habit_completions
         WHERE user_id = %s
-          AND DATE(completed_date) >= %s
+          AND completed_date >= %s
         GROUP BY DATE(completed_date)
         ORDER BY completed_day ASC
         """,
@@ -3703,6 +3704,14 @@ def fetch_dashboard_active_days(user_id: int, now: datetime):
     journal_folder_id = get_journal_folder_id(user_id)
     include_habits = habits_schema_available()
 
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if now.month == 12:
+        month_end = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        month_end = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start_date = month_start.date()
+    month_end_date   = month_end.date()
+
     db = get_db()
     cursor = db.cursor(dictionary=True)
     query = """
@@ -3711,37 +3720,32 @@ def fetch_dashboard_active_days(user_id: int, now: datetime):
             SELECT DATE(created_at) AS activity_date
             FROM tasks
             WHERE user_id = %s
-              AND YEAR(created_at) = %s
-              AND MONTH(created_at) = %s
+              AND created_at >= %s AND created_at < %s
             UNION
             SELECT DATE(COALESCE(updated_at, created_at)) AS activity_date
             FROM notes
             WHERE user_id = %s
               AND folder_id = %s
               AND deleted_at IS NULL
-              AND YEAR(COALESCE(updated_at, created_at)) = %s
-              AND MONTH(COALESCE(updated_at, created_at)) = %s
+              AND (
+                (updated_at IS NOT NULL AND updated_at >= %s AND updated_at < %s)
+                OR (updated_at IS NULL  AND created_at >= %s AND created_at < %s)
+              )
     """
     params = [
-        user_id,
-        now.year,
-        now.month,
-        user_id,
-        journal_folder_id,
-        now.year,
-        now.month,
+        user_id, month_start, month_end,
+        user_id, journal_folder_id, month_start, month_end, month_start, month_end,
     ]
 
     if include_habits:
         query += """
             UNION
-            SELECT DATE(completed_date) AS activity_date
+            SELECT completed_date AS activity_date
             FROM habit_completions
             WHERE user_id = %s
-              AND YEAR(completed_date) = %s
-              AND MONTH(completed_date) = %s
+              AND completed_date >= %s AND completed_date < %s
         """
-        params.extend([user_id, now.year, now.month])
+        params.extend([user_id, month_start_date, month_end_date])
 
     query += """
         ) dashboard_activity
@@ -3755,7 +3759,8 @@ def fetch_dashboard_active_days(user_id: int, now: datetime):
 
 def calculate_dashboard_streak(user_id: int, now: datetime):
     journal_folder_id = get_journal_folder_id(user_id)
-    cutoff = (now.date() - timedelta(days=90)).isoformat()
+    cutoff_date = now.date() - timedelta(days=90)
+    cutoff_dt   = datetime(cutoff_date.year, cutoff_date.month, cutoff_date.day)
     include_habits = habits_schema_available()
 
     db = get_db()
@@ -3766,26 +3771,29 @@ def calculate_dashboard_streak(user_id: int, now: datetime):
             SELECT DATE(created_at) AS activity_date
             FROM tasks
             WHERE user_id = %s
-              AND DATE(created_at) >= %s
+              AND created_at >= %s
             UNION
             SELECT DATE(COALESCE(updated_at, created_at)) AS activity_date
             FROM notes
             WHERE user_id = %s
               AND folder_id = %s
               AND deleted_at IS NULL
-              AND DATE(COALESCE(updated_at, created_at)) >= %s
+              AND (
+                (updated_at IS NOT NULL AND updated_at >= %s)
+                OR (updated_at IS NULL  AND created_at >= %s)
+              )
     """
-    params = [user_id, cutoff, user_id, journal_folder_id, cutoff]
+    params = [user_id, cutoff_dt, user_id, journal_folder_id, cutoff_dt, cutoff_dt]
 
     if include_habits:
         query += """
             UNION
-            SELECT DATE(completed_date) AS activity_date
+            SELECT completed_date AS activity_date
             FROM habit_completions
             WHERE user_id = %s
-              AND DATE(completed_date) >= %s
+              AND completed_date >= %s
         """
-        params.extend([user_id, cutoff])
+        params.extend([user_id, cutoff_date])
 
     query += """
         ) dashboard_activity
@@ -7195,24 +7203,47 @@ def api_tasks_data():
     col_ready = _ensure_scheduled_for_column()   # adds column if missing, caches result
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    inbox_id = get_inbox_list_id(user_id)
+
+    # Query 1: all active lists — inbox identified from result, no separate round-trip
     cursor.execute(
         """
-        SELECT tl.id, tl.name, tl.pinned_at,
+        SELECT tl.id, tl.name, tl.pinned_at, tl.created_at,
                COUNT(t.id) AS task_count
         FROM task_lists tl
         LEFT JOIN tasks t ON t.list_id = tl.id AND t.user_id = tl.user_id
         WHERE tl.user_id = %s AND tl.archived_at IS NULL
-        GROUP BY tl.id, tl.name, tl.pinned_at
-        ORDER BY
-          CASE WHEN tl.id = %s THEN 0 WHEN tl.pinned_at IS NULL THEN 2 ELSE 1 END,
-          tl.pinned_at DESC, tl.created_at DESC
-        """, (user_id, inbox_id)
+        GROUP BY tl.id, tl.name, tl.pinned_at, tl.created_at
+        """, (user_id,)
     )
     lists = cursor.fetchall()
+
+    inbox_id = next((l["id"] for l in lists if l["name"] == "Inbox"), None)
+    if inbox_id is None:
+        # First-ever visit: create the inbox and re-fetch
+        inbox_id = get_inbox_list_id(user_id)
+        cursor.execute(
+            """
+            SELECT tl.id, tl.name, tl.pinned_at, tl.created_at,
+                   COUNT(t.id) AS task_count
+            FROM task_lists tl
+            LEFT JOIN tasks t ON t.list_id = tl.id AND t.user_id = tl.user_id
+            WHERE tl.user_id = %s AND tl.archived_at IS NULL
+            GROUP BY tl.id, tl.name, tl.pinned_at, tl.created_at
+            """, (user_id,)
+        )
+        lists = cursor.fetchall()
+
+    def _list_sort_key(l):
+        group      = 0 if l["id"] == inbox_id else (2 if l["pinned_at"] is None else 1)
+        pinned_ts  = l["pinned_at"].timestamp()  if l.get("pinned_at")  else 0.0
+        created_ts = l["created_at"].timestamp() if l.get("created_at") else 0.0
+        return (group, -pinned_ts, -created_ts)
+
+    lists.sort(key=_list_sort_key)
     for lst in lists:
         lst["pinned_at"] = bool(lst["pinned_at"])
-    valid_ids = {l["id"] for l in lists}
+
+    valid_ids      = {l["id"] for l in lists}
     active_list_id = list_id if list_id in valid_ids else None
 
     base_order = """
@@ -7314,35 +7345,34 @@ def api_tasks_data():
         )
 
     tasks = cursor.fetchall()
-
-    # Count only tasks that belong to the actual Inbox list
-    inbox_count = 0
-    if col_ready:
-        ic = db.cursor(dictionary=True)
-        ic.execute(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM tasks t
-            LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
-            WHERE t.user_id = %s
-              AND (t.list_id = %s OR t.list_id IS NULL)
-              AND (t.scheduled_for IS NULL OR t.scheduled_for = '')
-              AND (t.list_id IS NULL OR tl.archived_at IS NULL)
-              AND t.completed = 0
-              AND t.deleted_at IS NULL
-            """, (user_id, inbox_id)
-        )
-        inbox_count = ic.fetchone()["cnt"]
-        ic.close()
-
-    tc = db.cursor(dictionary=True)
-    tc.execute(
-        "SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = %s AND deleted_at IS NOT NULL",
-        (user_id,),
-    )
-    trash_count = tc.fetchone()["cnt"]
-    tc.close()
     cursor.close()
+
+    # Query 3: inbox_count + trash_count in a single table scan
+    cc = db.cursor(dictionary=True)
+    if col_ready:
+        cc.execute(
+            """
+            SELECT
+              SUM(deleted_at IS NOT NULL)                                        AS trash_count,
+              SUM(deleted_at IS NULL AND completed = 0
+                  AND (list_id = %s OR list_id IS NULL)
+                  AND (scheduled_for IS NULL OR scheduled_for = ''))             AS inbox_count
+            FROM tasks
+            WHERE user_id = %s
+            """,
+            (inbox_id, user_id),
+        )
+        row         = cc.fetchone()
+        trash_count = int(row["trash_count"] or 0)
+        inbox_count = int(row["inbox_count"] or 0)
+    else:
+        cc.execute(
+            "SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = %s AND deleted_at IS NOT NULL",
+            (user_id,),
+        )
+        trash_count = cc.fetchone()["cnt"]
+        inbox_count = 0
+    cc.close()
 
     return jsonify({
         "lists": [{"id": l["id"], "name": l["name"], "pinned": bool(l["pinned_at"]), "task_count": l["task_count"], "is_inbox": l["id"] == inbox_id} for l in lists],
