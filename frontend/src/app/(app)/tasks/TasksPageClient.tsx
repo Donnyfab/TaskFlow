@@ -498,14 +498,43 @@ export default function TasksPageClient() {
     if (!newList.trim()) return
     const name = newList.trim(); setNewList(''); setShowNewList(false)
     const prev = queryClient.getQueryData<Data>(['tasks', queryId])
-    const tempList: TaskList = { id:-Date.now(), name, pinned:false, task_count:0 }
+    const tempListId = -Date.now()
+    const tempList: TaskList = { id:tempListId, name, pinned:false, task_count:0 }
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, lists:[...old.lists,tempList] } : old)
     try {
-      const res = await fetch(apiUrl('/lists/create'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(name)}` })
+      const res = await fetch(apiUrl('/lists/create'), {
+        method:'POST',
+        credentials:'include',
+        headers:{
+          'Content-Type':'application/x-www-form-urlencoded',
+          'X-Requested-With':'XMLHttpRequest',
+          'Accept':'application/json',
+        },
+        body:`name=${encodeURIComponent(name)}`,
+      })
       if (res.ok) {
-        const match = res.url.match(/list_id=(\d+)/)
-        if (match) router.push(`/tasks?list_id=${match[1]}`)
-        else queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
+        let nextListId: number | null = null
+        let redirectUrl: string | null = null
+
+        const contentType = res.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+          const payload = await res.json() as { id?: number; redirect_url?: string }
+          nextListId = typeof payload.id === 'number' ? payload.id : null
+          redirectUrl = payload.redirect_url ?? null
+        } else {
+          const match = res.url.match(/list_id=(\d+)/)
+          if (match) nextListId = Number(match[1])
+        }
+
+        if (nextListId !== null) {
+          queryClient.setQueryData<Data>(['tasks', queryId], old => old ? {
+            ...old,
+            lists: old.lists.map(list => list.id === tempListId ? { ...list, id: nextListId } : list),
+          } : old)
+          router.push(redirectUrl ?? `/tasks?list_id=${nextListId}`)
+        } else {
+          queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
+        }
       } else queryClient.setQueryData(['tasks', queryId], prev)
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
     finally   { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }

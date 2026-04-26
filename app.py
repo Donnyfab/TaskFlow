@@ -4787,6 +4787,8 @@ def create_list():
     ensure_task_list_metadata_columns()
     name = (request.form.get("name") or "").strip()
     if not name:
+        if task_list_action_wants_json():
+            return jsonify({"ok": False, "error": "List name is required."}), 400
         return redirect(url_for("tasks_page"))
 
     db = get_db()
@@ -4797,6 +4799,15 @@ def create_list():
     )
     new_id = cursor.lastrowid
     cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    if task_list_action_wants_json():
+        return jsonify({
+            "ok": True,
+            "id": new_id,
+            "name": name,
+            "redirect_url": url_for("tasks_page", list_id=new_id),
+        })
 
     return redirect(url_for("tasks_page", list_id=new_id))
 
