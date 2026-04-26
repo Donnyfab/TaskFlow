@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import QueryProvider from '@/providers/QueryProvider'
+import QueryProvider from '@/provider/QueryProvider'
 import Prefetcher from '@/components/Prefetcher'
 
 export const metadata: Metadata = {

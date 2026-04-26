@@ -66,8 +66,6 @@ export default function HomePage() {
       await fetch(apiUrl(`/tasks/toggle/${id}`), { method: 'POST', credentials: 'include' })
     } catch {
       queryClient.setQueryData(['home'], previous)
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ['home'] })
     }
   }
 
@@ -81,8 +79,6 @@ export default function HomePage() {
       await fetch(apiUrl(`/habits/${id}/toggle`), { method: 'POST', credentials: 'include' })
     } catch {
       queryClient.setQueryData(['home'], previous)
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ['home'] })
     }
   }
 
@@ -110,8 +106,6 @@ export default function HomePage() {
       }
     } catch {
       queryClient.setQueryData(['home'], previous)
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ['home'] })
     }
   }
 
@@ -130,8 +124,6 @@ export default function HomePage() {
       })
     } catch {
       queryClient.setQueryData(['home'], previous)
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ['home'] })
     }
   }
 

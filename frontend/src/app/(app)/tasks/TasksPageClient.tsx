@@ -380,20 +380,31 @@ export default function TasksPageClient() {
   }
 
   async function bdSaveTask(task: BdTask) {
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     const temp: Task = { id:-Date.now(), title:task.title, completed:false, priority:task.priority, list_id:listId, list_name:'Task', pinned:false, description:task.dueDate?`Due: ${task.dueDate}`:'' }
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:[temp,...old.tasks] } : old)
     setBdTasks(p => p.filter(t => t.id !== task.id))
     try {
-      await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:task.title, list_id:listId, priority:task.priority }) })
-    } finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
+      const res = await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:task.title, list_id:listId, priority:task.priority }) })
+      const created = await res.json()
+      if (created.id) {
+        queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === temp.id ? { ...temp, id: created.id } : t) } : old)
+      } else {
+        queryClient.setQueryData(['tasks', queryId], prev)
+      }
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
   async function bdSaveAll() {
     const snapshot = [...bdTasks]; setBdTasks([])
+    const temps: Task[] = snapshot.map(t => ({ id:-Date.now() - Math.random(), title:t.title, completed:false, priority:t.priority, list_id:listId, list_name:'Task', pinned:false, description:'' }))
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:[...temps,...(old.tasks??[])] } : old)
     for (const t of snapshot) {
-      await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:t.title, list_id:listId, priority:t.priority }) })
+      try {
+        await fetch(apiUrl('/tasks/quick'), { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:t.title, list_id:listId, priority:t.priority }) })
+      } catch {}
     }
-    queryClient.invalidateQueries({ queryKey:['tasks', queryId] }); bdClose()
+    bdClose()
   }
 
   /* ── New Task Modal functions ── */
@@ -471,10 +482,8 @@ export default function TasksPageClient() {
         queryClient.setQueryData(['tasks', queryId], prev)
       }
     } catch { if (sameList && prev) queryClient.setQueryData(['tasks', queryId], prev) }
-    finally {
-      queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
-      if (!sameList) queryClient.invalidateQueries({ queryKey:['tasks', destQueryId] })
-    }
+    // If the task went to a different list, invalidate that list's cache so it's fresh on next visit
+    if (!sameList) queryClient.invalidateQueries({ queryKey:['tasks', destQueryId] })
   }
 
   /* ── Standard mutations ── */
@@ -483,7 +492,6 @@ export default function TasksPageClient() {
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===id ? {...t,completed:!t.completed} : t) } : old)
     try { await fetch(apiUrl(`/tasks/toggle/${id}`), { method:'POST', credentials:'include', headers:{'X-Requested-With':'XMLHttpRequest'} }) }
     catch { queryClient.setQueryData(['tasks', queryId], prev) }
-    finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function deleteTask(id: number) {
@@ -492,7 +500,6 @@ export default function TasksPageClient() {
     if (detail?.id===id) setDetail(null)
     try { await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' }) }
     catch { queryClient.setQueryData(['tasks', queryId], prev) }
-    finally { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function addList() {
@@ -534,11 +541,13 @@ export default function TasksPageClient() {
           } : old)
           router.push(redirectUrl ?? `/tasks?list_id=${nextListId}`)
         } else {
+          queryClient.setQueryData(['tasks', queryId], prev)
           queryClient.invalidateQueries({ queryKey:['tasks', queryId] })
         }
-      } else queryClient.setQueryData(['tasks', queryId], prev)
+      } else {
+        queryClient.setQueryData(['tasks', queryId], prev)
+      }
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
-    finally   { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   async function saveDetail() {
@@ -551,7 +560,6 @@ export default function TasksPageClient() {
       const result = await res.json()
       if (!result.ok) queryClient.setQueryData(['tasks', queryId], prev)
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
-    finally   { queryClient.invalidateQueries({ queryKey:['tasks', queryId] }) }
   }
 
   function openDetail(task: Task) {
@@ -565,28 +573,36 @@ export default function TasksPageClient() {
   }
 
   async function duplicateTask(task: Task) {
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     const temp: Task = { ...task, id: -Date.now(), title: task.title }
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: [...old.tasks, temp] } : old)
     try {
-      await fetch(apiUrl('/tasks/quick'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: task.title, list_id: task.list_id, priority: task.priority, scheduled_for: task.scheduled_for ?? null }) })
-    } finally { queryClient.invalidateQueries({ queryKey: ['tasks', queryId] }) }
+      const res = await fetch(apiUrl('/tasks/quick'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: task.title, list_id: task.list_id, priority: task.priority, scheduled_for: task.scheduled_for ?? null }) })
+      const created = await res.json()
+      if (created.id) {
+        queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === temp.id ? { ...temp, id: created.id } : t) } : old)
+      } else {
+        queryClient.setQueryData(['tasks', queryId], prev)
+      }
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
   async function scheduleTask(task: Task, scheduledFor: string | null) {
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === task.id ? { ...t, scheduled_for: scheduledFor } : t) } : old)
     try {
       await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
-    } finally { queryClient.invalidateQueries({ queryKey: ['tasks', queryId] }) }
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
   async function moveTask(task: Task, listId: number | null) {
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.filter(t => t.id !== task.id) } : old)
     try {
       await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: listId, scheduled_for: task.scheduled_for ?? null }) })
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ['tasks', queryId] })
+      // Invalidate only the destination so it picks up the moved task on next visit
       if (listId !== null) queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
-    }
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
   function openTaskView(viewId: string) {

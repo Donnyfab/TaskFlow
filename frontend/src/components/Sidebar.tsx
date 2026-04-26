@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 import {
   readSidebarCollapsed,
@@ -131,7 +132,12 @@ const THEMES = {
 export default function Sidebar() {
   const pathname     = usePathname()
 
-  const [user, setUser]               = useState<{ name: string; username: string; profile_image?: string } | null>(null)
+  const { data: user }                = useQuery<{ name: string; username: string; profile_image?: string }>({
+    queryKey: ['me'],
+    queryFn:  () => fetch(apiUrl('/api/me'), { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+    staleTime: Infinity,
+    retry: false,
+  })
   const [profileOpen, setProfileOpen] = useState(false)
   const [theme, setTheme]             = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
@@ -156,13 +162,6 @@ export default function Sidebar() {
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
-  }, [])
-
-  useEffect(() => {
-    fetch(apiUrl('/api/me'), { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setUser(d) })
-      .catch(() => {})
   }, [])
 
   const collapse = () => {

@@ -1458,6 +1458,33 @@ def ensure_ai_support_schema() -> bool:
             cursor.close()
 
 
+def ensure_performance_indexes():
+    """Add composite indexes that make the hot query paths fast. Safe to run repeatedly (IF NOT EXISTS)."""
+    indexes = [
+        ("tasks",            "idx_tasks_user_deleted",        "user_id, deleted_at"),
+        ("tasks",            "idx_tasks_user_scheduled",      "user_id, scheduled_for, deleted_at"),
+        ("tasks",            "idx_tasks_user_list_completed", "user_id, list_id, completed, deleted_at"),
+        ("task_lists",       "idx_lists_user_archived",       "user_id, archived_at"),
+        ("notes",            "idx_notes_user_folder_deleted", "user_id, folder_id, deleted_at"),
+        ("habit_completions","idx_hc_user_date",              "user_id, completed_date"),
+    ]
+    try:
+        db = get_db()
+        c = db.cursor()
+        for table, idx_name, cols in indexes:
+            try:
+                c.execute(f"CREATE INDEX {idx_name} ON {table} ({cols})")
+                app.logger.warning("[STARTUP] Created index %s on %s.", idx_name, table)
+            except mysql.connector.Error as exc:
+                if exc.errno == 1061:   # ER_DUP_KEYNAME — already exists, skip silently
+                    pass
+                else:
+                    app.logger.warning("[STARTUP] Could not create index %s: %s", idx_name, exc)
+        c.close()
+    except Exception:
+        app.logger.exception("[STARTUP] Performance index creation failed.")
+
+
 def initialize_schema_status_flags():
     global SCHEMA_CHECKS_INITIALIZED
     if SCHEMA_CHECKS_INITIALIZED:
@@ -1473,6 +1500,7 @@ def initialize_schema_status_flags():
         ensure_calendar_google_sync_columns,
         focus_sessions_schema_available,
         ensure_ai_support_schema,
+        ensure_performance_indexes,
     ]
 
     try:
