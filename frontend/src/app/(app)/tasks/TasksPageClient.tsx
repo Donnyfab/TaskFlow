@@ -243,6 +243,9 @@ export default function TasksPageClient() {
   const bdListenRef     = useRef(false)
   const bdProcessingRef = useRef(false)
 
+  /* ── Context menu ── */
+  const [ctxMenu, setCtxMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
+
   /* ── Theme sync ── */
   const [theme, setTheme] = useState<'dark'|'light'>('dark')
 
@@ -524,6 +527,36 @@ export default function TasksPageClient() {
   function openDetail(task: Task) {
     setDetail(task); setDpTitle(task.title); setDpNotes(task.description)
     setDpPriority(task.priority); setDpListId(task.list_id)
+  }
+
+  function handleContextMenu(task: Task, e: React.MouseEvent) {
+    e.preventDefault()
+    setCtxMenu({ task, x: e.clientX, y: e.clientY })
+  }
+
+  async function duplicateTask(task: Task) {
+    const temp: Task = { ...task, id: -Date.now(), title: task.title }
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: [...old.tasks, temp] } : old)
+    try {
+      await fetch(apiUrl('/tasks/quick'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: task.title, list_id: task.list_id, priority: task.priority, scheduled_for: task.scheduled_for ?? null }) })
+    } finally { queryClient.invalidateQueries({ queryKey: ['tasks', queryId] }) }
+  }
+
+  async function scheduleTask(task: Task, scheduledFor: string | null) {
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === task.id ? { ...t, scheduled_for: scheduledFor } : t) } : old)
+    try {
+      await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
+    } finally { queryClient.invalidateQueries({ queryKey: ['tasks', queryId] }) }
+  }
+
+  async function moveTask(task: Task, listId: number | null) {
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.filter(t => t.id !== task.id) } : old)
+    try {
+      await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: listId, scheduled_for: task.scheduled_for ?? null }) })
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['tasks', queryId] })
+      if (listId !== null) queryClient.invalidateQueries({ queryKey: ['tasks', listId] })
+    }
   }
 
   function openTaskView(viewId: string) {
@@ -1046,7 +1079,7 @@ export default function TasksPageClient() {
               {(filter==='all'||filter==='active') && incomplete.length>0 && (
                 <>
                   <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Active</div>
-                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
+                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
                   <div onClick={openTaskModal} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'pointer', opacity:0.4 }}>
                     <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px dashed ${C.checkBorder}`, flexShrink:0 }}/>
                     <span style={{ fontSize:'13.5px', color:C.muted }}>New To-Do</span>
@@ -1056,7 +1089,7 @@ export default function TasksPageClient() {
               {(filter==='all'||filter==='completed') && done.length>0 && (
                 <div style={{ marginTop:filter==='all'?'22px':'0' }}>
                   <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Completed</div>
-                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail}/>)}
+                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
                 </div>
               )}
             </div>
@@ -1517,15 +1550,16 @@ function SidebarItemCustom({ label, count, active, C, theme, onClick }: {
 }
 
 /* ─── Task Row ───────────────────────────────────────────────────── */
-function TaskRow({ task, onToggle, onDelete, onOpen, C }: {
-  task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void; onOpen:(t:Task)=>void; C: Colors
+function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C }: {
+  task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void; onOpen:(t:Task)=>void
+  onContextMenu:(t:Task,e:React.MouseEvent)=>void; C: Colors
 }) {
   const [hov,  setHov]  = useState(false)
   const [star, setStar] = useState(false)
   const pc = task.priority==='high' ? {bg:C.tagHighBg,color:C.tagHighTx} : task.priority==='medium' ? {bg:C.tagMediumBg,color:C.tagMediumTx} : {bg:C.tagLowBg,color:C.tagLowTx}
 
   return (
-    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={()=>onOpen(task)}
+    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={()=>onOpen(task)} onContextMenu={e=>onContextMenu(task,e)}
       style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'8px 4px 8px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'default', position:'relative', background:C.taskRowBg }}
     >
       <div onClick={e=>{e.stopPropagation();onToggle(task.id)}} style={{ width:'20px', height:'20px', borderRadius:'50%', flexShrink:0, marginTop:'1px', cursor:'pointer', border:task.completed?'none':`1.5px solid ${C.checkBorder}`, background:task.completed?C.checkDoneBg:(hov?C.checkHoverBg:'transparent'), display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
