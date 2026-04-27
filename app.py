@@ -1,7 +1,7 @@
 # ============================================================
 # TASKFLOW APP (Flask)
 # - This file controls what pages exist (routes)
-# - It connects to the database (MySQL)
+# - It connects to the database (PostgreSQL)
 # - It handles login/register + user sessions
 # - It handles tasks/lists CRUD
 # ============================================================
@@ -26,14 +26,15 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build as google_build
 from types import SimpleNamespace
-import mysql.connector
-from mysql.connector.pooling import MySQLConnectionPool
 import os
 import json
 import calendar
 import re
 import time
 import requests
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
@@ -64,21 +65,14 @@ def env_url(name: str, default: str) -> str:
 
 
 DB_CONNECT_TIMEOUT = max(1, int(os.environ.get("DB_CONNECT_TIMEOUT", "10")))
-DB_USE_POOL = env_flag("DB_USE_POOL")
 DB_CONNECT_RETRIES = max(1, int(os.environ.get("DB_CONNECT_RETRIES", "5")))
 DB_CONNECT_RETRY_DELAY = max(0.0, float(os.environ.get("DB_CONNECT_RETRY_DELAY", "2")))
-
-DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "localhost"),
-    "port": int(os.environ.get("DB_PORT", 3306)),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", ""),
-    "database": os.environ.get("DB_NAME", "todo_list"),
-    "autocommit": True,
-    "connection_timeout": DB_CONNECT_TIMEOUT,
-}
-
-DB_POOL_SIZE = max(1, int(os.environ.get("DB_POOL_SIZE", 5)))
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
+DB_POOL_MINCONN = max(1, int(os.environ.get("DB_POOL_MINCONN", "1")))
+DB_POOL_MAXCONN = max(
+    DB_POOL_MINCONN,
+    int(os.environ.get("DB_POOL_MAXCONN", os.environ.get("DB_POOL_SIZE", "10"))),
+)
 db_pool = None
 db_pool_initialized = False
 MARKETING_PUBLIC_URL = env_url("MARKETING_PUBLIC_URL", "https://tflow.live")
@@ -256,13 +250,13 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
 # ============================================================
-# 4) DATABASE SETTINGS (MySQL connection info)
+# 4) DATABASE SETTINGS (PostgreSQL connection info)
 # ============================================================
-# NOTE: Hardcoding your password in code is risky.
-# Move these into a .env later (DB_HOST, DB_USER, etc.)
+# NOTE: Keep database connection settings in environment variables.
+# The PostgreSQL pool reads from DATABASE_URL.
 
 AUTH_DB_ERROR_MESSAGE = (
-    "We can't reach the database right now. Make sure MySQL is running and your DB settings are correct."
+    "We can't reach the database right now. Make sure PostgreSQL is available and DATABASE_URL is correct."
 )
 
 AUTH_MAIL_ERROR_MESSAGE = (
@@ -331,9 +325,37 @@ def inject_auth_flags():
 # 6) DATABASE CONNECTION HELPERS
 # ============================================================
 
+class PooledPostgresConnection:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self, *args, dictionary: bool = False, **kwargs):
+        if dictionary:
+            kwargs.setdefault("cursor_factory", RealDictCursor)
+        return self._conn.cursor(*args, **kwargs)
+
+    def close(self):
+        release_db(self)
+
+    @property
+    def closed(self):
+        return self._conn.closed
+
+    @property
+    def raw_connection(self):
+        return self._conn
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def unwrap_db_connection(db):
+    if isinstance(db, PooledPostgresConnection):
+        return db.raw_connection
+    return db
+
+
 def get_db_pool():
-    if not DB_USE_POOL:
-        return None
     if db_pool is None and not db_pool_initialized:
         return initialize_db_pool()
     return db_pool
@@ -345,18 +367,26 @@ def reset_db_pool():
     db_pool_initialized = False
 
 
-def create_db_connection(source: str = "direct"):
+def create_db_connection(source: str = "pooled"):
     last_error = None
 
     for attempt in range(1, DB_CONNECT_RETRIES + 1):
+        raw_db = None
         try:
-            db = mysql.connector.connect(**DB_CONFIG)
-            db.ping(reconnect=True, attempts=1, delay=0)
+            pool = get_db_pool()
+            if pool is None:
+                raise RuntimeError("PostgreSQL connection pool is not initialized.")
+            raw_db = pool.getconn()
+            raw_db.autocommit = True
+            db = PooledPostgresConnection(raw_db)
+            ensure_db_connection_ready(db, source)
             return db
-        except mysql.connector.Error as exc:
+        except (psycopg2.Error, RuntimeError) as exc:
             last_error = exc
+            if raw_db is not None and not raw_db.closed:
+                release_db(raw_db, close=True)
             app.logger.warning(
-                "MySQL %s connection attempt %s/%s failed.",
+                "PostgreSQL %s connection attempt %s/%s failed.",
                 source,
                 attempt,
                 DB_CONNECT_RETRIES,
@@ -372,33 +402,52 @@ def close_db_connection_quietly(db):
     if db is None:
         return
     try:
-        db.close()
-    except mysql.connector.Error:
-        app.logger.warning("Failed to close MySQL connection cleanly.", exc_info=True)
+        release_db(db)
+    except Exception:
+        app.logger.warning("Failed to release PostgreSQL connection cleanly.", exc_info=True)
 
 
 def discard_db_connection_quietly(db):
     if db is None:
         return
     try:
-        db.disconnect()
-    except mysql.connector.Error:
-        app.logger.warning("Failed to disconnect stale MySQL connection cleanly.", exc_info=True)
-    close_db_connection_quietly(db)
+        release_db(db, close=True)
+    except Exception:
+        app.logger.warning("Failed to discard stale PostgreSQL connection cleanly.", exc_info=True)
+
+
+def release_db(db, close: bool = False):
+    raw_db = unwrap_db_connection(db)
+    if raw_db is None:
+        return
+
+    if db_pool is not None:
+        db_pool.putconn(raw_db, close=close)
+        return
+
+    raw_db.close()
 
 
 def ensure_db_connection_ready(db, source: str):
+    cursor = None
     try:
-        db.ping(reconnect=True, attempts=1, delay=0)
+        cursor = db.cursor()
+        cursor.execute("SELECT 1")
         return db
-    except mysql.connector.Error:
+    except psycopg2.Error:
         discard_db_connection_quietly(db)
         app.logger.warning(
-            "MySQL %s connection was stale or unavailable during request setup.",
+            "PostgreSQL %s connection was stale or unavailable during request setup.",
             source,
             exc_info=True,
         )
         raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except psycopg2.Error:
+                app.logger.warning("Failed to close PostgreSQL health-check cursor cleanly.", exc_info=True)
 
 
 def initialize_db_pool():
@@ -407,32 +456,34 @@ def initialize_db_pool():
     if db_pool_initialized:
         return db_pool
 
-    if not DB_USE_POOL:
+    if not DATABASE_URL:
         db_pool = None
-        db_pool_initialized = True
-        app.logger.warning("[STARTUP] MySQL connection pooling disabled; using direct connections.")
+        db_pool_initialized = False
+        app.logger.warning("[STARTUP] DATABASE_URL is not set; PostgreSQL pool initialization skipped.")
         return db_pool
 
     try:
-        db_pool = MySQLConnectionPool(
-            pool_name=f"taskflow_pool_{os.getpid()}",
-            pool_size=DB_POOL_SIZE,
-            pool_reset_session=True,
-            **DB_CONFIG,
+        db_pool = SimpleConnectionPool(
+            minconn=DB_POOL_MINCONN,
+            maxconn=DB_POOL_MAXCONN,
+            dsn=DATABASE_URL,
+            connect_timeout=DB_CONNECT_TIMEOUT,
         )
         db_pool_initialized = True
         app.logger.warning(
-            "[STARTUP] MySQL connection pool initialized successfully (size=%s).",
-            DB_POOL_SIZE,
+            "[STARTUP] PostgreSQL connection pool initialized successfully (min=%s, max=%s).",
+            DB_POOL_MINCONN,
+            DB_POOL_MAXCONN,
         )
-    except mysql.connector.Error:
+    except psycopg2.Error:
         db_pool = None
         db_pool_initialized = False
         app.logger.exception(
-            "[STARTUP] MySQL connection pool initialization failed; falling back to direct connections."
+            "[STARTUP] PostgreSQL connection pool initialization failed."
         )
 
     return db_pool
+
 
 def get_db():
     """
@@ -440,21 +491,12 @@ def get_db():
     Flask stores it in `g` so every function can reuse it safely.
     """
     if "db" not in g:
-        pool = get_db_pool()
-        if pool is not None:
-            try:
-                g.db = ensure_db_connection_ready(pool.get_connection(), "pooled")
-            except mysql.connector.Error:
-                reset_db_pool()
-                app.logger.exception("MySQL pooled connection failed; falling back to direct connection.")
-                g.db = ensure_db_connection_ready(create_db_connection("direct fallback"), "direct")
-        else:
-            g.db = ensure_db_connection_ready(create_db_connection(), "direct")
+        g.db = create_db_connection()
     else:
         try:
             ensure_db_connection_ready(g.db, "request")
-        except mysql.connector.Error:
-            g.db = ensure_db_connection_ready(create_db_connection("direct retry"), "direct")
+        except psycopg2.Error:
+            g.db = create_db_connection("retry")
     return g.db
 
 
@@ -462,11 +504,11 @@ def get_db():
 def close_db(error=None):
     """
     After each request finishes, Flask calls this function automatically.
-    It closes the database connection to prevent leaks.
+    It releases the database connection to prevent leaks.
     """
     db = g.pop("db", None)
     if db is not None:
-        close_db_connection_quietly(db)
+        release_db(db)
 
 
 initialize_db_pool()
@@ -482,6 +524,35 @@ def _set_schema_flag(name: str, value) -> bool:
     return normalized
 
 
+def postgres_table_exists(cursor, table_name: str, schema_name: str = "public") -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = %s
+          AND table_name = %s
+        LIMIT 1
+        """,
+        (schema_name, table_name),
+    )
+    return cursor.fetchone() is not None
+
+
+def postgres_column_exists(cursor, table_name: str, column_name: str, schema_name: str = "public") -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND column_name = %s
+        LIMIT 1
+        """,
+        (schema_name, table_name, column_name),
+    )
+    return cursor.fetchone() is not None
+
+
 # ── scheduled_for column — runs once per process, bypasses the main schema cache
 _SCHEDULED_FOR_COLUMN_READY = False
 
@@ -492,8 +563,7 @@ def _ensure_scheduled_for_column() -> bool:
     try:
         db = get_db()
         c = db.cursor()
-        c.execute("SHOW COLUMNS FROM tasks LIKE 'scheduled_for'")
-        if c.fetchone() is None:
+        if not postgres_column_exists(c, "tasks", "scheduled_for"):
             c.execute(
                 "ALTER TABLE tasks ADD COLUMN scheduled_for VARCHAR(32) NULL DEFAULT NULL"
             )
@@ -513,20 +583,19 @@ def ensure_google_oauth_token_columns():
     try:
         cursor = get_db().cursor()
         required_columns = {
-            "google_access_token": "LONGTEXT NULL",
-            "google_refresh_token": "LONGTEXT NULL",
+            "google_access_token": "TEXT NULL",
+            "google_refresh_token": "TEXT NULL",
             "google_token_expiry": "BIGINT NULL DEFAULT NULL",
         }
 
         for column_name, column_definition in required_columns.items():
-            cursor.execute("SHOW COLUMNS FROM users LIKE %s", (column_name,))
-            if cursor.fetchone() is None:
+            if not postgres_column_exists(cursor, "users", column_name):
                 cursor.execute(
                     f"ALTER TABLE users ADD COLUMN {column_name} {column_definition}"
                 )
 
         return _set_schema_flag("google_oauth_token_columns_ready", True)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to ensure Google OAuth token columns.")
         return _set_schema_flag("google_oauth_token_columns_ready", False)
     finally:
@@ -718,10 +787,10 @@ def create_user_local(full_name, username, email, password_hash):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO users (name, username, email, password_hash, is_verified) VALUES (%s,%s,%s,%s,%s)",
+        "INSERT INTO users (name, username, email, password_hash, is_verified) VALUES (%s,%s,%s,%s,%s) RETURNING id",
         (full_name, username, email, password_hash, 0),
     )
-    user_id = cursor.lastrowid
+    user_id = cursor.fetchone()[0]
     cursor.close()
     return user_id
 
@@ -745,10 +814,11 @@ def create_user_oauth(name, email, provider, provider_id):
         """
         INSERT INTO users (name, username, email, auth_provider, provider_id, is_verified, email_verified_at)
         VALUES (%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id
         """,
         (name, username, email, provider, provider_id, 1, datetime.utcnow()),
     )
-    user_id = cursor.lastrowid
+    user_id = cursor.fetchone()[0]
     cursor.close()
 
     return user_id, username
@@ -881,19 +951,18 @@ def ensure_task_list_metadata_columns():
         db = get_db()
         cursor = db.cursor()
         required_columns = {
-            "pinned_at": "DATETIME NULL DEFAULT NULL",
-            "archived_at": "DATETIME NULL DEFAULT NULL",
+            "pinned_at": "TIMESTAMP NULL DEFAULT NULL",
+            "archived_at": "TIMESTAMP NULL DEFAULT NULL",
         }
 
         for column_name, column_definition in required_columns.items():
-            cursor.execute("SHOW COLUMNS FROM task_lists LIKE %s", (column_name,))
-            if cursor.fetchone() is None:
+            if not postgres_column_exists(cursor, "task_lists", column_name):
                 cursor.execute(
                     f"ALTER TABLE task_lists ADD COLUMN {column_name} {column_definition}"
                 )
 
         return _set_schema_flag("task_list_metadata_columns_ready", True)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to ensure task list metadata columns.")
         return _set_schema_flag("task_list_metadata_columns_ready", False)
     finally:
@@ -911,20 +980,19 @@ def ensure_task_metadata_columns():
         cursor = db.cursor()
         required_columns = {
             "priority": "VARCHAR(16) NOT NULL DEFAULT 'medium'",
-            "pinned_at": "DATETIME NULL DEFAULT NULL",
+            "pinned_at": "TIMESTAMP NULL DEFAULT NULL",
             "scheduled_for": "VARCHAR(32) NULL DEFAULT NULL",
-            "deleted_at": "DATETIME NULL DEFAULT NULL",
+            "deleted_at": "TIMESTAMP NULL DEFAULT NULL",
         }
 
         for column_name, column_definition in required_columns.items():
-            cursor.execute("SHOW COLUMNS FROM tasks LIKE %s", (column_name,))
-            if cursor.fetchone() is None:
+            if not postgres_column_exists(cursor, "tasks", column_name):
                 cursor.execute(
                     f"ALTER TABLE tasks ADD COLUMN {column_name} {column_definition}"
                 )
 
         return _set_schema_flag("task_metadata_columns_ready", True)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to ensure task metadata columns.")
         return _set_schema_flag("task_metadata_columns_ready", False)
     finally:
@@ -995,10 +1063,10 @@ def get_inbox_list_id(user_id: int) -> int:
 
     cursor2 = db.cursor()
     cursor2.execute(
-        "INSERT INTO task_lists (user_id, name) VALUES (%s, %s)",
+        "INSERT INTO task_lists (user_id, name) VALUES (%s, %s) RETURNING id",
         (user_id, "Inbox")
     )
-    inbox_id = cursor2.lastrowid
+    inbox_id = cursor2.fetchone()[0]
     cursor2.close()
     cursor.close()
     cache[user_id] = inbox_id
@@ -1021,14 +1089,12 @@ def _query_habits_schema_available() -> bool:
         db = get_db()
         cursor = db.cursor()
 
-        cursor.execute("SHOW TABLES LIKE 'habits'")
-        has_habits = cursor.fetchone() is not None
+        has_habits = postgres_table_exists(cursor, "habits")
 
-        cursor.execute("SHOW TABLES LIKE 'habit_completions'")
-        has_completions = cursor.fetchone() is not None
+        has_completions = postgres_table_exists(cursor, "habit_completions")
 
         return bool(has_habits and has_completions)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to verify habits schema availability.")
         return False
     finally:
@@ -1046,9 +1112,8 @@ def _query_notes_mood_column_available() -> bool:
     try:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SHOW COLUMNS FROM notes LIKE 'mood'")
-        return cursor.fetchone() is not None
-    except mysql.connector.Error:
+        return postgres_column_exists(cursor, "notes", "mood")
+    except psycopg2.Error:
         app.logger.exception("Failed to verify notes mood column availability.")
         return False
     finally:
@@ -1066,9 +1131,8 @@ def _query_calendar_schema_available() -> bool:
     try:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SHOW TABLES LIKE 'calendar_events'")
-        return cursor.fetchone() is not None
-    except mysql.connector.Error:
+        return postgres_table_exists(cursor, "calendar_events")
+    except psycopg2.Error:
         app.logger.exception("Failed to verify calendar schema availability.")
         return False
     finally:
@@ -1092,8 +1156,7 @@ def ensure_calendar_google_sync_columns():
     try:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SHOW COLUMNS FROM calendar_events LIKE 'google_event_id'")
-        if cursor.fetchone() is None:
+        if not postgres_column_exists(cursor, "calendar_events", "google_event_id"):
             cursor.execute(
                 """
                 ALTER TABLE calendar_events
@@ -1101,7 +1164,7 @@ def ensure_calendar_google_sync_columns():
                 """
             )
         return _set_schema_flag("calendar_google_sync_columns_ready", True)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to ensure calendar Google sync columns.")
         return _set_schema_flag("calendar_google_sync_columns_ready", False)
     finally:
@@ -1254,9 +1317,8 @@ def _query_focus_sessions_schema_available() -> bool:
     try:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SHOW TABLES LIKE 'focus_sessions'")
-        return cursor.fetchone() is not None
-    except mysql.connector.Error:
+        return postgres_table_exists(cursor, "focus_sessions")
+    except psycopg2.Error:
         app.logger.exception("Failed to verify focus session schema availability.")
         return False
     finally:
@@ -1357,100 +1419,130 @@ def ensure_ai_support_schema() -> bool:
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS user_memories (
-                id BIGINT NOT NULL AUTO_INCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 memory_type VARCHAR(64) NOT NULL,
                 memory_key VARCHAR(128) NOT NULL,
                 label VARCHAR(255) NOT NULL,
                 value_text TEXT NOT NULL,
-                value_json LONGTEXT NULL,
+                value_json TEXT NULL,
                 source VARCHAR(64) NOT NULL DEFAULT 'ai',
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                last_used_at DATETIME NULL DEFAULT NULL,
-                PRIMARY KEY (id),
-                UNIQUE KEY uq_user_memory (user_id, memory_type, memory_key),
-                KEY idx_user_memories_user_updated (user_id, updated_at)
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP NULL DEFAULT NULL,
+                CONSTRAINT uq_user_memory UNIQUE (user_id, memory_type, memory_key)
             )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_user_memories_user_updated
+            ON user_memories (user_id, updated_at)
             """
         )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_action_requests (
-                id BIGINT NOT NULL AUTO_INCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 action_type VARCHAR(64) NOT NULL,
                 title VARCHAR(255) NOT NULL,
                 confirmation_text TEXT NOT NULL,
-                payload_json LONGTEXT NOT NULL,
+                payload_json TEXT NOT NULL,
                 status VARCHAR(32) NOT NULL DEFAULT 'pending',
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                confirmed_at DATETIME NULL DEFAULT NULL,
-                executed_at DATETIME NULL DEFAULT NULL,
-                cancelled_at DATETIME NULL DEFAULT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                confirmed_at TIMESTAMP NULL DEFAULT NULL,
+                executed_at TIMESTAMP NULL DEFAULT NULL,
+                cancelled_at TIMESTAMP NULL DEFAULT NULL,
                 error_text TEXT NULL,
-                PRIMARY KEY (id),
-                KEY idx_ai_action_requests_user_status_created (user_id, status, created_at)
+                PRIMARY KEY (id)
             )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_action_requests_user_status_created
+            ON ai_action_requests (user_id, status, created_at)
             """
         )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_chat_projects (
-                id BIGINT NOT NULL AUTO_INCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 name VARCHAR(120) NOT NULL,
                 description VARCHAR(255) NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                archived_at DATETIME NULL DEFAULT NULL,
-                PRIMARY KEY (id),
-                KEY idx_ai_chat_projects_user_updated (user_id, updated_at)
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                archived_at TIMESTAMP NULL DEFAULT NULL
             )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_chat_projects_user_updated
+            ON ai_chat_projects (user_id, updated_at)
             """
         )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_chat_threads (
-                id BIGINT NOT NULL AUTO_INCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 project_id BIGINT NULL DEFAULT NULL,
                 title VARCHAR(255) NOT NULL DEFAULT 'New chat',
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                last_message_at DATETIME NULL DEFAULT NULL,
-                archived_at DATETIME NULL DEFAULT NULL,
-                PRIMARY KEY (id),
-                KEY idx_ai_chat_threads_user_activity (user_id, last_message_at, updated_at),
-                KEY idx_ai_chat_threads_user_project (user_id, project_id)
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_message_at TIMESTAMP NULL DEFAULT NULL,
+                archived_at TIMESTAMP NULL DEFAULT NULL
             )
             """
         )
-        cursor.execute("SHOW COLUMNS FROM ai_chat_threads LIKE 'pinned_at'")
-        if cursor.fetchone() is None:
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_chat_threads_user_activity
+            ON ai_chat_threads (user_id, last_message_at, updated_at)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_chat_threads_user_project
+            ON ai_chat_threads (user_id, project_id)
+            """
+        )
+        if not postgres_column_exists(cursor, "ai_chat_threads", "pinned_at"):
             cursor.execute(
                 """
                 ALTER TABLE ai_chat_threads
-                ADD COLUMN pinned_at DATETIME NULL DEFAULT NULL
+                ADD COLUMN pinned_at TIMESTAMP NULL DEFAULT NULL
                 """
             )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_chat_messages (
-                id BIGINT NOT NULL AUTO_INCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 thread_id BIGINT NOT NULL,
                 user_id INT NOT NULL,
                 role VARCHAR(16) NOT NULL,
-                content LONGTEXT NOT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                KEY idx_ai_chat_messages_thread_created (thread_id, created_at),
-                KEY idx_ai_chat_messages_user_created (user_id, created_at)
+                content TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_thread_created
+            ON ai_chat_messages (thread_id, created_at)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_user_created
+            ON ai_chat_messages (user_id, created_at)
+            """
+        )
         return _set_schema_flag("ai_support_schema_ready", True)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Failed to ensure AI support schema.")
         return _set_schema_flag("ai_support_schema_ready", False)
     finally:
@@ -1473,13 +1565,10 @@ def ensure_performance_indexes():
         c = db.cursor()
         for table, idx_name, cols in indexes:
             try:
-                c.execute(f"CREATE INDEX {idx_name} ON {table} ({cols})")
+                c.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({cols})")
                 app.logger.warning("[STARTUP] Created index %s on %s.", idx_name, table)
-            except mysql.connector.Error as exc:
-                if exc.errno == 1061:   # ER_DUP_KEYNAME — already exists, skip silently
-                    pass
-                else:
-                    app.logger.warning("[STARTUP] Could not create index %s: %s", idx_name, exc)
+            except psycopg2.Error as exc:
+                app.logger.warning("[STARTUP] Could not create index %s: %s", idx_name, exc)
         c.close()
     except Exception:
         app.logger.exception("[STARTUP] Performance index creation failed.")
@@ -1856,10 +1945,11 @@ def create_ai_chat_project(user_id: int, name: str, description: str = ""):
         """
         INSERT INTO ai_chat_projects (user_id, name, description)
         VALUES (%s, %s, %s)
+        RETURNING id
         """,
         (user_id, project_name, project_description or None),
     )
-    project_id = cursor.lastrowid
+    project_id = cursor.fetchone()[0]
     cursor.close()
 
     return {
@@ -1964,10 +2054,11 @@ def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int
         """
         INSERT INTO ai_chat_threads (user_id, project_id, title)
         VALUES (%s, %s, %s)
+        RETURNING id
         """,
         (user_id, project_id, thread_title),
     )
-    thread_id = cursor.lastrowid
+    thread_id = cursor.fetchone()[0]
     if project_id is not None:
         cursor.execute(
             """
@@ -2294,11 +2385,11 @@ def save_user_memories(user_id: int, memories):
             INSERT INTO user_memories
                 (user_id, memory_type, memory_key, label, value_text, value_json, source)
             VALUES (%s, %s, %s, %s, %s, %s, 'ai')
-            ON DUPLICATE KEY UPDATE
-                label = VALUES(label),
-                value_text = VALUES(value_text),
-                value_json = VALUES(value_json),
-                source = VALUES(source),
+            ON CONFLICT (user_id, memory_type, memory_key) DO UPDATE SET
+                label = EXCLUDED.label,
+                value_text = EXCLUDED.value_text,
+                value_json = EXCLUDED.value_json,
+                source = EXCLUDED.source,
                 updated_at = NOW()
             """,
             (
@@ -2668,6 +2759,7 @@ def create_ai_action_requests(user_id: int, actions):
             INSERT INTO ai_action_requests
                 (user_id, action_type, title, confirmation_text, payload_json, status)
             VALUES (%s, %s, %s, %s, %s, 'pending')
+            RETURNING id
             """,
             (
                 user_id,
@@ -2679,7 +2771,7 @@ def create_ai_action_requests(user_id: int, actions):
         )
         created_actions.append(
             {
-                "id": cursor.lastrowid,
+                "id": cursor.fetchone()[0],
                 "type": action["type"],
                 "title": action["title"],
                 "confirmation_text": action["confirmation_text"],
@@ -2793,10 +2885,11 @@ def execute_ai_action_request(action_row):
                 """
                 INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
                 """,
                 (user_id, title, event_date, event_time, category, color),
             )
-            event_id = cursor.lastrowid
+            event_id = cursor.fetchone()[0]
             if ensure_calendar_google_sync_columns():
                 try:
                     google_event_id = push_event_to_google(
@@ -3155,7 +3248,7 @@ def register_page():
             user_id = create_user_local(full_name, username, email, password_hash)
             token = generate_email_verification_token(user_id, email)
             set_email_verification_token(user_id, token)
-        except mysql.connector.Error:
+        except psycopg2.Error:
             app.logger.exception("Registration failed because the database is unavailable.")
             return render_template("auth/register.html", error_identifier=AUTH_DB_ERROR_MESSAGE), 503
 
@@ -3214,7 +3307,7 @@ def login_page():
                 )
                 user = cursor.fetchone()
                 cursor.close()
-            except mysql.connector.Error:
+            except psycopg2.Error:
                 app.logger.exception("Login failed because the database is unavailable.")
                 return render_template(
                     "auth/login.html",
@@ -3302,7 +3395,7 @@ def username_suggestions():
                 suggestions.append(name)
             if len(suggestions) >= 6:
                 break
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Username suggestions failed because the database is unavailable.")
         return {"suggestions": [], "error": "database_unavailable"}, 503
 
@@ -3318,7 +3411,7 @@ def check_identifier():
             exists = bool(fetch_user_by_email(identifier))
         else:
             exists = bool(fetch_user_by_username(identifier))
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Identifier availability check failed because the database is unavailable.")
         return {"exists": False, "error": "database_unavailable"}, 503
 
@@ -3556,8 +3649,8 @@ def fetch_today_journal_entry(user_id: int):
         WHERE user_id = %s
           AND folder_id = %s
           AND deleted_at IS NULL
-          AND created_at >= CURDATE()
-          AND created_at < CURDATE() + INTERVAL 1 DAY
+          AND created_at >= CURRENT_DATE
+          AND created_at < CURRENT_DATE + INTERVAL '1 day'
         ORDER BY updated_at DESC, created_at DESC
         LIMIT 1
         """,
@@ -3584,7 +3677,7 @@ def _load_user_habits_from_db(user_id: int):
             COALESCE(h.frequency, 'Daily') AS frequency,
             COALESCE(h.streak, 0) AS streak,
             h.created_at,
-            MAX(CASE WHEN DATE(hc.completed_date) = CURDATE() THEN 1 ELSE 0 END) AS completed_today
+            MAX(CASE WHEN DATE(hc.completed_date) = CURRENT_DATE THEN 1 ELSE 0 END) AS completed_today
         FROM habits h
         LEFT JOIN habit_completions hc
           ON hc.habit_id = h.id
@@ -4256,10 +4349,11 @@ def new_journal_entry():
         """
         INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at)
         VALUES (%s, %s, %s, '', NOW(), NOW())
+        RETURNING id
         """,
         (user_id, journal_folder_id, title),
     )
-    entry_id = cursor.lastrowid
+    entry_id = cursor.fetchone()[0]
     cursor.close()
     invalidate_user_cached_data(user_id)
     return redirect(url_for("journal_page", entry_id=entry_id))
@@ -4831,10 +4925,10 @@ def create_list():
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO task_lists (user_id, name) VALUES (%s, %s)",
+        "INSERT INTO task_lists (user_id, name) VALUES (%s, %s) RETURNING id",
         (session["user_id"], name)
     )
-    new_id = cursor.lastrowid
+    new_id = cursor.fetchone()[0]
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
@@ -5102,6 +5196,7 @@ def create_quick_task():
             """
             INSERT INTO tasks (user_id, list_id, title, description, scheduled_for)
             VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (session["user_id"], list_id, title, "", scheduled_for),
         )
@@ -5110,10 +5205,11 @@ def create_quick_task():
             """
             INSERT INTO tasks (user_id, list_id, title, description)
             VALUES (%s, %s, %s, %s)
+            RETURNING id
             """,
             (session["user_id"], list_id, title, ""),
         )
-    task_id = cursor.lastrowid
+    task_id = cursor.fetchone()[0]
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
@@ -5493,7 +5589,7 @@ def toggle_habit(habit_id):
         FROM habit_completions
         WHERE habit_id = %s
           AND user_id = %s
-          AND DATE(completed_date) = CURDATE()
+          AND DATE(completed_date) = CURRENT_DATE
         """,
         (habit_id, user_id),
     )
@@ -5513,7 +5609,7 @@ def toggle_habit(habit_id):
         cursor2.execute(
             """
             INSERT INTO habit_completions (habit_id, user_id, completed_date)
-            VALUES (%s, %s, CURDATE())
+            VALUES (%s, %s, CURRENT_DATE)
             """,
             (habit_id, user_id),
         )
@@ -5788,9 +5884,10 @@ def new_note_root():
     cursor.execute("""
         INSERT INTO notes (user_id, folder_id, title, content)
         VALUES (%s, %s, NULL, '')
+        RETURNING id
     """, (user_id, notes_folder_id))
 
-    note_id = cursor.lastrowid
+    note_id = cursor.fetchone()[0]
     cursor.close()
 
     return redirect(url_for("view_note", note_id=note_id)) 
@@ -5825,8 +5922,9 @@ def get_or_create_note_folder_id(user_id, folder_name):
     cursor2.execute("""
         INSERT INTO note_folders (user_id, name)
         VALUES (%s, %s)
+        RETURNING id
     """, (user_id, folder_name))
-    folder_id = cursor2.lastrowid
+    folder_id = cursor2.fetchone()[0]
 
     cursor2.close()
     cursor.close()
@@ -6052,10 +6150,11 @@ def create_folder():
     cursor.execute("""
         INSERT INTO note_folders (user_id, name, parent_id)
         VALUES (%s, %s, %s)
+        RETURNING id
     """, (session["user_id"], name, parent_id_val))
 
     # 🔑 THIS IS THE KEY LINE
-    folder_id = cursor.lastrowid
+    folder_id = cursor.fetchone()[0]
 
     db.commit()
     cursor.close()
@@ -6402,9 +6501,10 @@ def create_note():
     cursor.execute("""
         INSERT INTO notes (user_id, folder_id, title, content)
         VALUES (%s, %s, NULL, '')
+        RETURNING id
     """, (user_id, folder_id))
 
-    note_id = cursor.lastrowid
+    note_id = cursor.fetchone()[0]
     cursor.close()
 
     # 🔑 PRESERVE CONTEXT
@@ -6535,10 +6635,11 @@ def create_calendar_event():
         """
         INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at)
         VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        RETURNING id
         """,
         (session["user_id"], title, date, time, category, color),
     )
-    event_id = cursor.lastrowid
+    event_id = cursor.fetchone()[0]
     cursor.close()
 
     if ensure_calendar_google_sync_columns():
@@ -6741,7 +6842,7 @@ def save_focus_session():
         )
         cursor.close()
         return jsonify({"ok": True})
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Unable to save focus session.")
         return jsonify({"ok": False, "message": "Unable to save focus session right now."}), 500
 
@@ -6766,9 +6867,13 @@ def complete_focus_session():
                 """
                 UPDATE focus_sessions
                 SET completed = %s, reflection = %s
-                WHERE user_id = %s AND task_id = %s
-                ORDER BY created_at DESC
-                LIMIT 1
+                WHERE id = (
+                    SELECT id
+                    FROM focus_sessions
+                    WHERE user_id = %s AND task_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                )
                 """,
                 (completed, reflection, session["user_id"], task_id),
             )
@@ -6777,9 +6882,13 @@ def complete_focus_session():
                 """
                 UPDATE focus_sessions
                 SET completed = %s, reflection = %s
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 1
+                WHERE id = (
+                    SELECT id
+                    FROM focus_sessions
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                )
                 """,
                 (completed, reflection, session["user_id"]),
             )
@@ -6798,7 +6907,7 @@ def complete_focus_session():
         cursor.close()
         invalidate_user_cached_data(session["user_id"])
         return jsonify({"ok": True})
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Unable to complete focus session.")
         return jsonify({"ok": False, "message": "Unable to complete focus session right now."}), 500
 
@@ -7012,7 +7121,7 @@ def google_callback():
         app.logger.exception("Google user info lookup failed.")
         flash("Google sign-in failed because the app could not reach Google. Please try again.")
         return redirect(failure_target)
-    except mysql.connector.Error:
+    except psycopg2.Error:
         app.logger.exception("Google sign-in failed because the database is unavailable.")
         flash(AUTH_DB_ERROR_MESSAGE)
         return redirect(failure_target)
@@ -7297,8 +7406,8 @@ def api_tasks_data():
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
-              AND t.scheduled_for REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-              AND t.scheduled_for >= CURDATE()
+              AND t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
+              AND t.scheduled_for::date >= CURRENT_DATE
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
             {base_order}
@@ -7472,10 +7581,10 @@ def api_journal_new():
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at) VALUES (%s,%s,%s,'',NOW(),NOW())",
+        "INSERT INTO notes (user_id, folder_id, title, content, created_at, updated_at) VALUES (%s,%s,%s,'',NOW(),NOW()) RETURNING id",
         (user_id, journal_folder_id, title)
     )
-    entry_id = cursor.lastrowid
+    entry_id = cursor.fetchone()[0]
     cursor.close()
     invalidate_user_cached_data(user_id)
     return jsonify({"id": entry_id, "title": title})
@@ -7567,10 +7676,10 @@ def api_calendar_create():
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at) VALUES (%s,%s,%s,%s,%s,%s,NOW())",
+        "INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at) VALUES (%s,%s,%s,%s,%s,%s,NOW()) RETURNING id",
         (session["user_id"], title, date, time, category, color)
     )
-    event_id = cursor.lastrowid
+    event_id = cursor.fetchone()[0]
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
     return jsonify({"ok": True, "id": event_id, "title": title, "date": date, "time": time, "category": category, "color": color})
