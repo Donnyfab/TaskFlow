@@ -379,7 +379,6 @@ def create_db_connection(source: str = "pooled"):
             raw_db = pool.getconn()
             raw_db.autocommit = True
             db = PooledPostgresConnection(raw_db)
-            ensure_db_connection_ready(db, source)
             return db
         except (psycopg2.Error, RuntimeError) as exc:
             last_error = exc
@@ -671,6 +670,19 @@ def login_required(route_func):
 def refresh_logged_in_session():
     if "user_id" in session:
         session.permanent = True
+    g._request_start = time.perf_counter()
+
+
+@app.after_request
+def log_request_timing(response):
+    start = getattr(g, '_request_start', None)
+    if start is not None:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        if elapsed_ms > 200:  # only log slow requests
+            app.logger.warning(f"SLOW [{request.method}] {request.path} → {response.status_code} in {elapsed_ms:.0f}ms")
+        else:
+            app.logger.info(f"[{request.method}] {request.path} → {response.status_code} in {elapsed_ms:.0f}ms")
+    return response
 
 
 def allowed_file(filename: str) -> bool:
