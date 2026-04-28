@@ -1581,12 +1581,36 @@ def ensure_performance_indexes():
         app.logger.exception("[STARTUP] Performance index creation failed.")
 
 
+def ensure_base_schema_columns():
+    """Add columns that belong in the original table definitions but may be missing after migration."""
+    fixes = [
+        # table,          column,       definition
+        ("tasks",         "list_id",    "INTEGER NULL"),
+        ("habits",        "icon",       "VARCHAR(16)  NULL DEFAULT NULL"),
+        ("habits",        "frequency",  "VARCHAR(32)  NULL DEFAULT 'Daily'"),
+        ("habits",        "streak",     "INTEGER      NOT NULL DEFAULT 0"),
+        ("habits",        "deleted_at", "TIMESTAMP    NULL DEFAULT NULL"),
+        ("note_folders",  "deleted_at", "TIMESTAMP    NULL DEFAULT NULL"),
+    ]
+    try:
+        db = get_db()
+        c = db.cursor()
+        for table, col, defn in fixes:
+            if not postgres_column_exists(c, table, col):
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
+                app.logger.warning("[STARTUP] Added missing column %s.%s", table, col)
+        c.close()
+    except Exception:
+        app.logger.exception("[STARTUP] ensure_base_schema_columns failed.")
+
+
 def initialize_schema_status_flags():
     global SCHEMA_CHECKS_INITIALIZED
     if SCHEMA_CHECKS_INITIALIZED:
         return
 
     startup_checks = [
+        ensure_base_schema_columns,
         ensure_google_oauth_token_columns,
         ensure_task_list_metadata_columns,
         ensure_task_metadata_columns,
