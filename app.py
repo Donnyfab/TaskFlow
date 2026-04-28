@@ -788,7 +788,7 @@ def create_user_local(full_name, username, email, password_hash):
     cursor = db.cursor()
     cursor.execute(
         "INSERT INTO users (name, username, email, password_hash, is_verified) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-        (full_name, username, email, password_hash, 0),
+        (full_name, username, email, password_hash, False),
     )
     user_id = cursor.fetchone()[0]
     cursor.close()
@@ -816,7 +816,7 @@ def create_user_oauth(name, email, provider, provider_id):
         VALUES (%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
         """,
-        (name, username, email, provider, provider_id, 1, datetime.utcnow()),
+        (name, username, email, provider, provider_id, True, datetime.utcnow()),
     )
     user_id = cursor.fetchone()[0]
     cursor.close()
@@ -858,7 +858,7 @@ def mark_user_verified(user_id: int):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "UPDATE users SET is_verified=1, email_verified_at=%s, email_verify_token=NULL WHERE id=%s",
+        "UPDATE users SET is_verified=TRUE, email_verified_at=%s, email_verify_token=NULL WHERE id=%s",
         (datetime.utcnow(), user_id),
     )
     cursor.close()
@@ -5380,7 +5380,7 @@ def toggle_task(task_id):
             return jsonify({"error": "Task not found."}), 404
         return redirect(url_for("home_page"))
 
-    new_completed = 0 if task["completed"] else 1
+    new_completed = False if task["completed"] else True
 
     db = get_db()
     cursor = db.cursor()
@@ -6594,7 +6594,7 @@ def calendar_page():
         SELECT id, title
         FROM tasks
         WHERE user_id = %s
-          AND completed = 0
+          AND completed = FALSE
         ORDER BY created_at DESC
         LIMIT 5
         """,
@@ -6794,7 +6794,7 @@ def focus_page(task_id=None):
         SELECT id, title
         FROM tasks
         WHERE user_id = %s
-          AND completed = 0
+          AND completed = FALSE
         ORDER BY created_at DESC
         """,
         (user_id,),
@@ -6897,7 +6897,7 @@ def complete_focus_session():
             cursor.execute(
                 """
                 UPDATE tasks
-                SET completed = 1
+                SET completed = TRUE
                 WHERE id = %s
                   AND user_id = %s
                 """,
@@ -7463,7 +7463,7 @@ def api_tasks_data():
             """
             SELECT
               SUM(deleted_at IS NOT NULL)                                        AS trash_count,
-              SUM(deleted_at IS NULL AND completed = 0
+              SUM(deleted_at IS NULL AND completed = FALSE
                   AND (list_id = %s OR list_id IS NULL)
                   AND (scheduled_for IS NULL OR scheduled_for = ''))             AS inbox_count
             FROM tasks
