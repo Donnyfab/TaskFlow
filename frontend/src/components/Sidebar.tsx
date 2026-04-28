@@ -2,8 +2,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import { prefetchRoute } from '@/components/Prefetcher'
 import {
   readSidebarCollapsed,
   SIDEBAR_COLLAPSED_KEY,
@@ -131,6 +132,7 @@ const THEMES = {
 /* ─── Component ──────────────────────────────────────────────────── */
 export default function Sidebar() {
   const pathname     = usePathname()
+  const queryClient  = useQueryClient()
 
   const { data: user }                = useQuery<{ name: string; username: string; profile_image?: string }>({
     queryKey: ['me'],
@@ -209,7 +211,7 @@ export default function Sidebar() {
           href={href}
           title={label}
           style={navBtn(href, active)}
-          onMouseEnter={() => setHovered(href)}
+          onMouseEnter={() => { setHovered(href); prefetchRoute(queryClient, href) }}
           onMouseLeave={() => setHovered(null)}
         >
           <div style={{
