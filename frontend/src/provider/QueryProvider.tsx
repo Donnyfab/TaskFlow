@@ -1,6 +1,6 @@
 'use client'
-import { QueryClient } from '@tanstack/react-query'
-import { PersistQueryClientProvider, useIsRestoring } from '@tanstack/react-query-persist-client'
+import { QueryClient, useIsRestoring } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { useState } from 'react'
 
