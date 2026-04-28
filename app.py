@@ -492,11 +492,6 @@ def get_db():
     """
     if "db" not in g:
         g.db = create_db_connection()
-    else:
-        try:
-            ensure_db_connection_ready(g.db, "request")
-        except psycopg2.Error:
-            g.db = create_db_connection("retry")
     return g.db
 
 
