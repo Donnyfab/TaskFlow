@@ -1584,21 +1584,68 @@ def ensure_performance_indexes():
 def ensure_base_schema_columns():
     """Add columns that belong in the original table definitions but may be missing after migration."""
     fixes = [
-        # table,          column,       definition
-        ("tasks",         "list_id",    "INTEGER NULL"),
-        ("habits",        "icon",       "VARCHAR(16)  NULL DEFAULT NULL"),
-        ("habits",        "frequency",  "VARCHAR(32)  NULL DEFAULT 'Daily'"),
-        ("habits",        "streak",     "INTEGER      NOT NULL DEFAULT 0"),
-        ("habits",        "deleted_at", "TIMESTAMP    NULL DEFAULT NULL"),
-        ("note_folders",  "deleted_at", "TIMESTAMP    NULL DEFAULT NULL"),
+        # (table, column, definition)
+        # tasks
+        ("tasks", "list_id",      "INTEGER NULL"),
+        ("tasks", "title",        "TEXT NOT NULL DEFAULT ''"),
+        ("tasks", "description",  "TEXT NULL"),
+        ("tasks", "completed",    "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("tasks", "created_at",   "TIMESTAMP NULL DEFAULT NOW()"),
+        # task_lists
+        ("task_lists", "name",       "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("task_lists", "created_at", "TIMESTAMP NULL DEFAULT NOW()"),
+        ("task_lists", "position",   "INTEGER NULL"),
+        # notes
+        ("notes", "folder_id",     "INTEGER NULL"),
+        ("notes", "title",         "TEXT NULL"),
+        ("notes", "content",       "TEXT NULL"),
+        ("notes", "created_at",    "TIMESTAMP NULL DEFAULT NOW()"),
+        ("notes", "updated_at",    "TIMESTAMP NULL DEFAULT NOW()"),
+        ("notes", "deleted_at",    "TIMESTAMP NULL"),
+        ("notes", "last_opened_at","TIMESTAMP NULL"),
+        ("notes", "mood",          "VARCHAR(32) NULL"),
+        # note_folders
+        ("note_folders", "name",      "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("note_folders", "created_at","TIMESTAMP NULL DEFAULT NOW()"),
+        ("note_folders", "parent_id", "INTEGER NULL"),
+        ("note_folders", "deleted_at","TIMESTAMP NULL"),
+        ("note_folders", "color",     "VARCHAR(32) NULL"),
+        # calendar_events
+        ("calendar_events", "title",          "TEXT NOT NULL DEFAULT ''"),
+        ("calendar_events", "event_date",     "DATE NULL"),
+        ("calendar_events", "event_time",     "VARCHAR(16) NULL"),
+        ("calendar_events", "category",       "VARCHAR(64) NULL"),
+        ("calendar_events", "color",          "VARCHAR(32) NULL"),
+        ("calendar_events", "created_at",     "TIMESTAMP NULL DEFAULT NOW()"),
+        ("calendar_events", "deleted_at",     "TIMESTAMP NULL"),
+        ("calendar_events", "google_event_id","VARCHAR(255) NULL"),
+        # habits
+        ("habits", "name",       "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("habits", "icon",       "VARCHAR(16) NULL"),
+        ("habits", "frequency",  "VARCHAR(32) NULL DEFAULT 'Daily'"),
+        ("habits", "streak",     "INTEGER NOT NULL DEFAULT 0"),
+        ("habits", "created_at", "TIMESTAMP NULL DEFAULT NOW()"),
+        ("habits", "deleted_at", "TIMESTAMP NULL"),
+        # habit_completions
+        ("habit_completions", "completed_date", "DATE NOT NULL DEFAULT CURRENT_DATE"),
+        # focus_sessions
+        ("focus_sessions", "task_id",           "INTEGER NULL"),
+        ("focus_sessions", "session_duration",  "INTEGER NULL"),
+        ("focus_sessions", "actual_time_spent", "INTEGER NULL"),
+        ("focus_sessions", "completed",         "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("focus_sessions", "reflection",        "TEXT NULL"),
+        ("focus_sessions", "created_at",        "TIMESTAMP NULL DEFAULT NOW()"),
     ]
     try:
         db = get_db()
         c = db.cursor()
         for table, col, defn in fixes:
-            if not postgres_column_exists(c, table, col):
-                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
-                app.logger.warning("[STARTUP] Added missing column %s.%s", table, col)
+            try:
+                if postgres_table_exists(c, table) and not postgres_column_exists(c, table, col):
+                    c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
+                    app.logger.warning("[STARTUP] Added missing column %s.%s", table, col)
+            except Exception:
+                app.logger.exception("[STARTUP] Could not add column %s.%s", table, col)
         c.close()
     except Exception:
         app.logger.exception("[STARTUP] ensure_base_schema_columns failed.")
