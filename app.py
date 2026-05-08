@@ -3707,7 +3707,7 @@ def fetch_dashboard_task_counts(user_id: int):
         """
         SELECT
             COUNT(*) AS total,
-            COALESCE(SUM(completed), 0) AS completed_count
+            COUNT(*) FILTER (WHERE completed = TRUE) AS completed_count
         FROM tasks
         WHERE user_id = %s AND deleted_at IS NULL
         """,
