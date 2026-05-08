@@ -7726,7 +7726,7 @@ def api_calendar_data():
                 "color": r["color"] or "rgba(255,255,255,0.7)",
             })
     cursor.execute(
-        "SELECT id, title FROM tasks WHERE user_id=%s AND completed=0 ORDER BY created_at DESC LIMIT 5",
+        "SELECT id, title FROM tasks WHERE user_id=%s AND completed = FALSE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 5",
         (user_id,)
     )
     upcoming_tasks = [{"id": t["id"], "title": t["title"]} for t in cursor.fetchall()]
