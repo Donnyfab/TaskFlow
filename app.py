@@ -1635,6 +1635,13 @@ def ensure_base_schema_columns():
         ("focus_sessions", "completed",         "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("focus_sessions", "reflection",        "TEXT NULL"),
         ("focus_sessions", "created_at",        "TIMESTAMP NULL DEFAULT NOW()"),
+        # users — auth columns that may be absent in older schemas
+        ("users", "is_verified",          "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("users", "email_verify_token",   "VARCHAR(512) NULL"),
+        ("users", "email_verify_sent_at", "TIMESTAMP NULL"),
+        ("users", "email_verified_at",    "TIMESTAMP NULL"),
+        ("users", "auth_provider",        "VARCHAR(32) NULL"),
+        ("users", "provider_id",          "VARCHAR(255) NULL"),
     ]
     try:
         db = get_db()
@@ -3330,8 +3337,12 @@ def register_page():
             app.logger.exception("Registration failed because the database is unavailable.")
             return render_template("auth/register.html", error_identifier=AUTH_DB_ERROR_MESSAGE), 503
 
-        send_welcome_email(email, first)
-        verification_sent = send_verification_email(email, token)
+        try:
+            send_welcome_email(email, first)
+            verification_sent = send_verification_email(email, token)
+        except Exception:
+            app.logger.exception("Post-registration email step failed for %s.", email)
+            verification_sent = False
 
         verify_status = "sent" if verification_sent else "mail_error"
         return redirect(url_for("login_page", verify=verify_status))
