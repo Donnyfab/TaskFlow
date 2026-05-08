@@ -39,5 +39,12 @@ export default function Prefetcher() {
     Object.keys(ROUTE_QUERIES).forEach(route => prefetchRoute(queryClient, route))
   }, [queryClient])
 
+  useEffect(() => {
+    const ping = () => fetch(apiUrl('/ping'), { credentials: 'include' }).catch(() => {})
+    ping()
+    const id = setInterval(ping, 10 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
   return null
 }

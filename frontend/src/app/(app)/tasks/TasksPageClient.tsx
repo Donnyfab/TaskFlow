@@ -182,6 +182,17 @@ export default function TasksPageClient() {
   const isTrashView   = !listId && smartActive === 'trash'
   const isLogbookView = !listId && smartActive === 'logbook'
 
+  useEffect(() => {
+    const smartViews = ['inbox', 'today', 'upcoming', 'someday']
+    smartViews.forEach(view => {
+      queryClient.prefetchQuery({
+        queryKey: ['tasks', view],
+        queryFn: () => fetch(apiUrl(`/api/tasks/data?smart=${view}`), { credentials: 'include' }).then(r => r.json()),
+        staleTime: 60_000,
+      })
+    })
+  }, [queryClient])
+
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', queryId],
     queryFn: async () => {
@@ -192,6 +203,8 @@ export default function TasksPageClient() {
       if (!res.ok) throw new Error('Failed to fetch tasks')
       return res.json() as Promise<Data>
     },
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   })
 
   const tasks = data?.tasks ?? []
