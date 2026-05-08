@@ -3339,13 +3339,12 @@ def register_page():
 
         try:
             send_welcome_email(email, first)
-            verification_sent = send_verification_email(email, token)
+            send_verification_email(email, token)
         except Exception:
             app.logger.exception("Post-registration email step failed for %s.", email)
-            verification_sent = False
 
-        verify_status = "sent" if verification_sent else "mail_error"
-        return redirect(url_for("login_page", verify=verify_status))
+        begin_user_session(user_id, full_name, username)
+        return redirect(APP_PUBLIC_URL + "/home")
 
     return render_template("auth/register.html")
 
