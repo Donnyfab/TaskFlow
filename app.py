@@ -7395,7 +7395,7 @@ def api_tasks_data():
     cursor.execute(
         """
         SELECT tl.id, tl.name, tl.pinned_at, tl.created_at,
-               COUNT(t.id) AS task_count
+               COUNT(t.id) FILTER (WHERE t.deleted_at IS NULL AND t.completed = FALSE) AS task_count
         FROM task_lists tl
         LEFT JOIN tasks t ON t.list_id = tl.id AND t.user_id = tl.user_id
         WHERE tl.user_id = %s AND tl.archived_at IS NULL
@@ -7411,7 +7411,7 @@ def api_tasks_data():
         cursor.execute(
             """
             SELECT tl.id, tl.name, tl.pinned_at, tl.created_at,
-                   COUNT(t.id) AS task_count
+                   COUNT(t.id) FILTER (WHERE t.deleted_at IS NULL AND t.completed = FALSE) AS task_count
             FROM task_lists tl
             LEFT JOIN tasks t ON t.list_id = tl.id AND t.user_id = tl.user_id
             WHERE tl.user_id = %s AND tl.archived_at IS NULL
@@ -7540,8 +7540,8 @@ def api_tasks_data():
         cc.execute(
             """
             SELECT
-              SUM(deleted_at IS NOT NULL)                                        AS trash_count,
-              SUM(deleted_at IS NULL AND completed = FALSE
+              COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)                     AS trash_count,
+              COUNT(*) FILTER (WHERE deleted_at IS NULL AND completed = FALSE
                   AND (list_id = %s OR list_id IS NULL)
                   AND (scheduled_for IS NULL OR scheduled_for = ''))             AS inbox_count
             FROM tasks
