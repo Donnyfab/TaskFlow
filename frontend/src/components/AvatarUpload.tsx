@@ -446,7 +446,7 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
                 </div>
                 <input
                   type="range" className="avatar-crop-slider"
-                  min={1} max={3} step={0.01}
+                  min={1} max={6} step={0.01}
                   value={zoom}
                   onChange={e => setZoom(Number(e.target.value))}
                 />
