@@ -245,7 +245,7 @@ def group_notes_by_date(notes):
 # ============================================================
 
 UPLOAD_FOLDER = "static/uploads"
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
@@ -3572,10 +3572,6 @@ def verify_email_pending():
 @app.route("/upload_profile", methods=["POST"])
 @login_required
 def upload_profile():
-    """
-    Receives a profile image upload from your JS fetch() call.
-    Saves image to /static/uploads and stores filename in DB.
-    """
     if "profile_image" not in request.files:
         abort(400, "Missing file: profile_image")
 
@@ -3583,29 +3579,82 @@ def upload_profile():
     if not file or file.filename == "":
         abort(400, "No file selected")
 
-    if not allowed_file(file.filename):
+    # Determine extension from filename or fall back to content-type
+    if file.filename and "." in file.filename:
+        ext = file.filename.rsplit(".", 1)[1].lower()
+    else:
+        ct = (file.content_type or "").lower()
+        if "jpeg" in ct or "jpg" in ct:
+            ext = "jpg"
+        elif "png" in ct:
+            ext = "png"
+        elif "webp" in ct:
+            ext = "webp"
+        else:
+            ext = "jpg"
+
+    if ext not in ALLOWED_EXTENSIONS:
         abort(400, "Invalid file type")
 
-    # Ensure folder exists
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-    ext = file.filename.rsplit(".", 1)[1].lower()
+    # Fetch current profile image so we can delete the old file
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT profile_image FROM users WHERE id=%s", (session["user_id"],))
+    row = cursor.fetchone()
+    cursor.close()
+    old_image = (row or {}).get("profile_image")
+
     filename = f"user_{session['user_id']}_{int(datetime.now().timestamp())}.{ext}"
     filename = secure_filename(filename)
-
     file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
 
-    # Save filename in database
-    db = get_db()
+    # Delete old image from disk if it exists and isn't the default
+    if old_image and old_image != "default.png":
+        old_path = os.path.join(app.config["UPLOAD_FOLDER"], old_image)
+        if os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
     cursor = db.cursor()
     cursor.execute(
         "UPDATE users SET profile_image=%s WHERE id=%s",
-        (filename, session["user_id"])
+        (filename, session["user_id"]),
     )
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
-    return ("", 204)
+    image_url = url_for("static", filename=f"uploads/{filename}")
+    return jsonify({"ok": True, "url": image_url, "filename": filename})
+
+
+@app.route("/remove_profile_image", methods=["POST"])
+@login_required
+def remove_profile_image():
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT profile_image FROM users WHERE id=%s", (session["user_id"],))
+    row = cursor.fetchone()
+    cursor.close()
+
+    old_image = (row or {}).get("profile_image")
+    if old_image and old_image != "default.png":
+        old_path = os.path.join(app.config["UPLOAD_FOLDER"], old_image)
+        if os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET profile_image=NULL WHERE id=%s", (session["user_id"],))
+    cursor.close()
+    invalidate_user_cached_data(session["user_id"])
+
+    return jsonify({"ok": True})
 
 
 @app.route("/update_profile_name", methods=["POST"])
@@ -7375,10 +7424,14 @@ def api_me():
     user = fetch_user_by_id(session["user_id"])
     if not user:
         return jsonify({"error": "not found"}), 404
+    profile_image_url = None
+    if user.get("profile_image") and user["profile_image"] != "default.png":
+        profile_image_url = f"/static/uploads/{user['profile_image']}"
     return jsonify({
-        "name":     user["name"],
-        "username": user["username"],
-        "email":    user["email"],
+        "name":          user["name"],
+        "username":      user["username"],
+        "email":         user["email"],
+        "profile_image": profile_image_url,
     })
 
 @app.route("/api/logout", methods=["POST", "OPTIONS"])

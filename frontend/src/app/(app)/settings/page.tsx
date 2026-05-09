@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
+import AvatarUpload from '@/components/AvatarUpload'
 
 interface UserData {
   name: string; username: string; email: string
@@ -33,6 +35,7 @@ const ACCENT_COLORS = [
 const API = apiUrl('')
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient()
   const [section, setSection]     = useState<Section>('account')
   const [data, setData]           = useState<UserData | null>(null)
   const [fullName, setFullName]   = useState('')
@@ -125,7 +128,21 @@ export default function SettingsPage() {
     window.location.href = '/logout'
   }
 
-  const initials = data?.username ? data.username.slice(0, 2).toUpperCase() : 'TF'
+  const initials = data?.name
+    ? data.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+    : data?.username ? data.username.slice(0, 2).toUpperCase() : 'TF'
+
+  function handleAvatarUpload(url: string) {
+    setData(prev => prev ? { ...prev, profile_image: url } : prev)
+    queryClient.invalidateQueries({ queryKey: ['me'] })
+    fireToast('Profile photo updated!')
+  }
+
+  function handleAvatarRemove() {
+    setData(prev => prev ? { ...prev, profile_image: null } : prev)
+    queryClient.invalidateQueries({ queryKey: ['me'] })
+    fireToast('Profile photo removed.')
+  }
 
   const inp = { width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:'9px', padding:'10px 14px', fontSize:'13px', color:'#fff', fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const }
   const togStyle = (on: boolean) => ({ width:'38px', height:'21px', borderRadius:'100px', background: on ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.1)', border: on ? 'none' : '1px solid rgba(255,255,255,0.1)', cursor:'pointer', position:'relative' as const, flexShrink:0, transition:'all 0.2s' })
@@ -167,19 +184,15 @@ export default function SettingsPage() {
               <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color:'rgba(255,255,255,0.92)', marginBottom:'4px' }}>Account</div>
               <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.35)', marginBottom:'32px', lineHeight:1.6 }}>Manage your profile information and login credentials.</div>
 
-              {/* Avatar row */}
-              <div style={{ display:'flex', alignItems:'center', gap:'16px', marginBottom:'28px', padding:'18px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'12px', flexWrap:'wrap' }}>
-                <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:700, color:'rgba(255,255,255,0.6)', flexShrink:0, overflow:'hidden' }}>
-                  {data?.profile_image
-                    ? <img src={apiUrl(data.profile_image)} alt="Profile" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                    : initials}
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:'14px', fontWeight:600, color:'rgba(255,255,255,0.85)', marginBottom:'2px' }}>{data?.name || data?.username}</div>
-                  <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.32)' }}>{data?.email}</div>
-                </div>
-                <a href={apiUrl('/upload_profile')} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'7px', padding:'6px 12px', fontSize:'11px', color:'rgba(255,255,255,0.5)', cursor:'pointer', textDecoration:'none' }}>Change photo</a>
-              </div>
+              {/* Avatar upload */}
+              <AvatarUpload
+                profileImage={data?.profile_image ?? null}
+                name={data?.name || data?.username || ''}
+                email={data?.email || ''}
+                initials={initials}
+                onUpload={handleAvatarUpload}
+                onRemove={handleAvatarRemove}
+              />
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'16px' }}>
                 <div>
