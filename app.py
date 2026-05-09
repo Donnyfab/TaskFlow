@@ -7550,7 +7550,11 @@ def api_tasks_data():
             SELECT t.*, tl.name AS list_name
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
-            WHERE t.user_id = %s AND t.scheduled_for = 'today'
+            WHERE t.user_id = %s
+              AND (
+                t.scheduled_for = 'today'
+                OR (t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$' AND t.scheduled_for::date = CURRENT_DATE)
+              )
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
             {base_order}
@@ -7564,7 +7568,7 @@ def api_tasks_data():
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
               AND t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-              AND t.scheduled_for::date >= CURRENT_DATE
+              AND t.scheduled_for::date > CURRENT_DATE
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
             {base_order}

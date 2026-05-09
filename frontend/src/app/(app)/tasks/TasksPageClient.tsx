@@ -619,11 +619,13 @@ export default function TasksPageClient() {
     })
 
     try {
-      await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
+      const res = await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
+      if (!res.ok) throw new Error(`schedule failed: ${res.status}`)
       queryClient.invalidateQueries({ queryKey: ['tasks', 'today'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'upcoming'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'someday'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'inbox'] })
+      if (typeof queryId === 'number') queryClient.invalidateQueries({ queryKey: ['tasks', queryId] })
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
