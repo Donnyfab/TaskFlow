@@ -5432,20 +5432,46 @@ def update_task(task_id):
     if not next_list_id or not user_owns_list(session["user_id"], next_list_id):
         next_list_id = get_inbox_list_id(session["user_id"])
 
+    # Resolve scheduled_for from payload
+    _col_ready = _ensure_scheduled_for_column()
+    raw_scheduled = payload.get("scheduled_for") if "scheduled_for" in payload else task.get("scheduled_for")
+    _valid_smart = {"today", "someday", "anytime"}
+    if raw_scheduled in _valid_smart:
+        scheduled_for = raw_scheduled
+    elif raw_scheduled and re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_scheduled)):
+        scheduled_for = raw_scheduled
+    else:
+        scheduled_for = None
+
     db = get_db()
     cursor = db.cursor()
-    cursor.execute(
-        """
-        UPDATE tasks
-        SET title = %s,
-            description = %s,
-            priority = %s,
-            list_id = %s
-        WHERE id = %s
-          AND user_id = %s
-        """,
-        (title, description, priority, next_list_id, task_id, session["user_id"]),
-    )
+    if _col_ready:
+        cursor.execute(
+            """
+            UPDATE tasks
+            SET title = %s,
+                description = %s,
+                priority = %s,
+                list_id = %s,
+                scheduled_for = %s
+            WHERE id = %s
+              AND user_id = %s
+            """,
+            (title, description, priority, next_list_id, scheduled_for, task_id, session["user_id"]),
+        )
+    else:
+        cursor.execute(
+            """
+            UPDATE tasks
+            SET title = %s,
+                description = %s,
+                priority = %s,
+                list_id = %s
+            WHERE id = %s
+              AND user_id = %s
+            """,
+            (title, description, priority, next_list_id, task_id, session["user_id"]),
+        )
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 

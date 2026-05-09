@@ -605,6 +605,9 @@ export default function TasksPageClient() {
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === task.id ? { ...t, scheduled_for: scheduledFor } : t) } : old)
     try {
       await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'today'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'upcoming'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'someday'] })
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
@@ -1654,7 +1657,8 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
   function parseNL(raw: string): string | null {
     const s = raw.trim().toLowerCase()
     if (!s) return null
-    if (s === 'today') return todayStr
+    if (s === 'today') return 'today'
+    if (s === 'evening' || s === 'this evening') return 'today'
     if (['tomorrow','tmr','tmrw'].includes(s)) return tomorrowStr
     if (s === 'someday') return 'someday'
     const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
@@ -1704,11 +1708,11 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
 
   const quickOpts = [
     {
-      label: 'Today', value: todayStr,
+      label: 'Today', value: 'today',
       icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg>,
     },
     {
-      label: 'Evening', value: todayStr,
+      label: 'Evening', value: 'today',
       icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.5 10.5A5.5 5.5 0 016.5 4.5a5.3 5.3 0 01.5-2.3A6 6 0 1012.5 10.5z"/></svg>,
     },
     {
@@ -1746,7 +1750,11 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
       {/* Quick chips */}
       <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
         {quickOpts.map(opt => {
-          const active = opt.value === 'someday' ? selected === 'someday' : selected === opt.value && opt.label !== 'Evening'
+          const active = opt.value === 'someday'
+            ? selected === 'someday'
+            : opt.value === 'today' && opt.label === 'Today'
+              ? selected === 'today'
+              : false
           return (
             <button
               key={opt.label}
@@ -1804,7 +1812,7 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
         {cells.map((day, i) => {
           if (!day) return <div key={i}/>
           const isoDate   = iso(day)
-          const isSel     = selected === isoDate
+          const isSel     = selected === isoDate || (selected === 'today' && isoDate === todayStr)
           const isToday   = isoDate === todayStr
           const isPast    = isoDate < todayStr
           const isHov     = hovDay === day && !isPast && !isSel
@@ -1898,7 +1906,6 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
     : '0 8px 48px rgba(0,0,0,0.72), 0 2px 12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.07)'
   const sep = <div style={{ height: '1px', background: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)', margin: '3px 0' }}/>
 
-  const today    = new Date().toISOString().slice(0, 10)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const hasLists = lists.filter(l => !l.is_inbox).length > 0
 
@@ -1952,8 +1959,8 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
           <span style={{ flex: 1 }}>When…</span>
           {ctx.task.scheduled_for && (
             <span style={{ fontSize: '11px', color: C.muted }}>
-              {ctx.task.scheduled_for === 'someday' ? 'Someday'
-                : ctx.task.scheduled_for === today ? 'Today'
+              {ctx.task.scheduled_for === 'today' ? 'Today'
+                : ctx.task.scheduled_for === 'someday' ? 'Someday'
                 : ctx.task.scheduled_for === tomorrow ? 'Tomorrow'
                 : new Date(ctx.task.scheduled_for + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
