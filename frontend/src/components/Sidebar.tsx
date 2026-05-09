@@ -264,7 +264,7 @@ export default function Sidebar() {
               onMouseEnter={e => { e.currentTarget.style.background = t.linkHoverBg }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               style={{
-                flex:           1,
+                flex:           '0 1 auto',
                 display:        'flex',
                 alignItems:     'center',
                 gap:            '10px',
