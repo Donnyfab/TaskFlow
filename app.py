@@ -5388,6 +5388,7 @@ def edit_task(task_id):
 
 
 @app.route("/tasks/update/<int:task_id>", methods=["POST"])
+@app.route("/api/tasks/<int:task_id>", methods=["PATCH", "PUT", "POST"])
 @login_required
 def update_task(task_id):
     ensure_task_metadata_columns()
