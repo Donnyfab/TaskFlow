@@ -305,6 +305,8 @@ export default function Sidebar() {
               </svg>
             </button>
 
+            <div style={{ flex: 1 }} />
+
             {/* Collapse «» button — fades in on sidebar hover */}
             <button
               onClick={collapse}
