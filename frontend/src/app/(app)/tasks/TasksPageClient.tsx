@@ -743,7 +743,7 @@ export default function TasksPageClient() {
               </div>
               {data.lists.filter(l => !l.is_inbox).map(lst => (
                 <SidebarItemCustom key={lst.id}
-                  label={lst.name} count={lst.task_count || null}
+                  label={lst.name} count={null}
                   active={listId===lst.id} C={C} theme={theme}
                   onClick={() => router.push(`/tasks?list_id=${lst.id}`)}
                 />
