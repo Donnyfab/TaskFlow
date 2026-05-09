@@ -115,11 +115,12 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
   const [zoom,    setZoom]    = useState(1)
   const [rotation, setRotation] = useState(0)
   const [pixels,  setPixels]  = useState<Area | null>(null)
-  const [saving,  setSaving]  = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [dragOver, setDragOver] = useState(false)
-  const [hovered, setHovered]  = useState(false)
-  const [err,     setErr]      = useState('')
+  const [saving,    setSaving]    = useState(false)
+  const [progress,  setProgress]  = useState(0)
+  const [dragOver,  setDragOver]  = useState(false)
+  const [hovered,   setHovered]   = useState(false)
+  const [err,       setErr]       = useState('')
+  const [modalErr,  setModalErr]  = useState('')
 
   const onCropComplete = useCallback((_: Area, p: Area) => setPixels(p), [])
 
@@ -155,11 +156,17 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
     if (saving) return
     setCropOpen(false)
     setImgSrc('')
+    setModalErr('')
     setProgress(0)
   }
 
   async function handleSave() {
-    if (!pixels || !imgSrc || saving) return
+    if (saving) return
+    if (!pixels || !imgSrc) {
+      setModalErr('Please wait for the image to load, then try again.')
+      return
+    }
+    setModalErr('')
     setSaving(true)
     setProgress(25)
     try {
@@ -170,7 +177,10 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
       const res = await fetch(apiUrl('/upload_profile'), {
         method: 'POST', body: fd, credentials: 'include',
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`${res.status}${text ? ': ' + text : ''}`)
+      }
       const data = await res.json()
       setProgress(100)
       setTimeout(() => {
@@ -178,10 +188,10 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
         setSaving(false)
         onUpload(data.url)
       }, 380)
-    } catch {
+    } catch (e) {
       setSaving(false)
       setProgress(0)
-      setErr('Upload failed. Try again.')
+      setModalErr(`Upload failed — ${e instanceof Error ? e.message : 'please try again.'}`)
     }
   }
 
@@ -458,6 +468,13 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
                 )}
               </div>
             </div>
+
+            {/* Error message inside modal */}
+            {modalErr && (
+              <div style={{ margin: '0 22px', padding: '9px 12px', background: 'rgba(255,50,50,0.08)', border: '1px solid rgba(255,80,80,0.18)', borderRadius: '8px', fontSize: '12px', color: 'rgba(255,120,120,0.9)', flexShrink: 0 }}>
+                {modalErr}
+              </div>
+            )}
 
             {/* Footer */}
             <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
