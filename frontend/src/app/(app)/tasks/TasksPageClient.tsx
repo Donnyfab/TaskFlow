@@ -1629,6 +1629,232 @@ function SidebarItemCustom({ label, count, active, C, theme, onClick }: {
   )
 }
 
+/* ─── When Picker ───────────────────────────────────────────────── */
+function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDone }: {
+  C: Colors; isLight: boolean; menuBg: string; border: string; shadow: string
+  task: Task
+  onSchedule: (t: Task, when: string | null) => void
+  onDone: () => void
+}) {
+  const todayStr    = new Date().toISOString().slice(0, 10)
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+
+  const [input,     setInput]     = useState('')
+  const [calDate,   setCalDate]   = useState(() => {
+    const sf = task.scheduled_for
+    if (sf && sf !== 'someday') return new Date(sf + 'T12:00:00')
+    return new Date()
+  })
+  const [selected,  setSelected]  = useState<string | null>(task.scheduled_for ?? null)
+  const [hovDay,    setHovDay]    = useState<number | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  function parseNL(raw: string): string | null {
+    const s = raw.trim().toLowerCase()
+    if (!s) return null
+    if (s === 'today') return todayStr
+    if (['tomorrow','tmr','tmrw'].includes(s)) return tomorrowStr
+    if (s === 'someday') return 'someday'
+    const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+    const idx = days.indexOf(s)
+    if (idx !== -1) {
+      const now = new Date()
+      const diff = (idx - now.getDay() + 7) % 7 || 7
+      return new Date(now.getTime() + diff * 86400000).toISOString().slice(0, 10)
+    }
+    const p = new Date(raw)
+    if (!isNaN(p.getTime())) return p.toISOString().slice(0, 10)
+    return null
+  }
+
+  function pick(value: string | null) {
+    setSelected(value)
+    onSchedule(task, value)
+    onDone()
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    e.stopPropagation()
+    if (e.key === 'Enter') { const p = parseNL(input); if (p) pick(p) }
+  }
+
+  const year = calDate.getFullYear()
+  const month = calDate.getMonth()
+  const monthName = calDate.toLocaleString('en-US', { month: 'long' })
+
+  function buildCells(): (number | null)[] {
+    const first = new Date(year, month, 1).getDay()
+    const count = new Date(year, month + 1, 0).getDate()
+    const arr: (number | null)[] = Array(first).fill(null)
+    for (let d = 1; d <= count; d++) arr.push(d)
+    while (arr.length % 7 !== 0) arr.push(null)
+    return arr
+  }
+
+  function iso(day: number) {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  const cells  = buildCells()
+  const accent = '#4F8EF7'
+  const bg2    = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)'
+  const bdr    = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)'
+
+  const quickOpts = [
+    {
+      label: 'Today', value: todayStr,
+      icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg>,
+    },
+    {
+      label: 'Evening', value: todayStr,
+      icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.5 10.5A5.5 5.5 0 016.5 4.5a5.3 5.3 0 01.5-2.3A6 6 0 1012.5 10.5z"/></svg>,
+    },
+    {
+      label: 'Someday', value: 'someday',
+      icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v4l2.5 2"/></svg>,
+    },
+  ]
+
+  return (
+    <div
+      style={{
+        position: 'absolute', left: 'calc(100% + 6px)', top: '-5px',
+        background: menuBg, border: `1px solid ${border}`, borderRadius: '16px',
+        padding: '12px 10px', boxShadow: shadow, width: '264px', zIndex: 1002,
+        animation: 'ctxIn 0.12s ease-out',
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Natural language input */}
+      <input
+        ref={inputRef}
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={handleKey}
+        placeholder="Tomorrow, Friday, May 18…"
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          background: bg2, border: `1px solid ${bdr}`,
+          borderRadius: '8px', padding: '7px 10px',
+          fontSize: '13px', color: C.text, fontFamily: 'inherit',
+          outline: 'none', marginBottom: '10px',
+        }}
+      />
+
+      {/* Quick chips */}
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
+        {quickOpts.map(opt => {
+          const active = opt.value === 'someday' ? selected === 'someday' : selected === opt.value && opt.label !== 'Evening'
+          return (
+            <button
+              key={opt.label}
+              onClick={() => pick(opt.value)}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: '5px', padding: '8px 4px', borderRadius: '9px',
+                background: active ? 'rgba(79,142,247,0.16)' : bg2,
+                border: `1px solid ${active ? 'rgba(79,142,247,0.35)' : bdr}`,
+                color: active ? accent : C.text,
+                cursor: 'pointer', fontSize: '11px', fontFamily: 'inherit',
+                transition: 'all 0.1s', fontWeight: active ? 600 : 400,
+              }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = C.hoverItemBg }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = bg2 }}
+            >
+              {opt.icon}
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Divider */}
+      <div style={{ height: '1px', background: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)', marginBottom: '10px' }}/>
+
+      {/* Month navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px', padding: '0 2px' }}>
+        <button
+          onClick={() => setCalDate(new Date(year, month - 1, 1))}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: '3px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}
+        >
+          <svg viewBox="0 0 6 10" width="6" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 1L1 5l4 4"/></svg>
+        </button>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: '12.5px', fontWeight: 600, color: C.text }}>
+          {monthName} {year}
+        </span>
+        <button
+          onClick={() => setCalDate(new Date(year, month + 1, 1))}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: '3px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}
+        >
+          <svg viewBox="0 0 6 10" width="6" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l4 4-4 4"/></svg>
+        </button>
+      </div>
+
+      {/* Day-of-week headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: '2px' }}>
+        {['S','M','T','W','T','F','S'].map((d, i) => (
+          <div key={i} style={{ textAlign: 'center', fontSize: '10.5px', color: C.muted, fontWeight: 500, padding: '1px 0' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Day cells */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={i}/>
+          const isoDate   = iso(day)
+          const isSel     = selected === isoDate
+          const isToday   = isoDate === todayStr
+          const isPast    = isoDate < todayStr
+          const isHov     = hovDay === day && !isPast && !isSel
+          return (
+            <button
+              key={i}
+              onClick={() => { if (!isPast) pick(isoDate) }}
+              onMouseEnter={() => setHovDay(day)}
+              onMouseLeave={() => setHovDay(null)}
+              style={{
+                background: isSel ? accent : isToday ? (isLight ? 'rgba(79,142,247,0.13)' : 'rgba(79,142,247,0.17)') : isHov ? (isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.09)') : 'transparent',
+                color: isSel ? '#fff' : isPast ? C.muted : isToday ? accent : C.text,
+                border: 'none', borderRadius: '50%',
+                width: '30px', height: '30px', margin: '1px auto',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '12px', fontFamily: 'inherit',
+                cursor: isPast ? 'default' : 'pointer',
+                opacity: isPast ? 0.3 : 1,
+                fontWeight: isSel || isToday ? 600 : 400,
+                transition: 'background 0.08s',
+              }}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* No Date */}
+      <div style={{ height: '1px', background: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)', margin: '10px 0 8px' }}/>
+      <button
+        onClick={() => pick(null)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '7px',
+          padding: '4px 6px', borderRadius: '7px',
+          background: 'transparent', border: 'none',
+          color: C.muted, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.hoverItemBg }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+      >
+        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M1 1l12 12M13 1L1 13"/>
+        </svg>
+        No Date
+      </button>
+    </div>
+  )
+}
+
 /* ─── Task Context Menu ──────────────────────────────────────────── */
 interface CtxMenuState { task: Task; x: number; y: number }
 
@@ -1716,38 +1942,29 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
         {/* When… */}
         <div
           style={itemBase}
-          onMouseEnter={e => { setSubMenu('when'); (e.currentTarget as HTMLElement).style.background = C.hoverItemBg }}
+          onClick={e => { e.stopPropagation(); setSubMenu(subMenu === 'when' ? null : 'when') }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.hoverItemBg }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/>
           </svg>
           <span style={{ flex: 1 }}>When…</span>
-          <ChevRight/>
+          {ctx.task.scheduled_for && (
+            <span style={{ fontSize: '11px', color: C.muted }}>
+              {ctx.task.scheduled_for === 'someday' ? 'Someday'
+                : ctx.task.scheduled_for === today ? 'Today'
+                : ctx.task.scheduled_for === tomorrow ? 'Tomorrow'
+                : new Date(ctx.task.scheduled_for + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
           {subMenu === 'when' && (
-            <div style={subStyle}>
-              {[
-                { label: 'Today',    value: today,    icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg> },
-                { label: 'Tomorrow', value: tomorrow, icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg> },
-                { label: 'Someday',  value: 'someday',icon: <svg viewBox="0 0 18 18" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4.5" width="14" height="11" rx="2.5"/><path d="M5.5 4.5V3a1 1 0 011-1h5a1 1 0 011 1v1.5"/></svg> },
-              ].map(opt => (
-                <button key={opt.label} onClick={() => onSchedule(ctx.task, opt.value)} style={itemBase}
-                  onMouseEnter={e => (e.currentTarget.style.background = C.hoverItemBg)}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <span style={{ color: C.muted }}>{opt.icon}</span>
-                  {opt.label}
-                </button>
-              ))}
-              {sep}
-              <button onClick={() => onSchedule(ctx.task, null)} style={{ ...itemBase, color: C.muted }}
-                onMouseEnter={e => (e.currentTarget.style.background = C.hoverItemBg)}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
-                No Date
-              </button>
-            </div>
+            <WhenPicker
+              C={C} isLight={isLight} menuBg={menuBg} border={border} shadow={shadow}
+              task={ctx.task}
+              onSchedule={onSchedule}
+              onDone={() => { setSubMenu(null); onClose() }}
+            />
           )}
         </div>
 
