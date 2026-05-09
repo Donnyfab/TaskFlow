@@ -298,7 +298,6 @@ export default function Sidebar() {
                 <div style={{ fontSize: '12px', fontWeight: 600, color: t.profileText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user?.username || 'Guest'}
                 </div>
-                <div style={{ fontSize: '10px', color: t.profileSub }}>Free plan</div>
               </div>
               <svg viewBox="0 0 10 6" fill="none" width="10" height="6" style={{ flexShrink: 0, color: t.chevron, transform: profileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
                 <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
