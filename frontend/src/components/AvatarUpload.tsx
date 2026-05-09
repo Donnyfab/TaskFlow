@@ -171,11 +171,20 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
     setProgress(25)
     try {
       const blob = await getCroppedBlob(imgSrc, pixels, rotation)
-      setProgress(60)
-      const fd = new FormData()
-      fd.append('profile_image', blob, 'profile.jpg')
+      setProgress(50)
+      // Convert to base64 data URL — stored directly in DB, survives server restarts
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      setProgress(75)
       const res = await fetch(apiUrl('/upload_profile'), {
-        method: 'POST', body: fd, credentials: 'include',
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data: base64 }),
       })
       if (!res.ok) {
         const text = await res.text().catch(() => '')
@@ -300,7 +309,7 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
               transition: 'transform 0.2s',
             }}>
               {profileImage
-                ? <img src={apiUrl(profileImage)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+                ? <img src={profileImage.startsWith('data:') ? profileImage : apiUrl(profileImage)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
                 : initials}
             </div>
 

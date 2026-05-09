@@ -17,7 +17,6 @@ from flask import (
 )
 from flask_caching import Cache
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
@@ -545,6 +544,29 @@ def postgres_column_exists(cursor, table_name: str, column_name: str, schema_nam
         (schema_name, table_name, column_name),
     )
     return cursor.fetchone() is not None
+
+
+# ── profile_image column — ensure it exists and is TEXT (no length limit)
+_PROFILE_IMAGE_COLUMN_READY = False
+
+def _ensure_profile_image_column() -> bool:
+    global _PROFILE_IMAGE_COLUMN_READY
+    if _PROFILE_IMAGE_COLUMN_READY:
+        return True
+    try:
+        db = get_db()
+        c = db.cursor()
+        if not postgres_column_exists(c, "users", "profile_image"):
+            c.execute("ALTER TABLE users ADD COLUMN profile_image TEXT")
+        else:
+            # Ensure column is TEXT (no length limit) so base64 fits
+            c.execute("ALTER TABLE users ALTER COLUMN profile_image TYPE TEXT")
+        c.close()
+        _PROFILE_IMAGE_COLUMN_READY = True
+        return True
+    except Exception:
+        app.logger.exception("Could not ensure profile_image column.")
+        return False
 
 
 # ── scheduled_for column — runs once per process, bypasses the main schema cache
@@ -3572,63 +3594,27 @@ def verify_email_pending():
 @app.route("/upload_profile", methods=["POST"])
 @login_required
 def upload_profile():
-    if "profile_image" not in request.files:
-        abort(400, "Missing file: profile_image")
+    _ensure_profile_image_column()
+    payload = request.get_json(silent=True) or {}
+    image_data = payload.get("image_data", "")
 
-    file = request.files["profile_image"]
-    if not file or file.filename == "":
-        abort(400, "No file selected")
+    if not image_data or not str(image_data).startswith("data:image/"):
+        return jsonify({"ok": False, "error": "Missing or invalid image_data"}), 400
 
-    # Determine extension from filename or fall back to content-type
-    if file.filename and "." in file.filename:
-        ext = file.filename.rsplit(".", 1)[1].lower()
-    else:
-        ct = (file.content_type or "").lower()
-        if "jpeg" in ct or "jpg" in ct:
-            ext = "jpg"
-        elif "png" in ct:
-            ext = "png"
-        elif "webp" in ct:
-            ext = "webp"
-        else:
-            ext = "jpg"
+    # Sanity-check size: base64 avatar should be < 2 MB
+    if len(image_data) > 2 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "Image too large"}), 400
 
-    if ext not in ALLOWED_EXTENSIONS:
-        abort(400, "Invalid file type")
-
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-
-    # Fetch current profile image so we can delete the old file
     db = get_db()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT profile_image FROM users WHERE id=%s", (session["user_id"],))
-    row = cursor.fetchone()
-    cursor.close()
-    old_image = (row or {}).get("profile_image")
-
-    filename = f"user_{session['user_id']}_{int(datetime.now().timestamp())}.{ext}"
-    filename = secure_filename(filename)
-    file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-
-    # Delete old image from disk if it exists and isn't the default
-    if old_image and old_image != "default.png":
-        old_path = os.path.join(app.config["UPLOAD_FOLDER"], old_image)
-        if os.path.isfile(old_path):
-            try:
-                os.remove(old_path)
-            except OSError:
-                pass
-
     cursor = db.cursor()
     cursor.execute(
         "UPDATE users SET profile_image=%s WHERE id=%s",
-        (filename, session["user_id"]),
+        (image_data, session["user_id"]),
     )
     cursor.close()
     invalidate_user_cached_data(session["user_id"])
 
-    image_url = url_for("static", filename=f"uploads/{filename}")
-    return jsonify({"ok": True, "url": image_url, "filename": filename})
+    return jsonify({"ok": True, "url": image_data})
 
 
 @app.route("/remove_profile_image", methods=["POST"])
@@ -7450,9 +7436,13 @@ def api_me():
     user = fetch_user_by_id(session["user_id"])
     if not user:
         return jsonify({"error": "not found"}), 404
-    profile_image_url = None
-    if user.get("profile_image") and user["profile_image"] != "default.png":
-        profile_image_url = f"/static/uploads/{user['profile_image']}"
+    _pi = user.get("profile_image") or ""
+    if _pi.startswith("data:"):
+        profile_image_url = _pi                              # base64 data URL — return as-is
+    elif _pi and _pi != "default.png":
+        profile_image_url = f"/static/uploads/{_pi}"        # legacy file-based
+    else:
+        profile_image_url = None
     return jsonify({
         "name":          user["name"],
         "username":      user["username"],
@@ -7880,9 +7870,13 @@ def api_settings_data():
     cursor.execute("SELECT google_refresh_token, email FROM users WHERE id=%s", (session["user_id"],))
     row = cursor.fetchone()
     cursor.close()
-    profile_image_url = None
-    if user.get("profile_image") and user["profile_image"] != "default.png":
-        profile_image_url = f"/static/uploads/{user['profile_image']}"
+    _pi = user.get("profile_image") or ""
+    if _pi.startswith("data:"):
+        profile_image_url = _pi
+    elif _pi and _pi != "default.png":
+        profile_image_url = f"/static/uploads/{_pi}"
+    else:
+        profile_image_url = None
     return jsonify({
         "name": user["name"],
         "username": user["username"],

@@ -292,7 +292,7 @@ export default function Sidebar() {
                 overflow:       'hidden',
               }}>
                 {user?.profile_image
-                  ? <img src={apiUrl(user.profile_image)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                  ? <img src={user.profile_image.startsWith('data:') ? user.profile_image : apiUrl(user.profile_image)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                   : initials}
               </div>
               <div style={{ minWidth: 0, textAlign: 'left' }}>
