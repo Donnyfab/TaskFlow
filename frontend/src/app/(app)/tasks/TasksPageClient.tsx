@@ -711,11 +711,10 @@ export default function TasksPageClient() {
           {/* ── Smart lists ── */}
           {SMART_LISTS.map(item => {
             const isActive = !listId && smartActive===item.id
-            const count    = item.id==='inbox' ? (data?.inbox_count ?? 0) || null : null
             return (
               <SidebarItem key={item.id}
                 Icon={item.Icon} label={item.label}
-                count={count} active={isActive} C={C} theme={theme}
+                count={null} active={isActive} C={C} theme={theme}
                 onClick={() => openTaskView(item.id)}
               />
             )
@@ -728,7 +727,7 @@ export default function TasksPageClient() {
             return (
               <SidebarItem key={item.id}
                 Icon={item.Icon} label={item.label}
-                count={item.id === 'trash' && (data?.trash_count ?? 0) > 0 ? (data?.trash_count ?? null) : null}
+                count={null}
                 active={!listId && smartActive===item.id} C={C} theme={theme}
                 onClick={() => openTaskView(item.id)}
               />
