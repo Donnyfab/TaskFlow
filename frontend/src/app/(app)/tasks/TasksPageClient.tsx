@@ -437,12 +437,28 @@ export default function TasksPageClient() {
   }
 
   function prevCalMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
-    else setViewMonth(m => m - 1)
+    if (calView === 'week') {
+      const d = new Date(selectedCalDate + 'T00:00:00')
+      d.setDate(d.getDate() - 7)
+      setSelectedCalDate(toIsoDate(d))
+      setViewYear(d.getFullYear())
+      setViewMonth(d.getMonth())
+    } else {
+      if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+      else setViewMonth(m => m - 1)
+    }
   }
   function nextCalMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
-    else setViewMonth(m => m + 1)
+    if (calView === 'week') {
+      const d = new Date(selectedCalDate + 'T00:00:00')
+      d.setDate(d.getDate() + 7)
+      setSelectedCalDate(toIsoDate(d))
+      setViewYear(d.getFullYear())
+      setViewMonth(d.getMonth())
+    } else {
+      if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+      else setViewMonth(m => m + 1)
+    }
   }
 
   function mtGetLocationLabel() {

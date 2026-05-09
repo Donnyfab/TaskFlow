@@ -7590,8 +7590,14 @@ def api_tasks_data():
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
-              AND t.due_date IS NOT NULL
-              AND t.due_date::date > CURRENT_DATE
+              AND (
+                (t.due_date IS NOT NULL AND t.due_date::date > CURRENT_DATE)
+                OR (
+                  t.due_date IS NULL
+                  AND t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
+                  AND t.scheduled_for::date > CURRENT_DATE
+                )
+              )
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
             {base_order}
