@@ -602,12 +602,28 @@ export default function TasksPageClient() {
 
   async function scheduleTask(task: Task, scheduledFor: string | null) {
     const prev = queryClient.getQueryData<Data>(['tasks', queryId])
-    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === task.id ? { ...t, scheduled_for: scheduledFor } : t) } : old)
+
+    // For smart views, remove the task if it no longer matches the view's filter
+    const isDateStr = !!scheduledFor && scheduledFor !== 'today' && scheduledFor !== 'someday' && /^\d{4}-\d{2}-\d{2}$/.test(scheduledFor)
+    const stillBelongs = typeof queryId === 'number' // list views always keep the task
+      || queryId === 'today'    && scheduledFor === 'today'
+      || queryId === 'someday'  && scheduledFor === 'someday'
+      || queryId === 'upcoming' && isDateStr
+      || queryId === 'inbox'    && !scheduledFor
+
+    queryClient.setQueryData<Data>(['tasks', queryId], old => {
+      if (!old) return old
+      return stillBelongs
+        ? { ...old, tasks: old.tasks.map(t => t.id === task.id ? { ...t, scheduled_for: scheduledFor } : t) }
+        : { ...old, tasks: old.tasks.filter(t => t.id !== task.id) }
+    })
+
     try {
       await fetch(apiUrl(`/tasks/update/${task.id}`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, list_id: task.list_id, scheduled_for: scheduledFor }) })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'today'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'upcoming'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'someday'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'inbox'] })
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
 
