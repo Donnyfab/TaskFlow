@@ -5304,7 +5304,7 @@ def create_quick_task():
 
     # Validate scheduled_for value from payload
     raw_scheduled = payload.get("scheduled_for")
-    valid_smart = {"today", "someday", "anytime"}
+    valid_smart = {"today", "someday", "anytime", "evening"}
     if raw_scheduled in valid_smart:
         scheduled_for = raw_scheduled
     elif raw_scheduled and re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_scheduled)):
@@ -5312,16 +5312,26 @@ def create_quick_task():
     else:
         scheduled_for = None
 
+    # Compute due_date from scheduled_for
+    if scheduled_for == 'today':
+        due_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    elif scheduled_for == 'evening':
+        due_date = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+    elif scheduled_for and re.match(r"^\d{4}-\d{2}-\d{2}$", str(scheduled_for)):
+        due_date = datetime.strptime(scheduled_for, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        due_date = None
+
     db = get_db()
     cursor = db.cursor()
     if col_ready and scheduled_for is not None:
         cursor.execute(
             """
-            INSERT INTO tasks (user_id, list_id, title, description, scheduled_for)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO tasks (user_id, list_id, title, description, scheduled_for, due_date)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (session["user_id"], list_id, title, "", scheduled_for),
+            (session["user_id"], list_id, title, "", scheduled_for, due_date),
         )
     else:
         cursor.execute(
@@ -5422,13 +5432,23 @@ def update_task(task_id):
     # Resolve scheduled_for from payload
     _col_ready = _ensure_scheduled_for_column()
     raw_scheduled = payload.get("scheduled_for") if "scheduled_for" in payload else task.get("scheduled_for")
-    _valid_smart = {"today", "someday", "anytime"}
+    _valid_smart = {"today", "someday", "anytime", "evening"}
     if raw_scheduled in _valid_smart:
         scheduled_for = raw_scheduled
     elif raw_scheduled and re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_scheduled)):
         scheduled_for = raw_scheduled
     else:
         scheduled_for = None
+
+    # Compute due_date from scheduled_for
+    if scheduled_for == 'today':
+        due_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    elif scheduled_for == 'evening':
+        due_date = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+    elif scheduled_for and re.match(r"^\d{4}-\d{2}-\d{2}$", str(scheduled_for)):
+        due_date = datetime.strptime(scheduled_for, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        due_date = None
 
     db = get_db()
     cursor = db.cursor()
@@ -5440,11 +5460,12 @@ def update_task(task_id):
                 description = %s,
                 priority = %s,
                 list_id = %s,
-                scheduled_for = %s
+                scheduled_for = %s,
+                due_date = %s
             WHERE id = %s
               AND user_id = %s
             """,
-            (title, description, priority, next_list_id, scheduled_for, task_id, session["user_id"]),
+            (title, description, priority, next_list_id, scheduled_for, due_date, task_id, session["user_id"]),
         )
     else:
         cursor.execute(
@@ -7554,7 +7575,8 @@ def api_tasks_data():
             WHERE t.user_id = %s
               AND (
                 t.scheduled_for = 'today'
-                OR (t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$' AND t.scheduled_for::date = CURRENT_DATE)
+                OR t.scheduled_for = 'evening'
+                OR (t.due_date IS NOT NULL AND t.due_date::date = CURRENT_DATE)
               )
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
@@ -7568,8 +7590,8 @@ def api_tasks_data():
             FROM tasks t
             LEFT JOIN task_lists tl ON tl.id = t.list_id AND tl.user_id = t.user_id
             WHERE t.user_id = %s
-              AND t.scheduled_for ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-              AND t.scheduled_for::date > CURRENT_DATE
+              AND t.due_date IS NOT NULL
+              AND t.due_date::date > CURRENT_DATE
               AND (t.list_id IS NULL OR tl.archived_at IS NULL)
               AND t.deleted_at IS NULL
             {base_order}

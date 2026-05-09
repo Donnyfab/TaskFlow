@@ -606,7 +606,7 @@ export default function TasksPageClient() {
     // For smart views, remove the task if it no longer matches the view's filter
     const isDateStr = !!scheduledFor && scheduledFor !== 'today' && scheduledFor !== 'someday' && /^\d{4}-\d{2}-\d{2}$/.test(scheduledFor)
     const stillBelongs = typeof queryId === 'number' // list views always keep the task
-      || queryId === 'today'    && scheduledFor === 'today'
+      || queryId === 'today'    && (scheduledFor === 'today' || scheduledFor === 'evening')
       || queryId === 'someday'  && scheduledFor === 'someday'
       || queryId === 'upcoming' && isDateStr
       || queryId === 'inbox'    && !scheduledFor
@@ -1676,7 +1676,7 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
     const s = raw.trim().toLowerCase()
     if (!s) return null
     if (s === 'today') return 'today'
-    if (s === 'evening' || s === 'this evening') return 'today'
+    if (s === 'evening' || s === 'this evening') return 'evening'
     if (['tomorrow','tmr','tmrw'].includes(s)) return tomorrowStr
     if (s === 'someday') return 'someday'
     const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
@@ -1730,7 +1730,7 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
       icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3" width="13" height="11" rx="2.5"/><path d="M1.5 7h13M5 1.5v3M11 1.5v3"/></svg>,
     },
     {
-      label: 'Evening', value: 'today',
+      label: 'Evening', value: 'evening',
       icon: <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.5 10.5A5.5 5.5 0 016.5 4.5a5.3 5.3 0 01.5-2.3A6 6 0 1012.5 10.5z"/></svg>,
     },
     {
@@ -1768,11 +1768,7 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
       {/* Quick chips */}
       <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
         {quickOpts.map(opt => {
-          const active = opt.value === 'someday'
-            ? selected === 'someday'
-            : opt.value === 'today' && opt.label === 'Today'
-              ? selected === 'today'
-              : false
+          const active = selected === opt.value
           return (
             <button
               key={opt.label}
@@ -1978,6 +1974,7 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
           {ctx.task.scheduled_for && (
             <span style={{ fontSize: '11px', color: C.muted }}>
               {ctx.task.scheduled_for === 'today' ? 'Today'
+                : ctx.task.scheduled_for === 'evening' ? 'Evening'
                 : ctx.task.scheduled_for === 'someday' ? 'Someday'
                 : ctx.task.scheduled_for === tomorrow ? 'Tomorrow'
                 : new Date(ctx.task.scheduled_for + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
