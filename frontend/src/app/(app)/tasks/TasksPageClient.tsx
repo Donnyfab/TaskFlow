@@ -1661,7 +1661,7 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
   const [input,     setInput]     = useState('')
   const [calDate,   setCalDate]   = useState(() => {
     const sf = task.scheduled_for
-    if (sf && sf !== 'someday') return new Date(sf + 'T12:00:00')
+    if (sf && /^\d{4}-\d{2}-\d{2}$/.test(sf)) return new Date(sf + 'T12:00:00')
     return new Date()
   })
   const [selected,  setSelected]  = useState<string | null>(task.scheduled_for ?? null)
