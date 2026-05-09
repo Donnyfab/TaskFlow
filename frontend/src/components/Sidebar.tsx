@@ -172,6 +172,7 @@ export default function Sidebar() {
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
     : 'TF'
+  const firstName = user?.name?.trim().split(/\s+/)[0]
 
   if (pathname.startsWith('/auth')) return null
 
@@ -296,7 +297,7 @@ export default function Sidebar() {
               </div>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: t.profileText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user?.username || 'Guest'}
+                  {firstName || 'Guest'}
                 </div>
               </div>
               <svg viewBox="0 0 10 6" fill="none" width="10" height="6" style={{ flexShrink: 0, color: t.chevron, transform: profileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
