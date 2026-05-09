@@ -295,7 +295,7 @@ export default function Sidebar() {
                   ? <img src={apiUrl(user.profile_image)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                   : initials}
               </div>
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <div style={{ minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: t.profileText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {firstName || 'Guest'}
                 </div>
