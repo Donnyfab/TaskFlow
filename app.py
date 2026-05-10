@@ -3412,7 +3412,7 @@ def register_page():
         except Exception:
             app.logger.exception("Post-registration email/token step failed for %s.", email)
 
-        return redirect(url_for("home_page"))
+        return redirect(APP_PUBLIC_URL + "/home")
 
     return render_template("auth/register.html")
 
