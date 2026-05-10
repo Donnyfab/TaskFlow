@@ -1,9 +1,10 @@
 import Sidebar from '@/components/Sidebar'
 import LazyAIWidget from '@/components/LazyAIWidget'
+import ThemeShell from '@/components/ThemeShell'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0A0A0A' }}>
+    <ThemeShell>
       <Sidebar />
       <main
         style={{
@@ -18,6 +19,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <LazyAIWidget />
-    </div>
+    </ThemeShell>
   )
 }
