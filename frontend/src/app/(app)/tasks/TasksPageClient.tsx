@@ -259,6 +259,9 @@ export default function TasksPageClient() {
   /* ── Context menu ── */
   const [ctxMenu, setCtxMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
 
+  /* ── Inline expansion ── */
+  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null)
+
   /* ── Theme sync ── */
   const [theme, setTheme] = useState<'dark'|'light'>('dark')
 
@@ -599,6 +602,30 @@ export default function TasksPageClient() {
   function handleContextMenu(task: Task, e: React.MouseEvent) {
     e.preventDefault()
     setCtxMenu({ task, x: e.clientX, y: e.clientY })
+  }
+
+  function handleInlineExpand(task: Task) {
+    setExpandedTaskId(task.id)
+  }
+
+  async function handleInlineSave(id: number, title: string, notes: string) {
+    setExpandedTaskId(null)
+    const trimmed = title.trim()
+    if (!trimmed) return
+    const taskList = queryClient.getQueryData<Data>(['tasks', queryId])?.tasks ?? []
+    const task = taskList.find(t => t.id === id)
+    if (!task) return
+    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
+    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks: old.tasks.map(t => t.id === id ? { ...t, title: trimmed, description: notes } : t) } : old)
+    try {
+      const res = await fetch(apiUrl(`/api/tasks/${id}`), { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }, body: JSON.stringify({ title: trimmed, description: notes, priority: task.priority, list_id: task.list_id }) })
+      const result = await res.json()
+      if (!result.ok) queryClient.setQueryData(['tasks', queryId], prev)
+    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
+  }
+
+  function handleInlineDiscard() {
+    setExpandedTaskId(null)
   }
 
   async function duplicateTask(task: Task) {
@@ -1194,7 +1221,7 @@ export default function TasksPageClient() {
                     <span>Active</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{incomplete.length}</span>
                   </div>
-                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
+                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
                   <div onClick={openTaskModal} style={{ display:'grid', gridTemplateColumns:'18px 1fr', alignItems:'center', gap:'12px', padding:'11px 4px 11px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'text', color:C.muted }}>
                     <div style={{ width:'16px', height:'16px', borderRadius:'50%', border:`1.25px dashed ${C.checkBorder}`, flexShrink:0, opacity:0.6 }}/>
                     <span style={{ fontSize:'14px' }}>Add a task…</span>
@@ -1207,7 +1234,7 @@ export default function TasksPageClient() {
                     <span>Completed</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{done.length}</span>
                   </div>
-                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
+                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
                 </div>
               )}
             </div>
@@ -2172,11 +2199,63 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
 }
 
 /* ─── Task Row ───────────────────────────────────────────────────── */
-function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C }: {
+function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C, expanded, onExpand, onInlineSave, onInlineDiscard }: {
   task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void; onOpen:(t:Task)=>void
   onContextMenu:(t:Task,e:React.MouseEvent)=>void; C: Colors
+  expanded: boolean; onExpand:()=>void
+  onInlineSave:(id:number,title:string,notes:string)=>void; onInlineDiscard:()=>void
 }) {
   const [hov, setHov] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editNotes, setEditNotes] = useState(task.description || '')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
+  const notesRef = useRef<HTMLTextAreaElement>(null)
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editTitleRef = useRef(task.title)
+  const editNotesRef = useRef(task.description || '')
+
+  useEffect(() => {
+    if (expanded) {
+      setEditTitle(task.title)
+      setEditNotes(task.description || '')
+      editTitleRef.current = task.title
+      editNotesRef.current = task.description || ''
+      setTimeout(() => titleRef.current?.focus(), 30)
+    }
+  }, [expanded])
+
+  useEffect(() => {
+    if (notesRef.current) {
+      notesRef.current.style.height = 'auto'
+      notesRef.current.style.height = notesRef.current.scrollHeight + 'px'
+    }
+  }, [editNotes, expanded])
+
+  useEffect(() => {
+    if (!expanded) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        onInlineSave(task.id, editTitleRef.current, editNotesRef.current)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [expanded])
+
+  function handleRowClick() {
+    if (expanded) return
+    if (clickTimerRef.current !== null) {
+      clearTimeout(clickTimerRef.current)
+      clickTimerRef.current = null
+      onExpand()
+    } else {
+      clickTimerRef.current = setTimeout(() => {
+        clickTimerRef.current = null
+        onOpen(task)
+      }, 220)
+    }
+  }
 
   const checkBorderColor = task.priority === 'high'
     ? C.tagHighTx
@@ -2186,73 +2265,109 @@ function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C }: {
     ? C.tagLowTx
     : C.checkBorder
 
-  const dotColor = checkBorderColor
-
   return (
-    <div
-      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      onClick={()=>onOpen(task)} onContextMenu={e=>onContextMenu(task,e)}
-      style={{
-        display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems:'center',
-        gap:'12px', padding:'11px 4px 11px 0',
-        borderBottom:`1px solid ${C.taskBorder}`,
-        cursor:'default', position:'relative',
-      }}
-    >
-      {/* Checkbox */}
-      <button
-        onClick={e=>{e.stopPropagation();onToggle(task.id)}}
+    <div ref={wrapperRef}>
+      <div
+        onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+        onClick={handleRowClick} onContextMenu={e=>onContextMenu(task,e)}
         style={{
-          width:'16px', height:'16px', borderRadius:'50%', flexShrink:0,
-          cursor:'pointer',
-          border: task.completed ? 'none' : `1.25px solid ${checkBorderColor}`,
-          background: task.completed ? C.checkDoneBg : 'transparent',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          transition:'all 0.15s', padding:0,
+          display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems:'center',
+          gap:'12px', padding:'11px 4px 11px 0',
+          borderBottom: expanded ? 'none' : `1px solid ${C.taskBorder}`,
+          cursor:'default', position:'relative',
         }}
       >
-        {task.completed && (
-          <svg viewBox="0 0 16 16" width="10" height="10" fill="none"
-            stroke={C.contentBg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3.5 8.5l2.8 2.8L12.5 5"/>
-          </svg>
-        )}
-      </button>
-
-      {/* Body */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'3px', minWidth:0 }}>
-        <div style={{
-          fontSize:'14px', color: task.completed ? C.taskDone : C.taskText,
-          lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-          fontWeight:400,
-          textDecoration: task.completed ? 'line-through' : 'none',
-          textDecorationColor: C.taskDone,
-          textDecorationThickness: '1px',
-          transition:'color 120ms ease',
-        }}>
-          {task.title}
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:'12px', fontSize:'11.5px', color:C.muted }}>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:'5px' }}>
-            <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:dotColor, display:'inline-block', flexShrink:0 }}/>
-            <span style={{ textTransform:'capitalize' }}>{task.priority}</span>
-          </span>
-          {task.list_name && task.list_name !== 'Task' && (
-            <span>{task.list_name}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Row actions */}
-      <div style={{ display:'flex', gap:'2px', opacity: hov ? 1 : 0, transition:'opacity 120ms ease' }}>
         <button
-          onClick={e=>{e.stopPropagation();onDelete(task.id)}}
-          title="Delete"
-          style={{ width:'26px', height:'26px', borderRadius:'6px', background:C.hoverItemBg, border:'none', cursor:'pointer', color:C.muted, display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease' }}
+          onClick={e=>{e.stopPropagation();onToggle(task.id)}}
+          style={{
+            width:'16px', height:'16px', borderRadius:'50%', flexShrink:0,
+            cursor:'pointer',
+            border: task.completed ? 'none' : `1.25px solid ${checkBorderColor}`,
+            background: task.completed ? C.checkDoneBg : 'transparent',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            transition:'all 0.15s', padding:0,
+          }}
         >
-          <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+          {task.completed && (
+            <svg viewBox="0 0 16 16" width="10" height="10" fill="none"
+              stroke={C.contentBg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3.5 8.5l2.8 2.8L12.5 5"/>
+            </svg>
+          )}
         </button>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:'3px', minWidth:0 }}>
+          <div style={{
+            fontSize:'14px', color: task.completed ? C.taskDone : C.taskText,
+            lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+            fontWeight:400,
+            textDecoration: task.completed ? 'line-through' : 'none',
+            textDecorationColor: C.taskDone,
+            textDecorationThickness: '1px',
+            transition:'color 120ms ease',
+          }}>
+            {task.title}
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:'12px', fontSize:'11.5px', color:C.muted }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:'5px' }}>
+              <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:checkBorderColor, display:'inline-block', flexShrink:0 }}/>
+              <span style={{ textTransform:'capitalize' }}>{task.priority}</span>
+            </span>
+            {task.list_name && task.list_name !== 'Task' && (
+              <span>{task.list_name}</span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display:'flex', gap:'2px', opacity: hov ? 1 : 0, transition:'opacity 120ms ease' }}>
+          <button
+            onClick={e=>{e.stopPropagation();onDelete(task.id)}}
+            title="Delete"
+            style={{ width:'26px', height:'26px', borderRadius:'6px', background:C.hoverItemBg, border:'none', cursor:'pointer', color:C.muted, display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease' }}
+          >
+            <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+          </button>
+        </div>
       </div>
+
+      {expanded && (
+        <div style={{
+          borderBottom:`1px solid ${C.taskBorder}`,
+          padding:'2px 4px 14px 30px',
+          animation:'inlineExpand 0.15s ease',
+        }}>
+          <input
+            ref={titleRef}
+            value={editTitle}
+            onChange={e => { setEditTitle(e.target.value); editTitleRef.current = e.target.value }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); notesRef.current?.focus() }
+              if (e.key === 'Escape') { e.stopPropagation(); onInlineDiscard() }
+            }}
+            style={{
+              display:'block', width:'100%', background:'transparent', border:'none', outline:'none',
+              fontSize:'14px', fontWeight:500, color:C.text, lineHeight:1.4,
+              padding:'4px 0', marginBottom:'6px', boxSizing:'border-box',
+            }}
+          />
+          <textarea
+            ref={notesRef}
+            value={editNotes}
+            onChange={e => { setEditNotes(e.target.value); editNotesRef.current = e.target.value }}
+            placeholder="Notes"
+            rows={1}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { e.stopPropagation(); onInlineDiscard() }
+            }}
+            className="task-inline-notes"
+            style={{
+              display:'block', width:'100%', background:'transparent', border:'none', outline:'none',
+              fontSize:'13px', color:C.muted, lineHeight:1.5, resize:'none', overflow:'hidden',
+              padding:'0', fontFamily:'inherit', boxSizing:'border-box',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
