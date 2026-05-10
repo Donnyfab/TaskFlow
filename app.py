@@ -30,6 +30,7 @@ import json
 import calendar
 import re
 import time
+import threading
 import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -946,6 +947,46 @@ Happy planning,
 The TaskFlow Team
 """.strip()
     return safe_send_message(msg, "welcome")
+
+
+def _send_registration_emails_bg(email: str, first_name: str, login_url: str, verify_url: str):
+    """Sends welcome and verification emails in a daemon thread so the HTTP response is not blocked."""
+    def _task():
+        with app.app_context():
+            try:
+                msg_welcome = Message(
+                    subject=f"Welcome to TaskFlow, {first_name}!",
+                    recipients=[email],
+                )
+                msg_welcome.body = f"""
+Hi {first_name},
+
+Welcome to TaskFlow!
+
+Your account has been successfully created — we are glad to have you.
+
+Here is what you can do next:
+- Log in: {login_url}
+- Create your first task
+- Explore your dashboard and get productive
+
+Need help? Reply to this email anytime — we are here for you.
+
+Happy planning,
+The TaskFlow Team
+""".strip()
+                safe_send_message(msg_welcome, "welcome")
+
+                msg_verify = Message(
+                    subject="Verify your TaskFlow email",
+                    recipients=[email],
+                    body=f"Welcome to TaskFlow!\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours.",
+                )
+                safe_send_message(msg_verify, "verification")
+            except Exception:
+                app.logger.exception("Background registration email failed for %s.", email)
+
+    threading.Thread(target=_task, daemon=True).start()
 
 
 def send_contact_form_email(name: str, email: str, inquiry_type: str, message_text: str) -> bool:
@@ -3360,11 +3401,14 @@ def register_page():
         # Log the user in immediately so the session is set before anything else can fail.
         begin_user_session(user_id, full_name, username)
 
+        # Pre-compute URLs while still in request context, then fire emails in the background
+        # so the SMTP connection never blocks the registration response.
         try:
             token = generate_email_verification_token(user_id, email)
             set_email_verification_token(user_id, token)
-            send_welcome_email(email, first)
-            send_verification_email(email, token)
+            login_url = url_for("login_page", _external=True)
+            verify_url = url_for("verify_email", token=token, _external=True)
+            _send_registration_emails_bg(email, first, login_url, verify_url)
         except Exception:
             app.logger.exception("Post-registration email/token step failed for %s.", email)
 
