@@ -213,11 +213,6 @@ export default function TasksPageClient() {
   const [newList,         setNewList]         = useState('')
   const [showNewList,     setShowNewList]     = useState(false)
   const [showNewListMenu, setShowNewListMenu] = useState(false)
-  const [detail,          setDetail]          = useState<Task | null>(null)
-  const [dpTitle,         setDpTitle]         = useState('')
-  const [dpNotes,         setDpNotes]         = useState('')
-  const [dpPriority,      setDpPriority]      = useState('medium')
-  const [dpListId,        setDpListId]        = useState<number|null>(null)
   const [hovNL,           setHovNL]           = useState(false)
 
   // ── New Task Modal state ──────────────────────────────────────────
@@ -281,11 +276,6 @@ export default function TasksPageClient() {
   }, [])
 
   const C: Colors = theme === 'light' ? LIGHT_C : DARK_C
-
-  useEffect(() => {
-    if (isTrashView || isLogbookView) setDetail(null)
-  }, [isTrashView, isLogbookView])
-
 
   /* ── Brain Dump functions ── */
   function bdHandleCommand(text: string): boolean {
@@ -529,7 +519,6 @@ export default function TasksPageClient() {
   async function deleteTask(id: number) {
     const prev = queryClient.getQueryData<Data>(['tasks', queryId])
     queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.filter(t => t.id!==id) } : old)
-    if (detail?.id===id) setDetail(null)
     try { await fetch(apiUrl(`/tasks/delete/${id}`), { method:'POST', credentials:'include' }) }
     catch { queryClient.setQueryData(['tasks', queryId], prev) }
   }
@@ -580,23 +569,6 @@ export default function TasksPageClient() {
         queryClient.setQueryData(['tasks', queryId], prev)
       }
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
-  }
-
-  async function saveDetail() {
-    if (!detail) return
-    const prev = queryClient.getQueryData<Data>(['tasks', queryId])
-    queryClient.setQueryData<Data>(['tasks', queryId], old => old ? { ...old, tasks:old.tasks.map(t => t.id===detail.id ? { ...t, title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId } : t) } : old)
-    setDetail(null)
-    try {
-      const res = await fetch(apiUrl(`/api/tasks/${detail.id}`), { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','Accept':'application/json'}, body:JSON.stringify({ title:dpTitle, description:dpNotes, priority:dpPriority, list_id:dpListId }) })
-      const result = await res.json()
-      if (!result.ok) queryClient.setQueryData(['tasks', queryId], prev)
-    } catch { queryClient.setQueryData(['tasks', queryId], prev) }
-  }
-
-  function openDetail(task: Task) {
-    setDetail(task); setDpTitle(task.title); setDpNotes(task.description)
-    setDpPriority(task.priority); setDpListId(task.list_id)
   }
 
   function handleContextMenu(task: Task, e: React.MouseEvent) {
@@ -692,12 +664,6 @@ export default function TasksPageClient() {
   const currentTitle = listId
     ? (data?.lists.find(l => l.id===listId)?.name ?? 'Tasks')
     : (SMART_LISTS.find(s => s.id===smartActive)?.label ?? 'Inbox')
-
-  const dpInp: React.CSSProperties = {
-    width:'100%', background:C.detailInpBg, border:`1px solid ${C.inputBorder}`,
-    borderRadius:'8px', padding:'9px 12px', fontSize:'13px', color:C.text,
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box',
-  }
 
   if (isLoading) return (
     <div style={{ display:'flex', height:'100vh', fontFamily:'inherit', background:C.contentBg }}>
@@ -1221,7 +1187,7 @@ export default function TasksPageClient() {
                     <span>Active</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{incomplete.length}</span>
                   </div>
-                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
+                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
                   <div onClick={openTaskModal} style={{ display:'grid', gridTemplateColumns:'18px 1fr', alignItems:'center', gap:'12px', padding:'11px 4px 11px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'text', color:C.muted }}>
                     <div style={{ width:'16px', height:'16px', borderRadius:'50%', border:`1.25px dashed ${C.checkBorder}`, flexShrink:0, opacity:0.6 }}/>
                     <span style={{ fontSize:'14px' }}>Add a task…</span>
@@ -1234,7 +1200,7 @@ export default function TasksPageClient() {
                     <span>Completed</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{done.length}</span>
                   </div>
-                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
+                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
                 </div>
               )}
             </div>
@@ -1279,37 +1245,6 @@ export default function TasksPageClient() {
           </div>
         )}
       </div>
-
-      {/* ══ DETAIL PANEL ═════════════════════════════════════════════ */}
-      {!isTrashView && !isLogbookView && <div style={{
-        position:'fixed', right:0, top:0, bottom:0, width:'320px',
-        background:C.detailBg, borderLeft:`1px solid ${C.border}`,
-        zIndex:50, display:'flex', flexDirection:'column', fontFamily:'inherit',
-        transform: detail ? 'translateX(0)' : 'translateX(100%)',
-        transition:'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
-      }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:`1px solid ${C.border}` }}>
-          <div style={{ fontSize:'13px', fontWeight:600, color:C.text }}>Task details</div>
-          <button onClick={()=>setDetail(null)} style={{ width:'28px', height:'28px', borderRadius:'7px', background:C.detailCloseB, border:'none', color:C.muted, cursor:'pointer', fontSize:'13px' }}>✕</button>
-        </div>
-        <div style={{ flex:1, padding:'20px', overflowY:'auto' }}>
-          {([
-            { label:'Title',    content: <input value={dpTitle} onChange={e=>setDpTitle(e.target.value)} style={dpInp}/> },
-            { label:'Notes',    content: <textarea value={dpNotes} onChange={e=>setDpNotes(e.target.value)} rows={3} style={{...dpInp,resize:'none',lineHeight:1.6} as React.CSSProperties}/> },
-            { label:'Priority', content: <select value={dpPriority} onChange={e=>setDpPriority(e.target.value)} style={dpInp}><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select> },
-            { label:'List',     content: <select value={dpListId??''} onChange={e=>setDpListId(e.target.value?Number(e.target.value):null)} style={dpInp}><option value="">None</option>{data?.lists.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select> },
-          ] as {label:string,content:React.ReactNode}[]).map(({label,content})=>(
-            <div key={label} style={{ marginBottom:'18px' }}>
-              <div style={{ fontSize:'10px', fontWeight:500, color:C.muted, textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'6px' }}>{label}</div>
-              {content}
-            </div>
-          ))}
-        </div>
-        <div style={{ padding:'14px 20px', borderTop:`1px solid ${C.border}`, display:'flex', gap:'8px' }}>
-          <button onClick={saveDetail} style={{ flex:1, background:C.blue, color:'#fff', border:'none', borderRadius:'8px', padding:'9px', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Save changes</button>
-          <button onClick={()=>detail&&deleteTask(detail.id)} style={{ background:C.deleteBg, border:`1px solid ${C.deleteBorder}`, borderRadius:'8px', padding:'9px 14px', fontSize:'13px', color:C.deleteText, cursor:'pointer', fontFamily:'inherit' }}>Delete</button>
-        </div>
-      </div>}
 
       {/* ══ NEW TASK MODAL ══════════════════════════════════════════ */}
       {showTaskModal && (
@@ -2199,8 +2134,8 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
 }
 
 /* ─── Task Row ───────────────────────────────────────────────────── */
-function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C, expanded, onExpand, onInlineSave, onInlineDiscard }: {
-  task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void; onOpen:(t:Task)=>void
+function TaskRow({ task, onToggle, onDelete, onContextMenu, C, expanded, onExpand, onInlineSave, onInlineDiscard }: {
+  task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void
   onContextMenu:(t:Task,e:React.MouseEvent)=>void; C: Colors
   expanded: boolean; onExpand:()=>void
   onInlineSave:(id:number,title:string,notes:string)=>void; onInlineDiscard:()=>void
@@ -2211,7 +2146,6 @@ function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C, expanded,
   const wrapperRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const notesRef = useRef<HTMLTextAreaElement>(null)
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editTitleRef = useRef(task.title)
   const editNotesRef = useRef(task.description || '')
 
@@ -2243,20 +2177,6 @@ function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C, expanded,
     return () => document.removeEventListener('mousedown', handler)
   }, [expanded])
 
-  function handleRowClick() {
-    if (expanded) return
-    if (clickTimerRef.current !== null) {
-      clearTimeout(clickTimerRef.current)
-      clickTimerRef.current = null
-      onExpand()
-    } else {
-      clickTimerRef.current = setTimeout(() => {
-        clickTimerRef.current = null
-        onOpen(task)
-      }, 220)
-    }
-  }
-
   const checkBorderColor = task.priority === 'high'
     ? C.tagHighTx
     : task.priority === 'medium'
@@ -2269,7 +2189,7 @@ function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C, expanded,
     <div ref={wrapperRef}>
       <div
         onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-        onClick={handleRowClick} onContextMenu={e=>onContextMenu(task,e)}
+        onDoubleClick={()=>{ if (!expanded) onExpand() }} onContextMenu={e=>onContextMenu(task,e)}
         style={{
           display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems:'center',
           gap:'12px', padding:'11px 4px 11px 0',
