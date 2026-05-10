@@ -254,8 +254,6 @@ export default function TasksPageClient() {
   /* ── Context menu ── */
   const [ctxMenu, setCtxMenu] = useState<{ task: Task; x: number; y: number } | null>(null)
 
-  /* ── Inline expansion ── */
-  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null)
 
   /* ── Theme sync ── */
   const [theme, setTheme] = useState<'dark'|'light'>('dark')
@@ -576,12 +574,7 @@ export default function TasksPageClient() {
     setCtxMenu({ task, x: e.clientX, y: e.clientY })
   }
 
-  function handleInlineExpand(task: Task) {
-    setExpandedTaskId(task.id)
-  }
-
   async function handleInlineSave(id: number, title: string, notes: string) {
-    setExpandedTaskId(null)
     const trimmed = title.trim()
     if (!trimmed) return
     const taskList = queryClient.getQueryData<Data>(['tasks', queryId])?.tasks ?? []
@@ -594,10 +587,6 @@ export default function TasksPageClient() {
       const result = await res.json()
       if (!result.ok) queryClient.setQueryData(['tasks', queryId], prev)
     } catch { queryClient.setQueryData(['tasks', queryId], prev) }
-  }
-
-  function handleInlineDiscard() {
-    setExpandedTaskId(null)
   }
 
   async function duplicateTask(task: Task) {
@@ -1187,7 +1176,7 @@ export default function TasksPageClient() {
                     <span>Active</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{incomplete.length}</span>
                   </div>
-                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
+                  {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} onInlineSave={handleInlineSave}/>)}
                   <div onClick={openTaskModal} style={{ display:'grid', gridTemplateColumns:'18px 1fr', alignItems:'center', gap:'12px', padding:'11px 4px 11px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'text', color:C.muted }}>
                     <div style={{ width:'16px', height:'16px', borderRadius:'50%', border:`1.25px dashed ${C.checkBorder}`, flexShrink:0, opacity:0.6 }}/>
                     <span style={{ fontSize:'14px' }}>Add a task…</span>
@@ -1200,7 +1189,7 @@ export default function TasksPageClient() {
                     <span>Completed</span>
                     <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{done.length}</span>
                   </div>
-                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} expanded={expandedTaskId === task.id} onExpand={() => handleInlineExpand(task)} onInlineSave={handleInlineSave} onInlineDiscard={handleInlineDiscard}/>)}
+                  {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onContextMenu={handleContextMenu} onInlineSave={handleInlineSave}/>)}
                 </div>
               )}
             </div>
@@ -1522,7 +1511,7 @@ export default function TasksPageClient() {
           onClose={() => setCtxMenu(null)}
           onToggle={(id: number) => { toggleTask(id); setCtxMenu(null) }}
           onDelete={(id: number) => { deleteTask(id); setCtxMenu(null) }}
-          onOpen={(t: Task) => { openDetail(t); setCtxMenu(null) }}
+          onOpen={() => setCtxMenu(null)}
           onDuplicate={(t: Task) => { duplicateTask(t); setCtxMenu(null) }}
           onSchedule={(t: Task, w: string | null) => { scheduleTask(t, w); setCtxMenu(null) }}
           onMove={(t: Task, lid: number | null) => { moveTask(t, lid); setCtxMenu(null) }}
@@ -1537,6 +1526,9 @@ export default function TasksPageClient() {
         @keyframes bdDot     { 0%,80%,100%{transform:scale(0.55);opacity:0.4}40%{transform:scale(1.1);opacity:1} }
         @keyframes bdCardIn  { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
         @keyframes ctxIn     { from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)} }
+        .task-notes-area { max-height:0; opacity:0; overflow:hidden; transition:max-height 200ms ease-out, opacity 150ms ease-out; }
+        .task-notes-area.expanded { max-height:400px; opacity:1; transition:max-height 200ms ease-out, opacity 150ms ease-out 40ms; }
+        .task-inline-notes::placeholder { color:${theme === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.28)'}; }
       `}</style>
     </div>
   )
@@ -2134,48 +2126,49 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
 }
 
 /* ─── Task Row ───────────────────────────────────────────────────── */
-function TaskRow({ task, onToggle, onDelete, onContextMenu, C, expanded, onExpand, onInlineSave, onInlineDiscard }: {
+function TaskRow({ task, onToggle, onDelete, onContextMenu, onInlineSave, C }: {
   task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void
-  onContextMenu:(t:Task,e:React.MouseEvent)=>void; C: Colors
-  expanded: boolean; onExpand:()=>void
-  onInlineSave:(id:number,title:string,notes:string)=>void; onInlineDiscard:()=>void
+  onContextMenu:(t:Task,e:React.MouseEvent)=>void
+  onInlineSave:(id:number,title:string,notes:string)=>void; C: Colors
 }) {
   const [hov, setHov] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editNotes, setEditNotes] = useState(task.description || '')
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const rowRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const editTitleRef = useRef(task.title)
   const editNotesRef = useRef(task.description || '')
 
   useEffect(() => {
-    if (expanded) {
+    if (isExpanded) {
       setEditTitle(task.title)
       setEditNotes(task.description || '')
       editTitleRef.current = task.title
       editNotesRef.current = task.description || ''
-      setTimeout(() => titleRef.current?.focus(), 30)
+      setTimeout(() => titleRef.current?.focus(), 20)
     }
-  }, [expanded])
+  }, [isExpanded])
 
   useEffect(() => {
     if (notesRef.current) {
       notesRef.current.style.height = 'auto'
       notesRef.current.style.height = notesRef.current.scrollHeight + 'px'
     }
-  }, [editNotes, expanded])
+  }, [editNotes, isExpanded])
 
   useEffect(() => {
-    if (!expanded) return
+    if (!isExpanded) return
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setIsExpanded(false)
         onInlineSave(task.id, editTitleRef.current, editNotesRef.current)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [expanded])
+  }, [isExpanded])
 
   const checkBorderColor = task.priority === 'high'
     ? C.tagHighTx
@@ -2186,90 +2179,72 @@ function TaskRow({ task, onToggle, onDelete, onContextMenu, C, expanded, onExpan
     : C.checkBorder
 
   return (
-    <div ref={wrapperRef}>
-      <div
-        onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-        onDoubleClick={()=>{ if (!expanded) onExpand() }} onContextMenu={e=>onContextMenu(task,e)}
+    <div
+      ref={rowRef}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      onDoubleClick={()=>{ if (!isExpanded) setIsExpanded(true) }}
+      onContextMenu={e=>onContextMenu(task,e)}
+      style={{
+        display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems: isExpanded ? 'flex-start' : 'center',
+        gap:'12px', padding: isExpanded ? '11px 4px 14px 0' : '11px 4px 11px 0',
+        borderBottom:`1px solid ${C.taskBorder}`,
+        cursor:'default',
+      }}
+    >
+      {/* Checkbox — nudged down 1px when expanded so it sits level with the title input */}
+      <button
+        onClick={e=>{e.stopPropagation();onToggle(task.id)}}
         style={{
-          display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems:'center',
-          gap:'12px', padding:'11px 4px 11px 0',
-          borderBottom: expanded ? 'none' : `1px solid ${C.taskBorder}`,
-          cursor:'default', position:'relative',
+          width:'16px', height:'16px', borderRadius:'50%', flexShrink:0,
+          marginTop: isExpanded ? '1px' : '0',
+          cursor:'pointer',
+          border: task.completed ? 'none' : `1.25px solid ${checkBorderColor}`,
+          background: task.completed ? C.checkDoneBg : 'transparent',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'all 0.15s', padding:0,
         }}
       >
-        <button
-          onClick={e=>{e.stopPropagation();onToggle(task.id)}}
-          style={{
-            width:'16px', height:'16px', borderRadius:'50%', flexShrink:0,
-            cursor:'pointer',
-            border: task.completed ? 'none' : `1.25px solid ${checkBorderColor}`,
-            background: task.completed ? C.checkDoneBg : 'transparent',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            transition:'all 0.15s', padding:0,
-          }}
-        >
-          {task.completed && (
-            <svg viewBox="0 0 16 16" width="10" height="10" fill="none"
-              stroke={C.contentBg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3.5 8.5l2.8 2.8L12.5 5"/>
-            </svg>
-          )}
-        </button>
+        {task.completed && (
+          <svg viewBox="0 0 16 16" width="10" height="10" fill="none"
+            stroke={C.contentBg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 8.5l2.8 2.8L12.5 5"/>
+          </svg>
+        )}
+      </button>
 
-        <div style={{ display:'flex', flexDirection:'column', gap:'3px', minWidth:0 }}>
-          <div style={{
-            fontSize:'14px', color: task.completed ? C.taskDone : C.taskText,
-            lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-            fontWeight:400,
-            textDecoration: task.completed ? 'line-through' : 'none',
-            textDecorationColor: C.taskDone,
-            textDecorationThickness: '1px',
-            transition:'color 120ms ease',
-          }}>
-            {task.title}
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:'12px', fontSize:'11.5px', color:C.muted }}>
-            <span style={{ display:'inline-flex', alignItems:'center', gap:'5px' }}>
-              <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:checkBorderColor, display:'inline-block', flexShrink:0 }}/>
-              <span style={{ textTransform:'capitalize' }}>{task.priority}</span>
-            </span>
-            {task.list_name && task.list_name !== 'Task' && (
-              <span>{task.list_name}</span>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display:'flex', gap:'2px', opacity: hov ? 1 : 0, transition:'opacity 120ms ease' }}>
-          <button
-            onClick={e=>{e.stopPropagation();onDelete(task.id)}}
-            title="Delete"
-            style={{ width:'26px', height:'26px', borderRadius:'6px', background:C.hoverItemBg, border:'none', cursor:'pointer', color:C.muted, display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease' }}
-          >
-            <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div style={{
-          borderBottom:`1px solid ${C.taskBorder}`,
-          padding:'2px 4px 14px 30px',
-          animation:'inlineExpand 0.15s ease',
-        }}>
+      {/* Body */}
+      <div style={{ display:'flex', flexDirection:'column', minWidth:0 }}>
+        {/* Title — plain div when collapsed, transparent input when expanded */}
+        {isExpanded ? (
           <input
             ref={titleRef}
             value={editTitle}
             onChange={e => { setEditTitle(e.target.value); editTitleRef.current = e.target.value }}
             onKeyDown={e => {
               if (e.key === 'Enter') { e.preventDefault(); notesRef.current?.focus() }
-              if (e.key === 'Escape') { e.stopPropagation(); onInlineDiscard() }
+              if (e.key === 'Escape') { e.stopPropagation(); setIsExpanded(false) }
             }}
             style={{
               display:'block', width:'100%', background:'transparent', border:'none', outline:'none',
-              fontSize:'14px', fontWeight:500, color:C.text, lineHeight:1.4,
-              padding:'4px 0', marginBottom:'6px', boxSizing:'border-box',
+              fontSize:'14px', fontWeight:400, color: task.completed ? C.taskDone : C.taskText,
+              lineHeight:1.35, padding:'0', margin:'0', boxSizing:'border-box', fontFamily:'inherit',
             }}
           />
+        ) : (
+          <div style={{
+            fontSize:'14px', color: task.completed ? C.taskDone : C.taskText,
+            lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+            fontWeight:400,
+            textDecoration: task.completed ? 'line-through' : 'none',
+            textDecorationColor: C.taskDone, textDecorationThickness:'1px',
+            transition:'color 120ms ease',
+          }}>
+            {task.title}
+          </div>
+        )}
+
+        {/* Notes area — always in DOM, revealed via CSS transition */}
+        <div className={`task-notes-area${isExpanded ? ' expanded' : ''}`}>
           <textarea
             ref={notesRef}
             value={editNotes}
@@ -2277,17 +2252,39 @@ function TaskRow({ task, onToggle, onDelete, onContextMenu, C, expanded, onExpan
             placeholder="Notes"
             rows={1}
             onKeyDown={e => {
-              if (e.key === 'Escape') { e.stopPropagation(); onInlineDiscard() }
+              if (e.key === 'Escape') { e.stopPropagation(); setIsExpanded(false) }
             }}
             className="task-inline-notes"
             style={{
               display:'block', width:'100%', background:'transparent', border:'none', outline:'none',
               fontSize:'13px', color:C.muted, lineHeight:1.5, resize:'none', overflow:'hidden',
-              padding:'0', fontFamily:'inherit', boxSizing:'border-box',
+              padding:'6px 0 0', fontFamily:'inherit', boxSizing:'border-box',
             }}
           />
         </div>
-      )}
+
+        {/* Meta row — hidden when expanded */}
+        {!isExpanded && (
+          <div style={{ display:'flex', alignItems:'center', gap:'12px', fontSize:'11.5px', color:C.muted, marginTop:'3px' }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:'5px' }}>
+              <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:checkBorderColor, display:'inline-block', flexShrink:0 }}/>
+              <span style={{ textTransform:'capitalize' }}>{task.priority}</span>
+            </span>
+            {task.list_name && task.list_name !== 'Task' && <span>{task.list_name}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Delete button */}
+      <div style={{ display:'flex', gap:'2px', opacity: hov ? 1 : 0, transition:'opacity 120ms ease', marginTop: isExpanded ? '1px' : '0' }}>
+        <button
+          onClick={e=>{e.stopPropagation();onDelete(task.id)}}
+          title="Delete"
+          style={{ width:'26px', height:'26px', borderRadius:'6px', background:C.hoverItemBg, border:'none', cursor:'pointer', color:C.muted, display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease' }}
+        >
+          <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+        </button>
+      </div>
     </div>
   )
 }
