@@ -30,20 +30,25 @@ interface SidebarReopenButtonProps {
 }
 
 export default function SidebarReopenButton({
-  theme = 'dark',
+  theme: themeProp,
   title = 'Expand sidebar',
   style,
 }: SidebarReopenButtonProps) {
   const [collapsed, setCollapsed] = useState<boolean | null>(null)
   const [hovered, setHovered] = useState(false)
+  const [detectedTheme, setDetectedTheme] = useState<ButtonTheme>('dark')
 
   useEffect(() => {
+    const readTheme = (): ButtonTheme =>
+      localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark'
+
+    setDetectedTheme(readTheme())
+
     const syncFromStorage = (nextValue?: string | null) => {
       if (nextValue === 'true' || nextValue === 'false') {
         setCollapsed(nextValue === 'true')
         return
       }
-
       setCollapsed(readSidebarCollapsed())
     }
 
@@ -53,11 +58,16 @@ export default function SidebarReopenButton({
       if (event.key === SIDEBAR_COLLAPSED_KEY) {
         syncFromStorage(event.newValue)
       }
+      if (event.key === 'tf-theme') {
+        setDetectedTheme(readTheme())
+      }
     }
 
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
+
+  const theme = themeProp ?? detectedTheme
 
   if (collapsed !== true) return null
 
