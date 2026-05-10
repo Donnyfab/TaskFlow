@@ -144,6 +144,9 @@ export default function HomePage() {
   const priorityColor = (p: string) =>
     p === 'high' ? 'rgba(220,100,100,0.5)' : p === 'medium' ? 'rgba(255,180,50,0.5)' : 'rgba(100,180,100,0.5)'
 
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
+
   const score = data?.growth_score ?? 0
   const dashOffset = 201 - (201 * score / 100)
   const tasksPct  = data && data.tasks_total  > 0 ? (data.tasks_done  / data.tasks_total  * 100) : 0
@@ -187,7 +190,7 @@ export default function HomePage() {
         <div style={{ display:'flex', alignItems:'center', gap:'12px', minWidth:0 }}>
           <SidebarReopenButton />
           <div style={{ display:'flex', flexDirection:'column', gap:'2px', minWidth:0 }}>
-            <div style={s.topbarTitle}>Good {data.greeting}, {data.name}</div>
+            <div style={s.topbarTitle}>Good {greeting}, {data.name}</div>
             <div style={s.topbarSub}>{data.today_date} · {data.streak} day streak · {data.habits_due} habits due today</div>
           </div>
         </div>
