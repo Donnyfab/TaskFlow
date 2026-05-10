@@ -1,5 +1,4 @@
 import Sidebar from '@/components/Sidebar'
-import LazyAIWidget from '@/components/LazyAIWidget'
 import ThemeShell from '@/components/ThemeShell'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +17,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      <LazyAIWidget />
     </ThemeShell>
   )
 }
