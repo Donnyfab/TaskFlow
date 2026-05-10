@@ -3353,20 +3353,22 @@ def register_page():
             full_name = f"{first} {last}"
 
             user_id = create_user_local(full_name, username, email, password_hash)
-            token = generate_email_verification_token(user_id, email)
-            set_email_verification_token(user_id, token)
         except psycopg2.Error:
             app.logger.exception("Registration failed because the database is unavailable.")
             return render_template("auth/register.html", error_identifier=AUTH_DB_ERROR_MESSAGE), 503
 
+        # Log the user in immediately so the session is set before anything else can fail.
+        begin_user_session(user_id, full_name, username)
+
         try:
+            token = generate_email_verification_token(user_id, email)
+            set_email_verification_token(user_id, token)
             send_welcome_email(email, first)
             send_verification_email(email, token)
         except Exception:
-            app.logger.exception("Post-registration email step failed for %s.", email)
+            app.logger.exception("Post-registration email/token step failed for %s.", email)
 
-        begin_user_session(user_id, full_name, username)
-        return redirect(APP_PUBLIC_URL + "/home")
+        return redirect(url_for("home_page"))
 
     return render_template("auth/register.html")
 
