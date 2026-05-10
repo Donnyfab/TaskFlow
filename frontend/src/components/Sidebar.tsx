@@ -351,8 +351,7 @@ export default function Sidebar() {
                 boxShadow:    '0 8px 32px rgba(0,0,0,0.18)',
               }}>
                 {[
-                  { label: 'Account',  href: '/account'  },
-                  { label: 'Settings', href: '/settings' },
+                  { label: 'Account', href: '/settings' },
                 ].map(item => (
                   <Link key={item.href} href={item.href} onClick={() => setProfileOpen(false)} style={{
                     display: 'block', padding: '9px 12px', fontSize: '13px',
