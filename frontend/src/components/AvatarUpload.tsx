@@ -4,6 +4,52 @@ import Cropper from 'react-easy-crop'
 import type { Area, Point } from 'react-easy-crop'
 import { apiUrl } from '@/lib/api-base'
 
+/* ── Theme tokens ──────────────────────────────────────────────────── */
+const PALETTE = {
+  dark: {
+    cardBg:       'rgba(255,255,255,0.03)',
+    cardBorder:   'rgba(255,255,255,0.07)',
+    cardBgHover:  'rgba(255,255,255,0.05)',
+    cardBdHover:  'rgba(255,255,255,0.28)',
+    avatarBg:     'rgba(255,255,255,0.1)',
+    avatarText:   'rgba(255,255,255,0.6)',
+    nameText:     'rgba(255,255,255,0.82)',
+    emailText:    'rgba(255,255,255,0.32)',
+    hintText:     'rgba(255,255,255,0.2)',
+    divider:      'rgba(255,255,255,0.05)',
+    btnBg:        'rgba(255,255,255,0.06)',
+    btnBorder:    'rgba(255,255,255,0.1)',
+    btnText:      'rgba(255,255,255,0.55)',
+    dangerBg:     'rgba(255,50,50,0.06)',
+    dangerBorder: 'rgba(255,80,80,0.18)',
+    dangerText:   'rgba(255,110,110,0.75)',
+    errBg:        'rgba(255,50,50,0.07)',
+    errBorder:    'rgba(255,80,80,0.15)',
+    errText:      'rgba(255,100,100,0.85)',
+  },
+  light: {
+    cardBg:       'rgba(0,0,0,0.02)',
+    cardBorder:   'rgba(0,0,0,0.09)',
+    cardBgHover:  'rgba(0,0,0,0.04)',
+    cardBdHover:  'rgba(0,0,0,0.22)',
+    avatarBg:     'rgba(0,0,0,0.08)',
+    avatarText:   'rgba(0,0,0,0.55)',
+    nameText:     '#18181b',
+    emailText:    'rgba(0,0,0,0.45)',
+    hintText:     'rgba(0,0,0,0.38)',
+    divider:      'rgba(0,0,0,0.07)',
+    btnBg:        'rgba(0,0,0,0.05)',
+    btnBorder:    'rgba(0,0,0,0.1)',
+    btnText:      'rgba(0,0,0,0.55)',
+    dangerBg:     'rgba(220,50,50,0.06)',
+    dangerBorder: 'rgba(200,50,50,0.2)',
+    dangerText:   '#b03030',
+    errBg:        'rgba(220,50,50,0.06)',
+    errBorder:    'rgba(200,50,50,0.18)',
+    errText:      '#b03030',
+  },
+}
+
 /* ── Canvas helpers ──────────────────────────────────────────────── */
 
 function createImage(url: string): Promise<HTMLImageElement> {
@@ -101,13 +147,14 @@ interface Props {
   name:         string
   email:        string
   initials:     string
+  theme?:       'dark' | 'light'
   onUpload:     (url: string) => void
   onRemove:     () => void
 }
 
 /* ── Component ───────────────────────────────────────────────────── */
 
-export default function AvatarUpload({ profileImage, name, email, initials, onUpload, onRemove }: Props) {
+export default function AvatarUpload({ profileImage, name, email, initials, theme: themeProp, onUpload, onRemove }: Props) {
   const fileRef  = useRef<HTMLInputElement>(null)
   const [imgSrc,  setImgSrc]  = useState('')
   const [cropOpen, setCropOpen] = useState(false)
@@ -121,8 +168,20 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
   const [hovered,   setHovered]   = useState(false)
   const [err,       setErr]       = useState('')
   const [modalErr,  setModalErr]  = useState('')
+  const [detectedTheme, setDetectedTheme] = useState<'dark'|'light'>('dark')
 
   const onCropComplete = useCallback((_: Area, p: Area) => setPixels(p), [])
+
+  /* Theme detection */
+  useEffect(() => {
+    const read = () => localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark' as 'dark'|'light'
+    setDetectedTheme(read())
+    const onStorage = (e: StorageEvent) => { if (e.key === 'tf-theme') setDetectedTheme(read()) }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const p = PALETTE[themeProp ?? detectedTheme]
 
   /* Keyboard: Escape closes modal */
   useEffect(() => {
@@ -218,8 +277,8 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
   /* ── Styles ──────────────────────────────────────────────────── */
 
   const card: React.CSSProperties = {
-    background:    dragOver ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)',
-    border:        `1px solid ${dragOver ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.07)'}`,
+    background:    dragOver ? p.cardBgHover : p.cardBg,
+    border:        `1px solid ${dragOver ? p.cardBdHover : p.cardBorder}`,
     borderRadius:  '14px',
     padding:       '20px',
     marginBottom:  '28px',
@@ -227,12 +286,12 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
   }
 
   const ctrlBtn = (danger = false): React.CSSProperties => ({
-    background:    danger ? 'rgba(255,50,50,0.06)' : 'rgba(255,255,255,0.06)',
-    border:        `1px solid ${danger ? 'rgba(255,80,80,0.18)' : 'rgba(255,255,255,0.1)'}`,
+    background:    danger ? p.dangerBg : p.btnBg,
+    border:        `1px solid ${danger ? p.dangerBorder : p.btnBorder}`,
     borderRadius:  '8px',
     padding:       '7px 14px',
     fontSize:      '12px',
-    color:         danger ? 'rgba(255,110,110,0.75)' : 'rgba(255,255,255,0.55)',
+    color:         danger ? p.dangerText : p.btnText,
     cursor:        'pointer',
     fontFamily:    'inherit',
     display:       'inline-flex',
@@ -242,11 +301,11 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
   })
 
   const rotBtn: React.CSSProperties = {
-    background:   'rgba(255,255,255,0.07)',
-    border:       '1px solid rgba(255,255,255,0.1)',
+    background:   p.btnBg,
+    border:       `1px solid ${p.btnBorder}`,
     borderRadius: '8px',
     padding:      '8px 12px',
-    color:        'rgba(255,255,255,0.6)',
+    color:        p.btnText,
     cursor:       'pointer',
     display:      'inline-flex',
     alignItems:   'center',
@@ -301,9 +360,9 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
             {/* Avatar circle */}
             <div style={{
               width: '72px', height: '72px', borderRadius: '50%',
-              background: 'rgba(255,255,255,0.1)',
+              background: p.avatarBg,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.6)',
+              fontSize: '22px', fontWeight: 700, color: p.avatarText,
               overflow: 'hidden',
               transform: hovered ? 'scale(1.04)' : 'scale(1)',
               transition: 'transform 0.2s',
@@ -329,14 +388,14 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
 
           {/* Name / email / hint */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.82)', marginBottom: '3px' }}>{name}</div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.32)', marginBottom: '6px' }}>{email}</div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>JPG, PNG or WebP · Max 5 MB · Drag & drop or click Upload</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: p.nameText, marginBottom: '3px' }}>{name}</div>
+            <div style={{ fontSize: '12px', color: p.emailText, marginBottom: '6px' }}>{email}</div>
+            <div style={{ fontSize: '11px', color: p.hintText }}>JPG, PNG or WebP · Max 5 MB · Drag & drop or click Upload</div>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '14px', borderTop: `1px solid ${p.divider}`, flexWrap: 'wrap' }}>
           <button style={ctrlBtn()} onClick={() => fileRef.current?.click()}>
             <IconUpload/> Upload Photo
           </button>
@@ -349,7 +408,7 @@ export default function AvatarUpload({ profileImage, name, email, initials, onUp
 
         {/* Inline error */}
         {err && (
-          <div style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(255,100,100,0.85)', background: 'rgba(255,50,50,0.07)', border: '1px solid rgba(255,80,80,0.15)', borderRadius: '8px', padding: '8px 12px' }}>
+          <div style={{ marginTop: '10px', fontSize: '12px', color: p.errText, background: p.errBg, border: `1px solid ${p.errBorder}`, borderRadius: '8px', padding: '8px 12px' }}>
             {err}
           </div>
         )}

@@ -374,6 +374,7 @@ export default function SettingsPage() {
                 name={data?.name || data?.username || ''}
                 email={data?.email || ''}
                 initials={initials}
+                theme={theme as 'dark' | 'light'}
                 onUpload={handleAvatarUpload}
                 onRemove={handleAvatarRemove}
               />
