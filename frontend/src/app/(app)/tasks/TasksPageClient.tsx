@@ -83,31 +83,31 @@ const TASK_VIEW_IDS = new Set(['inbox', 'today', 'upcoming', 'someday', 'trash']
 
 /* ─── Theme colour maps ──────────────────────────────────────────── */
 const LIGHT_C = {
-  sidebarBg:    '#F2F2F2',
-  contentBg:    '#FFFFFF',
+  sidebarBg:    '#ffffff',
+  contentBg:    '#fafafa',
   border:       'rgba(0,0,0,0.07)',
-  text:         '#1C1C1E',
-  muted:        '#8E8E93',
-  inputBg:      '#FAFAFA',
+  text:         '#18181b',
+  muted:        '#8a8a90',
+  inputBg:      '#ffffff',
   inputBorder:  'rgba(0,0,0,0.10)',
-  tagMediumBg:  '#FFF3D4', tagMediumTx: '#9A7010',
-  tagHighBg:    '#FFEAEA', tagHighTx:   '#A03030',
-  tagLowBg:     '#EEF8EE', tagLowTx:    '#3A7A3A',
-  tagListBg:    '#F0F0F6', tagListTx:   '#6B6B78',
-  checkBorder:  '#C8C8CE',
-  checkDoneBg:  '#1a7fe8',
-  checkHoverBg: '#EDF4FF',
-  taskRowBg:    '#FFFFFF',
-  taskBorder:   '#F4F4F4',
-  taskText:     '#1C1C1E',
-  taskDone:     '#BCBCC2',
-  sectionLbl:   '#BABABA',
-  activeItemBg: 'rgba(26,127,232,0.10)',
-  activeItemTx: '#1568d0',
-  hoverItemBg:  'rgba(0,0,0,0.05)',
-  circleBorder: '#ABABAB',
-  detailBg:     '#FAFAFA',
-  detailInpBg:  '#FFFFFF',
+  tagMediumBg:  'rgba(255,180,50,0.10)', tagMediumTx: '#9A7010',
+  tagHighBg:    'rgba(255,80,80,0.10)',  tagHighTx:   '#A03030',
+  tagLowBg:     'rgba(50,150,100,0.10)', tagLowTx:    '#3A7A3A',
+  tagListBg:    'rgba(0,0,0,0.05)',      tagListTx:   '#6B6B78',
+  checkBorder:  '#b8b8bd',
+  checkDoneBg:  '#18181b',
+  checkHoverBg: 'rgba(0,0,0,0.035)',
+  taskRowBg:    'transparent',
+  taskBorder:   'rgba(0,0,0,0.07)',
+  taskText:     '#52525a',
+  taskDone:     '#b8b8bd',
+  sectionLbl:   '#8a8a90',
+  activeItemBg: 'rgba(0,0,0,0.06)',
+  activeItemTx: '#18181b',
+  hoverItemBg:  'rgba(0,0,0,0.035)',
+  circleBorder: '#8a8a90',
+  detailBg:     '#ffffff',
+  detailInpBg:  '#fafafa',
   detailCloseB: 'rgba(0,0,0,0.06)',
   blue:         '#1a7fe8',
   deleteText:   '#D03030',
@@ -116,32 +116,32 @@ const LIGHT_C = {
 }
 
 const DARK_C = {
-  sidebarBg:    '#0A0A0A',
-  contentBg:    '#111111',
+  sidebarBg:    '#111114',
+  contentBg:    '#0b0b0d',
   border:       'rgba(255,255,255,0.06)',
-  text:         'rgba(255,255,255,0.88)',
-  muted:        'rgba(255,255,255,0.35)',
-  inputBg:      'rgba(255,255,255,0.04)',
+  text:         '#ececee',
+  muted:        '#76767c',
+  inputBg:      '#16161a',
   inputBorder:  'rgba(255,255,255,0.09)',
-  tagMediumBg:  'rgba(255,180,50,0.08)', tagMediumTx: 'rgba(255,200,80,0.75)',
-  tagHighBg:    'rgba(255,80,80,0.08)',  tagHighTx:   'rgba(255,120,120,0.75)',
-  tagLowBg:     'rgba(100,200,100,0.08)',tagLowTx:    'rgba(120,200,120,0.75)',
+  tagMediumBg:  'rgba(255,180,50,0.08)', tagMediumTx: 'oklch(0.74 0.10 80)',
+  tagHighBg:    'rgba(255,80,80,0.08)',  tagHighTx:   'oklch(0.66 0.13 25)',
+  tagLowBg:     'rgba(80,180,120,0.08)', tagLowTx:    'oklch(0.66 0.06 200)',
   tagListBg:    'rgba(255,255,255,0.06)',tagListTx:   'rgba(255,255,255,0.38)',
-  checkBorder:  'rgba(255,255,255,0.22)',
-  checkDoneBg:  'rgba(255,255,255,0.65)',
-  checkHoverBg: 'rgba(255,255,255,0.07)',
-  taskRowBg:    '#111111',
-  taskBorder:   'rgba(255,255,255,0.05)',
-  taskText:     'rgba(255,255,255,0.78)',
-  taskDone:     'rgba(255,255,255,0.25)',
-  sectionLbl:   'rgba(255,255,255,0.25)',
-  activeItemBg: 'rgba(26,127,232,0.15)',
-  activeItemTx: 'rgba(255,255,255,0.92)',
-  hoverItemBg:  'rgba(255,255,255,0.05)',
-  circleBorder: 'rgba(255,255,255,0.3)',
-  detailBg:     '#0F0F0F',
-  detailInpBg:  'rgba(255,255,255,0.05)',
-  detailCloseB: 'rgba(255,255,255,0.08)',
+  checkBorder:  '#4a4a50',
+  checkDoneBg:  '#ececee',
+  checkHoverBg: 'rgba(255,255,255,0.035)',
+  taskRowBg:    'transparent',
+  taskBorder:   'rgba(255,255,255,0.06)',
+  taskText:     '#b6b6bb',
+  taskDone:     '#4a4a50',
+  sectionLbl:   '#76767c',
+  activeItemBg: 'rgba(255,255,255,0.06)',
+  activeItemTx: '#ececee',
+  hoverItemBg:  'rgba(255,255,255,0.035)',
+  circleBorder: '#76767c',
+  detailBg:     '#111114',
+  detailInpBg:  '#16161a',
+  detailCloseB: 'rgba(255,255,255,0.06)',
   blue:         '#1a7fe8',
   deleteText:   'rgba(255,100,100,0.8)',
   deleteBg:     'rgba(255,50,50,0.07)',
@@ -665,7 +665,6 @@ export default function TasksPageClient() {
   const currentTitle = listId
     ? (data?.lists.find(l => l.id===listId)?.name ?? 'Tasks')
     : (SMART_LISTS.find(s => s.id===smartActive)?.label ?? 'Inbox')
-  const currentIconEmoji = listId ? null : (['📥','⭐','📅','🗂','📦'][SMART_LISTS.findIndex(s=>s.id===smartActive)] ?? '📥')
 
   const dpInp: React.CSSProperties = {
     width:'100%', background:C.detailInpBg, border:`1px solid ${C.inputBorder}`,
@@ -687,7 +686,9 @@ export default function TasksPageClient() {
   return (
     <div style={{
       display:'flex', height:'100vh', overflow:'hidden',
-      fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif',
+      fontFamily:'"Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+      letterSpacing:'-0.005em',
+      WebkitFontSmoothing:'antialiased' as const,
       background:C.contentBg,
     }}>
 
@@ -700,46 +701,33 @@ export default function TasksPageClient() {
         <div style={{ flex:1, overflowY:'auto', padding:'14px 0 8px' }}>
 
           {/* ── Brain Dump button row (hamburger + Brain Dump inline) ── */}
-          <div style={{ padding:'0 10px', marginBottom:'12px', display:'flex', alignItems:'center', gap:'6px' }}>
+          <div style={{ padding:'0 10px', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px' }}>
             <SidebarReopenButton theme={theme} />
-            <button
+          </div>
+          <div style={{ padding:'0 12px 8px' }}>
+            <div
               onClick={() => setBdOpen(true)}
               style={{
-                flex:1, display:'flex', alignItems:'center', gap:'10px',
-                padding:'10px 12px', borderRadius:'12px', cursor:'pointer',
-                fontFamily:'inherit', fontSize:'13.5px', fontWeight:600,
-                color: theme==='light' ? '#5b5cf6' : 'rgba(148,145,255,0.92)',
-                background: theme==='light'
-                  ? 'linear-gradient(135deg,rgba(99,102,241,0.09) 0%,rgba(168,85,247,0.06) 100%)'
-                  : 'linear-gradient(135deg,rgba(99,102,241,0.14) 0%,rgba(168,85,247,0.10) 100%)',
-                border: `1px solid ${theme==='light' ? 'rgba(99,102,241,0.22)' : 'rgba(99,102,241,0.26)'}`,
-                transition:'all 0.15s',
-                letterSpacing:'-0.1px',
+                padding:'10px 12px', borderRadius:'8px',
+                background:C.inputBg, border:`1px solid ${C.border}`,
+                display:'flex', alignItems:'center', gap:'10px', cursor:'pointer',
+                transition:'background 120ms ease, border-color 120ms ease',
               }}
             >
               <div style={{
-                width:'26px', height:'26px', borderRadius:'8px', flexShrink:0,
-                background:'linear-gradient(135deg,#6366f1 0%,#a855f7 100%)',
+                width:'26px', height:'26px', borderRadius:'7px',
+                background:C.sidebarBg, border:`1px solid ${C.border}`,
                 display:'flex', alignItems:'center', justifyContent:'center',
-                boxShadow:'0 3px 8px rgba(99,102,241,0.35)',
+                color:C.muted, flexShrink:0,
               }}>
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-                  <rect x="5" y="1" width="6" height="9" rx="3"/>
-                  <path d="M2 7.5 A6 6 0 0 0 14 7.5"/>
-                  <line x1="8" y1="13" x2="8" y2="16"/>
-                  <line x1="5" y1="16" x2="11" y2="16"/>
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <rect x="6" y="2.5" width="4" height="7" rx="2"/>
+                  <path d="M3.5 8a4.5 4.5 0 0 0 9 0M8 12.5v1.5"/>
                 </svg>
               </div>
-              Brain Dump
-              <span style={{
-                marginLeft:'auto', fontSize:'10.5px', padding:'2px 8px', borderRadius:'20px', fontWeight:500,
-                background: theme==='light' ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.22)',
-                color: theme==='light' ? '#6366f1' : 'rgba(148,145,255,0.85)',
-                letterSpacing:'0',
-              }}>
-                Voice
-              </span>
-            </button>
+              <div style={{ fontSize:'13px', color:C.text, fontWeight:500, flex:1 }}>Brain dump</div>
+              <div style={{ fontSize:'11px', color:C.muted, fontFamily:'"Geist Mono", ui-monospace, monospace' }}>Voice</div>
+            </div>
           </div>
 
           {/* ── Divider ── */}
@@ -1130,64 +1118,95 @@ export default function TasksPageClient() {
         ) : (
           // ── Standard task list view ──────────────────────────────────
           <>
-            <div style={{ padding:'28px 40px 0', flexShrink:0 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'3px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-                  {currentIconEmoji && <span style={{ fontSize:'22px', lineHeight:1 }}>{currentIconEmoji}</span>}
-                  <h1 style={{ fontSize:'22px', fontWeight:700, color:C.text, margin:0, letterSpacing:'-0.3px' }}>{currentTitle}</h1>
+            <div style={{ padding:'28px 56px 0', flexShrink:0 }}>
+              {/* Breadcrumb */}
+              <div style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'12.5px', color:C.muted, marginBottom:'10px' }}>
+                <span>Tasks</span>
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.5 }}>
+                  <path d="M6.5 4l3.5 4-3.5 4"/>
+                </svg>
+                <span style={{ color:C.taskText }}>{currentTitle}</span>
+              </div>
+
+              {/* Title row */}
+              <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:'24px', marginTop:'4px' }}>
+                <div>
+                  <h1 style={{ fontSize:'28px', fontWeight:600, color:C.text, margin:0, letterSpacing:'-0.022em', lineHeight:1.1 }}>{currentTitle}</h1>
+                  <div style={{ marginTop:'8px', display:'flex', alignItems:'center', gap:'14px', color:C.muted, fontSize:'12.5px' }}>
+                    <span>{incomplete.length} open</span>
+                    <div style={{ width:'3px', height:'3px', borderRadius:'50%', background:C.checkBorder }}/>
+                    <span>{done.length} completed</span>
+                  </div>
                 </div>
                 <button onClick={openTaskModal} style={{
-                  background:C.blue, color:'#fff', border:'none', borderRadius:'8px',
-                  padding:'7px 15px', fontSize:'13px', fontWeight:500, cursor:'pointer',
-                  display:'flex', alignItems:'center', gap:'6px', fontFamily:'inherit',
+                  display:'inline-flex', alignItems:'center', gap:'6px',
+                  background: theme==='dark' ? '#ececee' : '#18181b',
+                  color: theme==='dark' ? '#0b0b0d' : '#ffffff',
+                  padding:'7px 12px 7px 10px', borderRadius:'7px', fontSize:'13px', fontWeight:500,
+                  border:'none', cursor:'pointer', fontFamily:'inherit',
+                  boxShadow: theme==='dark'
+                    ? '0 1px 0 rgba(255,255,255,0.1) inset, 0 1px 2px rgba(0,0,0,0.3)'
+                    : '0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(0,0,0,0.04)',
+                  transition:'opacity 120ms ease',
+                  flexShrink:0,
                 }}>
-                  <svg viewBox="0 0 11 11" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                    <line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/>
+                  <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <path d="M7 2v10M2 7h10"/>
                   </svg>
-                  New To-Do
+                  New task
                 </button>
-              </div>
-              <div style={{ fontSize:'12px', color:C.muted, marginBottom:'16px' }}>
-                {incomplete.length} task{incomplete.length!==1?'s':''} · {done.length} completed
-              </div>
-              <div style={{ display:'flex', borderBottom:`1px solid ${C.border}` }}>
-                {(['all','active','completed'] as const).map(f => (
-                  <button key={f} onClick={()=>setFilter(f)} style={{
-                    background:'none', border:'none', cursor:'pointer', fontFamily:'inherit',
-                    padding:'8px 0', marginRight:'20px', fontSize:'13px',
-                    color: filter===f ? C.blue : C.muted,
-                    borderBottom: filter===f ? `2px solid ${C.blue}` : '2px solid transparent',
-                    marginBottom:'-1px', fontWeight: filter===f ? 500 : 400,
-                    transition:'color 0.12s', textTransform:'capitalize',
-                  }}>
-                    {f.charAt(0).toUpperCase()+f.slice(1)}
-                  </button>
-                ))}
               </div>
             </div>
 
+            {/* Tabs */}
+            <div style={{ margin:'22px 0 0', padding:'0 56px', display:'flex', gap:'2px', borderBottom:`1px solid ${C.border}` }}>
+              {(['all','active','completed'] as const).map(f => (
+                <button key={f} onClick={()=>setFilter(f)} style={{
+                  padding:'10px 14px 11px', fontSize:'13px', fontFamily:'inherit',
+                  color: filter===f ? C.text : C.muted,
+                  cursor:'pointer', position:'relative', marginBottom:'-1px',
+                  background:'none', border:'none', fontWeight: filter===f ? 500 : 400,
+                  transition:'color 120ms ease',
+                }}>
+                  {f.charAt(0).toUpperCase()+f.slice(1)}
+                  <span style={{ marginLeft:'6px', fontSize:'11px', color:filter===f ? C.muted : C.checkBorder, fontFamily:'"Geist Mono", ui-monospace, monospace', letterSpacing:0 }}>
+                    {f==='all' ? tasks.length : f==='active' ? incomplete.length : done.length}
+                  </span>
+                  {filter===f && <div style={{ position:'absolute', left:'14px', right:'14px', bottom:0, height:'1.5px', background:C.text, borderRadius:'2px' }}/>}
+                </button>
+              ))}
+            </div>
+
             {/* Scrollable task area */}
-            <div style={{ flex:1, overflowY:'auto', padding:'16px 40px 40px' }}>
+            <div style={{ flex:1, overflowY:'auto', padding:'8px 56px 80px' }}>
               {tasks.length===0 && (
-                <div style={{ textAlign:'center', padding:'70px 0', color:C.muted, fontSize:'13px', lineHeight:2 }}>
-                  <div style={{ fontSize:'32px', marginBottom:'8px', opacity:0.3 }}>✓</div>
-                  No tasks here yet.<br/>Hit the + button to add one.
+                <div style={{ textAlign:'center', padding:'80px 0', color:C.muted, fontSize:'13px' }}>
+                  <div style={{ width:'32px', height:'32px', margin:'0 auto 12px', borderRadius:'8px', background:C.inputBg, border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', color:C.muted }}>
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M5.5 8l1.8 1.8L10.5 6.5"/></svg>
+                  </div>
+                  No tasks here yet.
                 </div>
               )}
 
               {(filter==='all'||filter==='active') && incomplete.length>0 && (
                 <>
-                  <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Active</div>
+                  <div style={{ marginTop:'18px', marginBottom:'4px', padding:'6px 0', fontSize:'11.5px', color:C.muted, fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:'10px' }}>
+                    <span>Active</span>
+                    <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{incomplete.length}</span>
+                  </div>
                   {incomplete.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
-                  <div onClick={openTaskModal} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'7px 0', cursor:'pointer', opacity:0.4 }}>
-                    <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`1.5px dashed ${C.checkBorder}`, flexShrink:0 }}/>
-                    <span style={{ fontSize:'13.5px', color:C.muted }}>New To-Do</span>
+                  <div onClick={openTaskModal} style={{ display:'grid', gridTemplateColumns:'18px 1fr', alignItems:'center', gap:'12px', padding:'11px 4px 11px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'text', color:C.muted }}>
+                    <div style={{ width:'16px', height:'16px', borderRadius:'50%', border:`1.25px dashed ${C.checkBorder}`, flexShrink:0, opacity:0.6 }}/>
+                    <span style={{ fontSize:'14px' }}>Add a task…</span>
                   </div>
                 </>
               )}
               {(filter==='all'||filter==='completed') && done.length>0 && (
-                <div style={{ marginTop:filter==='all'?'22px':'0' }}>
-                  <div style={{ fontSize:'10.5px', fontWeight:600, color:C.sectionLbl, letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:'5px' }}>Completed</div>
+                <div style={{ marginTop:filter==='all'?'30px':'0' }}>
+                  <div style={{ marginTop:'18px', marginBottom:'4px', padding:'6px 0', fontSize:'11.5px', color:C.muted, fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:'10px' }}>
+                    <span>Completed</span>
+                    <span style={{ fontFamily:'"Geist Mono", ui-monospace, monospace', color:C.checkBorder, fontWeight:400 }}>{done.length}</span>
+                  </div>
                   {done.map(task => <TaskRow key={task.id} task={task} C={C} onToggle={toggleTask} onDelete={deleteTask} onOpen={openDetail} onContextMenu={handleContextMenu}/>)}
                 </div>
               )}
@@ -1587,45 +1606,43 @@ function BarBtn({ title, onClick, C, children }: {
 }
 
 /* ─── Sidebar Item (smart/system lists with SVG icon) ────────────── */
-function SidebarItem({ Icon, label, count, active, C, theme, onClick }: {
+function SidebarItem({ Icon, label, count, active, C, onClick }: {
   Icon: React.FC; label: string; count: number|null
   active: boolean; C: Colors; theme: string; onClick: () => void
 }) {
   const [hov, setHov] = useState(false)
-  const isLight = theme === 'light'
   return (
     <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       style={{
         display:'flex', alignItems:'center', gap:'10px',
-        padding:'8px 12px', margin:'1px 8px', borderRadius:'10px', cursor:'pointer',
+        padding:'7px 10px', margin:'1px 8px', borderRadius:'6px', cursor:'pointer',
         background: active ? C.activeItemBg : hov ? C.hoverItemBg : 'transparent',
-        transition:'background 0.1s', userSelect:'none',
+        transition:'background 120ms ease', userSelect:'none',
       }}
     >
       <div style={{
-        width:'26px', height:'26px', borderRadius:'7px', flexShrink:0,
+        width:'16px', height:'16px', flexShrink:0,
         display:'flex', alignItems:'center', justifyContent:'center',
-        background: active
-          ? isLight ? 'rgba(26,127,232,0.15)' : 'rgba(26,127,232,0.22)'
-          : isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)',
-        color: active ? C.activeItemTx : hov ? C.text : C.muted,
-        transition:'all 0.12s',
+        color: active ? C.text : hov ? C.text : C.muted,
+        opacity: active ? 1 : 0.85,
+        transition:'color 120ms ease, opacity 120ms ease',
       }}>
         <Icon />
       </div>
       <span style={{
         flex:1, fontSize:'13.5px', fontWeight: active ? 500 : 400,
-        color: active ? C.activeItemTx : (hov ? C.text : C.muted),
+        color: active ? C.text : (hov ? C.text : C.muted),
         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-        transition:'color 0.12s',
+        transition:'color 120ms ease',
       }}>
         {label}
       </span>
       {count != null && count > 0 && (
         <span style={{
-          fontSize:'11.5px', fontWeight:500,
-          color: active ? C.activeItemTx : C.muted,
-          flexShrink:0, minWidth:'16px', textAlign:'right',
+          marginLeft:'auto', fontSize:'11.5px', fontWeight:400,
+          color: C.muted,
+          flexShrink:0, fontFamily:'"Geist Mono", ui-monospace, monospace',
+          letterSpacing:0,
         }}>{count}</span>
       )}
     </div>
@@ -1633,7 +1650,7 @@ function SidebarItem({ Icon, label, count, active, C, theme, onClick }: {
 }
 
 /* ─── Sidebar Item (user-created lists with dot) ─────────────────── */
-function SidebarItemCustom({ label, count, active, C, theme, onClick }: {
+function SidebarItemCustom({ label, count, active, C, onClick }: {
   label: string; count: number|null
   active: boolean; C: Colors; theme: string; onClick: () => void
 }) {
@@ -1642,25 +1659,17 @@ function SidebarItemCustom({ label, count, active, C, theme, onClick }: {
     <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       style={{
         display:'flex', alignItems:'center', gap:'10px',
-        padding:'8px 12px', margin:'1px 8px', borderRadius:'10px', cursor:'pointer',
+        padding:'7px 10px', margin:'1px 8px', borderRadius:'6px', cursor:'pointer',
         background: active ? C.activeItemBg : (hov ? C.hoverItemBg : 'transparent'),
-        transition:'background 0.1s', userSelect:'none',
+        transition:'background 120ms ease', userSelect:'none',
       }}
     >
-      <div style={{
-        width:'26px', height:'26px', borderRadius:'7px', flexShrink:0,
-        display:'flex', alignItems:'center', justifyContent:'center',
-        background: active
-          ? theme==='light' ? 'rgba(26,127,232,0.15)' : 'rgba(26,127,232,0.22)'
-          : theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)',
-      }}>
-        <div style={{ width:'7px', height:'7px', borderRadius:'50%', background: active ? C.activeItemTx : C.circleBorder }}/>
-      </div>
-      <span style={{ flex:1, fontSize:'13.5px', fontWeight:active?500:400, color:active?C.activeItemTx:(hov?C.text:C.muted), whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+      <div style={{ width:'8px', height:'8px', borderRadius:'50%', flexShrink:0, background: active ? C.text : C.muted, boxShadow:'0 0 0 1px rgba(255,255,255,0.1) inset' }}/>
+      <span style={{ flex:1, fontSize:'13.5px', fontWeight:active?500:400, color:active?C.text:(hov?C.text:C.muted), whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
         {label}
       </span>
       {count != null && count > 0 && (
-        <span style={{ fontSize:'11.5px', fontWeight:500, color:active?C.activeItemTx:C.muted, flexShrink:0 }}>{count}</span>
+        <span style={{ marginLeft:'auto', fontSize:'11.5px', fontWeight:400, color:C.muted, flexShrink:0, fontFamily:'"Geist Mono", ui-monospace, monospace' }}>{count}</span>
       )}
     </div>
   )
@@ -2167,30 +2176,83 @@ function TaskRow({ task, onToggle, onDelete, onOpen, onContextMenu, C }: {
   task: Task; onToggle:(id:number)=>void; onDelete:(id:number)=>void; onOpen:(t:Task)=>void
   onContextMenu:(t:Task,e:React.MouseEvent)=>void; C: Colors
 }) {
-  const [hov,  setHov]  = useState(false)
-  const [star, setStar] = useState(false)
-  const pc = task.priority==='high' ? {bg:C.tagHighBg,color:C.tagHighTx} : task.priority==='medium' ? {bg:C.tagMediumBg,color:C.tagMediumTx} : {bg:C.tagLowBg,color:C.tagLowTx}
+  const [hov, setHov] = useState(false)
+
+  const checkBorderColor = task.priority === 'high'
+    ? C.tagHighTx
+    : task.priority === 'medium'
+    ? C.tagMediumTx
+    : task.priority === 'low'
+    ? C.tagLowTx
+    : C.checkBorder
+
+  const dotColor = checkBorderColor
 
   return (
-    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={()=>onOpen(task)} onContextMenu={e=>onContextMenu(task,e)}
-      style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'8px 4px 8px 0', borderBottom:`1px solid ${C.taskBorder}`, cursor:'default', position:'relative', background:C.taskRowBg }}
+    <div
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      onClick={()=>onOpen(task)} onContextMenu={e=>onContextMenu(task,e)}
+      style={{
+        display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems:'center',
+        gap:'12px', padding:'11px 4px 11px 0',
+        borderBottom:`1px solid ${C.taskBorder}`,
+        cursor:'default', position:'relative',
+      }}
     >
-      <div onClick={e=>{e.stopPropagation();onToggle(task.id)}} style={{ width:'20px', height:'20px', borderRadius:'50%', flexShrink:0, marginTop:'1px', cursor:'pointer', border:task.completed?'none':`1.5px solid ${C.checkBorder}`, background:task.completed?C.checkDoneBg:(hov?C.checkHoverBg:'transparent'), display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
-        {task.completed&&<div style={{ width:'5px', height:'9px', border:'2px solid white', borderTop:'none', borderLeft:'none', transform:'rotate(40deg) translateY(-1px)' }}/>}
-      </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:'13.5px', lineHeight:1.45, color:task.completed?C.taskDone:C.taskText, textDecoration:task.completed?'line-through':'none' }}>{task.title}</div>
-        <div style={{ display:'flex', gap:'5px', flexWrap:'wrap', marginTop:'4px' }}>
-          <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'20px', fontWeight:500, background:pc.bg, color:pc.color }}>{task.priority.charAt(0).toUpperCase()+task.priority.slice(1)}</span>
-          {task.list_name&&task.list_name!=='Task'&&<span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'20px', background:C.tagListBg, color:C.tagListTx }}>{task.list_name}</span>}
+      {/* Checkbox */}
+      <button
+        onClick={e=>{e.stopPropagation();onToggle(task.id)}}
+        style={{
+          width:'16px', height:'16px', borderRadius:'50%', flexShrink:0,
+          cursor:'pointer',
+          border: task.completed ? 'none' : `1.25px solid ${checkBorderColor}`,
+          background: task.completed ? C.checkDoneBg : 'transparent',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'all 0.15s', padding:0,
+        }}
+      >
+        {task.completed && (
+          <svg viewBox="0 0 16 16" width="10" height="10" fill="none"
+            stroke={C.contentBg} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 8.5l2.8 2.8L12.5 5"/>
+          </svg>
+        )}
+      </button>
+
+      {/* Body */}
+      <div style={{ display:'flex', flexDirection:'column', gap:'3px', minWidth:0 }}>
+        <div style={{
+          fontSize:'14px', color: task.completed ? C.taskDone : C.taskText,
+          lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+          fontWeight:400,
+          textDecoration: task.completed ? 'line-through' : 'none',
+          textDecorationColor: C.taskDone,
+          textDecorationThickness: '1px',
+          transition:'color 120ms ease',
+        }}>
+          {task.title}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:'12px', fontSize:'11.5px', color:C.muted }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:'5px' }}>
+            <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:dotColor, display:'inline-block', flexShrink:0 }}/>
+            <span style={{ textTransform:'capitalize' }}>{task.priority}</span>
+          </span>
+          {task.list_name && task.list_name !== 'Task' && (
+            <span>{task.list_name}</span>
+          )}
         </div>
       </div>
-      <button onClick={e=>{e.stopPropagation();setStar(s=>!s)}} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'15px', lineHeight:1, paddingTop:'2px', flexShrink:0, color:star?'#FFB800':C.checkBorder, opacity:star?1:(hov?0.4:0), transition:'opacity 0.12s, color 0.12s' }}>★</button>
-      {hov&&(
-        <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)', display:'flex', gap:'4px', paddingRight:'28px' }}>
-          <button onClick={()=>onDelete(task.id)} style={{ width:'24px', height:'24px', borderRadius:'6px', background:C.deleteBg, border:`1px solid ${C.deleteBorder}`, fontSize:'11px', color:C.deleteText, cursor:'pointer', lineHeight:1 }}>✕</button>
-        </div>
-      )}
+
+      {/* Row actions */}
+      <div style={{ display:'flex', gap:'2px', opacity: hov ? 1 : 0, transition:'opacity 120ms ease' }}>
+        <button
+          onClick={e=>{e.stopPropagation();onDelete(task.id)}}
+          title="Delete"
+          style={{ width:'26px', height:'26px', borderRadius:'6px', background:C.hoverItemBg, border:'none', cursor:'pointer', color:C.muted, display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease' }}
+        >
+          <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 1l12 12M13 1L1 13"/></svg>
+        </button>
+      </div>
     </div>
   )
 }
