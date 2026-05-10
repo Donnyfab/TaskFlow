@@ -23,34 +23,9 @@ interface LogbookItem {
   isRecurring?: boolean; taskCount?: number
 }
 
-/* ─── Storage + seed data ────────────────────────────────────────── */
+/* ─── Storage ────────────────────────────────────────────────────── */
 const STORAGE_KEY = 'taskflow-logbook-items'
-
-function buildSeedItems(): LogbookItem[] {
-  const now = Date.now()
-  const h = (n: number) => new Date(now - n * 3_600_000).toISOString()
-  const d = (n: number, hr = 10) => new Date(now - n * 86_400_000 + hr * 3_600_000).toISOString()
-  return [
-    { key: 'l-001', title: 'Finalize Q2 report draft',      type: 'task',    completedAt: h(1),     category: 'Work',        priority: 'high'   },
-    { key: 'l-002', title: 'Morning workout',                type: 'habit',   completedAt: h(4),     category: 'Health',      isRecurring: true  },
-    { key: 'l-003', title: 'Review open pull requests',      type: 'task',    completedAt: h(6),     category: 'Engineering', priority: 'medium' },
-    { key: 'l-004', title: 'Website Redesign',               type: 'project', completedAt: h(7),     category: 'Work',        taskCount: 14      },
-    { key: 'l-005', title: 'Send invoices for April',        type: 'task',    completedAt: d(1, 14), category: 'Finance',     priority: 'high'   },
-    { key: 'l-006', title: 'Read — 30 minutes',              type: 'habit',   completedAt: d(1, 21), category: 'Personal',    isRecurring: true  },
-    { key: 'l-007', title: 'Refactor auth middleware',       type: 'task',    completedAt: d(1, 9),  category: 'Engineering', priority: 'medium' },
-    { key: 'l-008', title: 'Set up CI/CD pipeline',         type: 'task',    completedAt: d(3),     category: 'Engineering', priority: 'high'   },
-    { key: 'l-009', title: 'Q1 Performance Review',          type: 'project', completedAt: d(4),     category: 'Work',        taskCount: 8       },
-    { key: 'l-010', title: 'Write the weekly newsletter',    type: 'task',    completedAt: d(5),     category: 'Personal',    priority: 'low'    },
-    { key: 'l-011', title: 'Meditation — 20 min',            type: 'habit',   completedAt: d(4, 7),  category: 'Health',      isRecurring: true  },
-    { key: 'l-012', title: 'Book flight for the conference', type: 'task',    completedAt: d(10),    category: 'Travel',      priority: 'medium' },
-    { key: 'l-013', title: 'Mobile App MVP',                 type: 'project', completedAt: d(14),    category: 'Engineering', taskCount: 22      },
-    { key: 'l-014', title: 'Update portfolio case studies',  type: 'task',    completedAt: d(18),    category: 'Personal',    priority: 'low'    },
-    { key: 'l-015', title: 'Write team onboarding docs',     type: 'task',    completedAt: d(21),    category: 'Work',        priority: 'medium' },
-    { key: 'l-016', title: 'Annual health checkup',          type: 'task',    completedAt: d(45),    category: 'Health',      priority: 'high'   },
-    { key: 'l-017', title: 'Tax Season Prep',                type: 'project', completedAt: d(60),    category: 'Finance',     taskCount: 6       },
-    { key: 'l-018', title: 'Read — Deep Work, Cal Newport',  type: 'habit',   completedAt: d(90),    category: 'Learning',    isRecurring: true  },
-  ]
-}
+const SEED_KEYS   = new Set(['l-001','l-002','l-003','l-004','l-005','l-006','l-007','l-008','l-009','l-010','l-011','l-012','l-013','l-014','l-015','l-016','l-017','l-018'])
 
 /* ─── Timeline helpers ───────────────────────────────────────────── */
 const GROUP_ORDER: TimeGroup[]              = ['today', 'yesterday', 'week', 'month', 'older']
@@ -121,8 +96,10 @@ export default function LogbookView({ colors: C, theme }: { colors: LogbookColor
   useEffect(() => {
     if (typeof window === 'undefined') return
     const raw = localStorage.getItem(STORAGE_KEY)
-    try { setItems(raw ? JSON.parse(raw) : buildSeedItems()) }
-    catch { setItems(buildSeedItems()) }
+    try {
+      const parsed: LogbookItem[] = raw ? JSON.parse(raw) : []
+      setItems(parsed.filter(i => !SEED_KEYS.has(i.key)))
+    } catch { setItems([]) }
     setHydrated(true)
   }, [])
 
