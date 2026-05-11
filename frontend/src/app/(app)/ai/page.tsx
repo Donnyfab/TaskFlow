@@ -319,9 +319,21 @@ export default function AIPage() {
         body: JSON.stringify({ thread_id: threadId })
       })
       const data = await res.json()
-      const confirmLabel = data.action_type === 'add_calendar_event' ? '✓ Added to calendar' : 'Done.'
-      setActionStatus(prev => ({ ...prev, [actionId]: data.ok ? (decision === 'confirm' ? confirmLabel : 'Skipped.') : 'Could not apply.' }))
-      setResolvedActions(prev => new Set([...prev, actionId]))
+      const isCalendarAction = data.action_type === 'add_calendar_event' || data.action_type === 'create_calendar_event'
+      const confirmLabel = isCalendarAction ? '✓ Added to calendar' : 'Done.'
+      if (data.ok) {
+        setActionStatus(prev => ({ ...prev, [actionId]: decision === 'confirm' ? confirmLabel : 'Skipped.' }))
+        setResolvedActions(prev => new Set([...prev, actionId]))
+        if (Array.isArray(data.resolved_action_ids)) {
+          setResolvedActions(prev => {
+            const next = new Set(prev)
+            ;(data.resolved_action_ids as number[]).forEach(id => next.add(id))
+            return next
+          })
+        }
+      } else {
+        setActionStatus(prev => ({ ...prev, [actionId]: 'Could not apply.' }))
+      }
       if (data.reply) setMessages(prev => [...prev, { role: 'assistant', content: data.reply, timeLabel: now12() }])
       if (data.thread) { setThreadId(data.thread.id); setThreads(prev => { const f = prev.filter(t => t.id !== data.thread.id); return [data.thread, ...f] }) }
     } catch {
@@ -441,42 +453,47 @@ export default function AIPage() {
               ))}
 
               {/* Action cards */}
-              {actions.map(action => (
-                <div key={action.id} style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: th.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: th.avatarColor, flexShrink: 0 }}>✦</div>
-                  <div style={{ background: th.aiMsgBg, border: `1px solid ${th.aiMsgBorder}`, borderRadius: '16px', padding: '12px 14px', maxWidth: '78%' }}>
-                    {action.type === 'add_calendar_event' ? (
-                      <>
-                        <div style={{ fontSize: '9px', fontWeight: 700, color: th.actionLabelColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>📅 Calendar event detected</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: th.actionTitle, marginBottom: '6px' }}>I noticed you mentioned an event. Want me to add it?</div>
-                        <div style={{ fontSize: '12px', lineHeight: 1.65, color: th.actionBody }}>{action.confirmation_text}</div>
-                        {actionStatus[action.id] ? (
-                          <div style={{ marginTop: '10px', fontSize: '11px', color: th.actionStatus }}>{actionStatus[action.id]}</div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                            <button onClick={() => resolveAction(action.id, 'confirm')} disabled={resolvedActions.has(action.id)} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionConfirmBg}`, background: th.actionConfirmBg, color: th.actionConfirmColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Add to Calendar</button>
-                            <button onClick={() => resolveAction(action.id, 'cancel')} disabled={resolvedActions.has(action.id)} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionCancelBorder}`, background: th.actionCancelBg, color: th.actionCancelColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Dismiss</button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: '9px', fontWeight: 700, color: th.actionLabelColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Needs confirmation</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: th.actionTitle, marginBottom: '6px' }}>{action.title}</div>
-                        <div style={{ fontSize: '12px', lineHeight: 1.65, color: th.actionBody }}>{action.confirmation_text}</div>
-                        {actionStatus[action.id] ? (
-                          <div style={{ marginTop: '10px', fontSize: '11px', color: th.actionStatus }}>{actionStatus[action.id]}</div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                            <button onClick={() => resolveAction(action.id, 'confirm')} disabled={resolvedActions.has(action.id)} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionConfirmBg}`, background: th.actionConfirmBg, color: th.actionConfirmColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Confirm</button>
-                            <button onClick={() => resolveAction(action.id, 'cancel')} disabled={resolvedActions.has(action.id)} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionCancelBorder}`, background: th.actionCancelBg, color: th.actionCancelColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Not now</button>
-                          </div>
-                        )}
-                      </>
-                    )}
+              {actions.map(action => {
+                const isCalendarAction = action.type === 'add_calendar_event' || action.type === 'create_calendar_event'
+                const isResolved = resolvedActions.has(action.id)
+                const status = actionStatus[action.id]
+                return (
+                  <div key={action.id} style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: th.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: th.avatarColor, flexShrink: 0 }}>✦</div>
+                    <div style={{ background: th.aiMsgBg, border: `1px solid ${th.aiMsgBorder}`, borderRadius: '16px', padding: '12px 14px', maxWidth: '78%' }}>
+                      {isCalendarAction ? (
+                        <>
+                          <div style={{ fontSize: '9px', fontWeight: 700, color: th.actionLabelColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>📅 {action.type === 'add_calendar_event' ? 'Calendar event detected' : 'Add to calendar'}</div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: th.actionTitle, marginBottom: '6px' }}>{action.type === 'add_calendar_event' ? 'I noticed you mentioned an event. Want me to add it?' : action.title}</div>
+                          <div style={{ fontSize: '12px', lineHeight: 1.65, color: th.actionBody }}>{action.confirmation_text}</div>
+                          {status ? (
+                            <div style={{ marginTop: '10px', fontSize: '11px', color: th.actionStatus }}>{status}</div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                              <button onClick={() => resolveAction(action.id, 'confirm')} disabled={isResolved} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionConfirmBg}`, background: th.actionConfirmBg, color: th.actionConfirmColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Add to Calendar</button>
+                              <button onClick={() => resolveAction(action.id, 'cancel')} disabled={isResolved} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionCancelBorder}`, background: th.actionCancelBg, color: th.actionCancelColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Dismiss</button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '9px', fontWeight: 700, color: th.actionLabelColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Needs confirmation</div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: th.actionTitle, marginBottom: '6px' }}>{action.title}</div>
+                          <div style={{ fontSize: '12px', lineHeight: 1.65, color: th.actionBody }}>{action.confirmation_text}</div>
+                          {status ? (
+                            <div style={{ marginTop: '10px', fontSize: '11px', color: th.actionStatus }}>{status}</div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                              <button onClick={() => resolveAction(action.id, 'confirm')} disabled={isResolved} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionConfirmBg}`, background: th.actionConfirmBg, color: th.actionConfirmColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Confirm</button>
+                              <button onClick={() => resolveAction(action.id, 'cancel')} disabled={isResolved} style={{ borderRadius: '10px', padding: '8px 11px', border: `1px solid ${th.actionCancelBorder}`, background: th.actionCancelBg, color: th.actionCancelColor, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Not now</button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {/* Typing indicator */}
               {loading && (

@@ -1571,6 +1571,16 @@ def ensure_ai_support_schema() -> bool:
         )
         cursor.execute(
             """
+            ALTER TABLE ai_chat_threads
+                ADD COLUMN IF NOT EXISTS project_id BIGINT NULL DEFAULT NULL,
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP NULL DEFAULT NULL,
+                ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL,
+                ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP NULL DEFAULT NULL
+            """
+        )
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_ai_chat_threads_user_activity
             ON ai_chat_threads (user_id, last_message_at, updated_at)
             """
@@ -1581,13 +1591,6 @@ def ensure_ai_support_schema() -> bool:
             ON ai_chat_threads (user_id, project_id)
             """
         )
-        if not postgres_column_exists(cursor, "ai_chat_threads", "pinned_at"):
-            cursor.execute(
-                """
-                ALTER TABLE ai_chat_threads
-                ADD COLUMN pinned_at TIMESTAMP NULL DEFAULT NULL
-                """
-            )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_chat_messages (
