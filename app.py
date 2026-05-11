@@ -2737,6 +2737,50 @@ def normalize_ai_action(raw_action, user):
             },
         }
 
+    if action_type == "add_calendar_event":
+        title = str(payload.get("title") or raw_action.get("title") or "").strip()
+        event_date = str(payload.get("event_date") or "").strip()
+        if not title or not event_date:
+            return None
+
+        try:
+            confidence = float(payload.get("confidence") or 0)
+        except (TypeError, ValueError):
+            confidence = 0.0
+        if confidence < 0.85:
+            return None
+
+        event_time_raw = payload.get("event_time")
+        event_time = str(event_time_raw).strip()[:5] if event_time_raw else None
+        category = str(payload.get("category") or "personal").strip() or "personal"
+        color = str(payload.get("color") or DEFAULT_AI_ACTION_COLOR).strip() or DEFAULT_AI_ACTION_COLOR
+
+        try:
+            d = datetime.strptime(event_date[:10], "%Y-%m-%d")
+            date_display = f"{calendar.month_name[d.month]} {d.day}, {d.year}"
+        except Exception:
+            date_display = event_date
+
+        time_display = f" at {event_time}" if event_time else ""
+        confirmation_text = (
+            raw_action.get("confirmation_text")
+            or f'"{title}" — {date_display}{time_display}'
+        )
+
+        return {
+            "type": action_type,
+            "title": title[:255],
+            "confirmation_text": confirmation_text.strip(),
+            "payload": {
+                "title": title[:255],
+                "event_date": event_date[:10],
+                "event_time": event_time,
+                "category": category[:32],
+                "color": color[:64],
+                "recurring": bool(payload.get("recurring")),
+            },
+        }
+
     return None
 
 
@@ -2786,10 +2830,19 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         "}\n\n"
         "Rules:\n"
         "- Save only durable facts or preferences worth remembering later.\n"
-        "- Supported actions: create_task, create_habit, create_calendar_event.\n"
-        "- Only propose actions if the user clearly asked to create/add/schedule something, or if they mention a birthday worth offering to add to the calendar.\n"
+        "- Supported action types: create_task, create_habit, create_calendar_event, add_calendar_event.\n"
+        "- Use create_task or create_habit only when the user explicitly asks to create/add one.\n"
+        "- Use create_calendar_event when the user explicitly asks to add/schedule a calendar event.\n"
+        "- Use add_calendar_event when the user passively mentions a specific datable event without asking to add it "
+        "(e.g. 'my dentist appointment is Tuesday', 'graduation is May 21', 'my flight to Miami is June 3'). "
+        "This gently offers to add it rather than doing so immediately.\n"
+        "- For add_calendar_event the payload must include: event_date (YYYY-MM-DD resolved from today), "
+        "event_time (HH:MM 24hr or null), category (birthday/appointment/travel/exam/personal), "
+        "recurring (true for yearly events like birthdays/anniversaries, else false), "
+        "confidence (0.0-1.0). Only emit add_calendar_event if confidence >= 0.85 and the event has a concrete date — "
+        "never for vague mentions like 'someday' or 'eventually'.\n"
         "- If the user asked to add multiple separate tasks/habits/events, return one action object per item.\n"
-        "- For calendar events, payload.event_date must be YYYY-MM-DD and payload.event_time must be HH:MM or null.\n"
+        "- For create_calendar_event, payload.event_date must be YYYY-MM-DD and payload.event_time must be HH:MM or null.\n"
         "- If nothing should be saved, return an empty memories array.\n"
         '- If no actions are needed, set "actions" to an empty array.\n'
         "- Never include extra commentary outside the JSON."
@@ -2799,7 +2852,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         response = call_anthropic_messages_api(
             client,
             model=ANTHROPIC_DEFAULT_MODEL,
-            max_tokens=220,
+            max_tokens=300,
             system="You extract durable user memory and safe confirmation-gated TaskFlow actions.",
             messages=[{"role": "user", "content": prompt}],
         )
@@ -3059,6 +3112,56 @@ def execute_ai_action_request(action_row):
                     app.logger.exception("Google Calendar push failed for AI-created event %s.", event_id)
             invalidate_user_cached_data(user_id)
             return {"reply": f'Added "{title}" to your calendar.', "action_type": action_type}
+
+        if action_type == "add_calendar_event":
+            if not calendar_schema_available():
+                raise ValueError("Calendar is not configured in the database yet.")
+
+            title = str(payload.get("title") or "").strip()
+            event_date = str(payload.get("event_date") or "").strip()
+            if not title or not event_date:
+                raise ValueError("Calendar event details are incomplete.")
+
+            event_time_raw = payload.get("event_time")
+            event_time = str(event_time_raw).strip()[:5] if event_time_raw else None
+            category = str(payload.get("category") or "personal").strip() or "personal"
+            color = str(payload.get("color") or DEFAULT_AI_ACTION_COLOR).strip() or DEFAULT_AI_ACTION_COLOR
+            cursor.execute(
+                """
+                INSERT INTO calendar_events (user_id, title, event_date, event_time, category, color, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
+                """,
+                (user_id, title, event_date, event_time, category, color),
+            )
+            event_id = cursor.fetchone()[0]
+            if ensure_calendar_google_sync_columns():
+                try:
+                    google_event_id = push_event_to_google(
+                        user_id,
+                        {"title": title, "date": event_date, "time": event_time or ""},
+                    )
+                    if google_event_id:
+                        cursor.execute(
+                            """
+                            UPDATE calendar_events
+                            SET google_event_id = %s
+                            WHERE id = %s AND user_id = %s
+                            """,
+                            (google_event_id, event_id, user_id),
+                        )
+                except Exception:
+                    app.logger.exception("Google Calendar push failed for AI-detected event %s.", event_id)
+            invalidate_user_cached_data(user_id)
+            try:
+                d = datetime.strptime(event_date[:10], "%Y-%m-%d")
+                date_display = f"{calendar.month_name[d.month]} {d.day}, {d.year}"
+            except Exception:
+                date_display = event_date
+            return {
+                "reply": f'Done! I\'ve added "{title}" to your calendar for {date_display}.',
+                "action_type": action_type,
+            }
 
         raise ValueError("That TaskFlow action is not supported yet.")
     finally:
@@ -4806,7 +4909,10 @@ def ai_chat():
         reply = extract_anthropic_text(response)
         if saved_memories and "remember" not in reply.lower():
             reply = (reply or "Noted.") + "\n\nI'll remember that for future coaching."
-        if created_actions and "confirm" not in reply.lower():
+        all_passive_detections = bool(created_actions) and all(
+            a.get("type") == "add_calendar_event" for a in created_actions
+        )
+        if created_actions and not all_passive_detections and "confirm" not in reply.lower():
             confirm_line = (
                 "Confirm below and I'll make those changes in TaskFlow."
                 if len(created_actions) > 1
