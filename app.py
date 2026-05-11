@@ -1525,8 +1525,7 @@ def ensure_ai_support_schema() -> bool:
                 confirmed_at TIMESTAMP NULL DEFAULT NULL,
                 executed_at TIMESTAMP NULL DEFAULT NULL,
                 cancelled_at TIMESTAMP NULL DEFAULT NULL,
-                error_text TEXT NULL,
-                PRIMARY KEY (id)
+                error_text TEXT NULL
             )
             """
         )
