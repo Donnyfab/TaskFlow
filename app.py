@@ -5136,7 +5136,8 @@ def delete_ai_thread(thread_id):
 @login_required
 def list_ai_threads():
     threads = fetch_ai_chat_threads(session["user_id"])
-    return jsonify({"ok": True, "threads": [serialize_ai_chat_thread(t) for t in threads]})
+    serialized = [serialize_ai_chat_thread(t) for t in threads if int(t.get("message_count") or 0) > 0]
+    return jsonify({"ok": True, "threads": serialized})
 
 
 @app.route("/ai/projects", methods=["GET"])
