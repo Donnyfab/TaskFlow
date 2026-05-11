@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import Holidays from 'date-holidays'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import { useTheme } from '@/hooks/useTheme'
@@ -217,6 +218,7 @@ export default function AIPage() {
   const [newProjectDesc, setNewProjectDesc]   = useState('')
   const [searchQuery, setSearchQuery]         = useState('')
   const [userInitials, setUserInitials]       = useState('TF')
+  const [calendarContext, setCalendarContext] = useState<{title: string; date: string; category: string}[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
   const historyRef     = useRef<Message[]>([])
@@ -230,6 +232,33 @@ export default function AIPage() {
       }
     }).catch(() => {})
     fetchSidebar()
+
+    // Build calendar context: user events + holidays, today onwards, capped at 60
+    ;(async () => {
+      try {
+        const today = new Date()
+        const thisYear = today.getFullYear()
+
+        let userEvents: {title: string; date: string; category: string}[] = []
+        try {
+          const res = await fetch(apiUrl('/api/calendar/data'), { credentials: 'include' })
+          if (res.ok) {
+            const json = await res.json()
+            userEvents = (json.events || [])
+              .map((e: {title: string; date: string; category: string}) => ({ title: e.title, date: e.date, category: e.category }))
+          }
+        } catch {}
+
+        const hd = new Holidays('US')
+        const holidayEvents = [...hd.getHolidays(thisYear), ...hd.getHolidays(thisYear + 1)]
+          .map(h => ({ title: h.name, date: h.date.slice(0, 10), category: 'holiday' }))
+
+        const combined = [...userEvents, ...holidayEvents]
+          .sort((a, b) => a.date.localeCompare(b.date))
+
+        setCalendarContext(combined)
+      } catch {}
+    })()
   }, [])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -260,7 +289,7 @@ export default function AIPage() {
       const res = await fetch(apiUrl('/ai/chat'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT, active_page: 'ai', persist_chat: true, thread_id: threadId, project_id: projectId })
+        body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT, active_page: 'ai', persist_chat: true, thread_id: threadId, project_id: projectId, calendar_context: calendarContext })
       })
       const data = await res.json()
       const reply = data.reply || "I'm here — what do you need?"

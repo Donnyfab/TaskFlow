@@ -4764,6 +4764,25 @@ def ai_chat():
 
         memory_context = build_ai_memory_context(session["user_id"])
         live_context = build_ai_coach_system_context(session["user_id"], active_page)
+
+        calendar_context = data.get("calendar_context") or []
+        calendar_block = ""
+        if calendar_context:
+            all_events = sorted(
+                [e for e in calendar_context if isinstance(e, dict) and e.get("date")],
+                key=lambda e: e.get("date", ""),
+            )[:60]
+            if all_events:
+                lines = "\n".join(
+                    f"- {e['date']}: {e['title']} ({e.get('category', 'event')})"
+                    for e in all_events
+                )
+                calendar_block = (
+                    f"The user's calendar events and holidays for this year and next:\n{lines}\n\n"
+                    "Use this to give personalized, context-aware responses. "
+                    "Reference holidays and events naturally when relevant, including past ones if the user asks."
+                )
+
         system_parts = [
             local_datetime,
             "You are Taskflow AI - a personal life coach and accountability partner built into the Taskflow productivity app.",
@@ -4772,6 +4791,8 @@ def ai_chat():
             "You never directly modify TaskFlow data on your own.",
             "If the user wants to create, edit, complete, delete, or schedule something, keep the response brief and let TaskFlow ask for explicit confirmation before any change happens.",
         ]
+        if calendar_block:
+            system_parts.insert(1, calendar_block)
         if memory_context:
             system_parts.append("Saved user memories you can rely on if relevant:\n" + memory_context)
 
