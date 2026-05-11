@@ -246,6 +246,7 @@ export default function CalendarPage() {
   const [evTitle, setEvTitle]     = useState('')
   const [evDate, setEvDate]       = useState('')
   const [evTime, setEvTime]       = useState('09:00')
+  const [evAllDay, setEvAllDay]   = useState(false)
   const [evCat, setEvCat]         = useState('personal')
   const [evColor, setEvColor]     = useState(COLORS[0])
   const [saving, setSaving]       = useState(false)
@@ -280,6 +281,7 @@ export default function CalendarPage() {
     setEvTitle('')
     setEvCat('personal')
     setEvColor(COLORS[0])
+    setEvAllDay(false)
     setModal(true)
   }
 
@@ -287,7 +289,8 @@ export default function CalendarPage() {
     if (!evTitle.trim() || !evDate) return
     setSaving(true)
     const tempId = -Date.now()
-    const tempEv: CalEvent = { id: tempId, title: evTitle.trim(), date: evDate, time: evTime, category: evCat, color: evColor }
+    const resolvedTime = evAllDay ? '' : evTime
+    const tempEv: CalEvent = { id: tempId, title: evTitle.trim(), date: evDate, time: resolvedTime, category: evCat, color: evColor }
     const previous = queryClient.getQueryData<Data>(['calendar'])
     queryClient.setQueryData<Data>(['calendar'], old => old ? { ...old, events: [...old.events, tempEv] } : old)
     setModal(false)
@@ -295,7 +298,7 @@ export default function CalendarPage() {
       const res = await fetch(apiUrl('/api/calendar/events/create'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: evTitle, date: evDate, time: evTime, category: evCat, color: evColor })
+        body: JSON.stringify({ title: evTitle, date: evDate, time: resolvedTime, category: evCat, color: evColor })
       })
       const result = await res.json()
       if (result.ok && result.id) {
@@ -620,9 +623,16 @@ export default function CalendarPage() {
                   style={{ width: '100%', background: th.inputBg, border: `1px solid ${th.inputBorder}`, borderRadius: '9px', padding: '10px 13px', fontSize: '13px', color: th.inputColor, outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <div style={{ fontSize: '10px', fontWeight: 500, color: th.labelColor, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Time</div>
-                <input type="time" value={evTime} onChange={e => setEvTime(e.target.value)}
-                  style={{ width: '100%', background: th.inputBg, border: `1px solid ${th.inputBorder}`, borderRadius: '9px', padding: '10px 13px', fontSize: '13px', color: th.inputColor, outline: 'none', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 500, color: th.labelColor, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Time</div>
+                  <button onClick={() => setEvAllDay(v => !v)} style={{ fontSize: '9px', fontWeight: 600, padding: '2px 8px', borderRadius: '100px', border: `1px solid ${evAllDay ? th.createBg : th.inputBorder}`, background: evAllDay ? th.createBg : 'transparent', color: evAllDay ? th.createColor : th.labelColor, cursor: 'pointer', letterSpacing: '0.2px', transition: 'all 0.15s' }}>All day</button>
+                </div>
+                {evAllDay ? (
+                  <div style={{ width: '100%', background: th.inputBg, border: `1px solid ${th.inputBorder}`, borderRadius: '9px', padding: '10px 13px', fontSize: '13px', color: th.labelColor, boxSizing: 'border-box' }}>All day</div>
+                ) : (
+                  <input type="time" value={evTime} onChange={e => setEvTime(e.target.value)}
+                    style={{ width: '100%', background: th.inputBg, border: `1px solid ${th.inputBorder}`, borderRadius: '9px', padding: '10px 13px', fontSize: '13px', color: th.inputColor, outline: 'none', boxSizing: 'border-box' }} />
+                )}
               </div>
             </div>
 
