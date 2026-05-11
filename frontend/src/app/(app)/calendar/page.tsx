@@ -395,7 +395,7 @@ export default function CalendarPage() {
   const miniPrev = new Date(curYear, curMonth, 0).getDate()
 
   if (loading) return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', minHeight: '100vh' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', height: '100vh', overflow: 'hidden' }}>
       <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ height: '40px', background: 'rgba(128,128,128,0.07)', borderRadius: '8px', width: '200px' }} />
         <div style={{ flex: 1, background: 'rgba(128,128,128,0.04)', borderRadius: '12px', marginTop: '8px' }} />
@@ -407,7 +407,7 @@ export default function CalendarPage() {
   )
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', minHeight: '100vh', minWidth: 0 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', height: '100vh', overflow: 'hidden', minWidth: 0 }}>
 
       {/* CALENDAR AREA */}
       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
