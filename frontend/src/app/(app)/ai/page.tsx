@@ -426,14 +426,14 @@ export default function AIPage() {
       const confirmLabel = isCalendarAction ? '✓ Added to calendar' : 'Done.'
       if (data.ok) {
         setActionStatus(prev => ({ ...prev, [actionId]: decision === 'confirm' ? confirmLabel : 'Skipped.' }))
-        setResolvedActions(prev => new Set([...prev, actionId]))
+        const idsToResolve = new Set<number>([actionId])
         if (Array.isArray(data.resolved_action_ids)) {
-          setResolvedActions(prev => {
-            const next = new Set(prev)
-            ;(data.resolved_action_ids as number[]).forEach(id => next.add(id))
-            return next
-          })
+          ;(data.resolved_action_ids as number[]).forEach(id => idsToResolve.add(id))
         }
+        setResolvedActions(prev => new Set([...prev, ...idsToResolve]))
+        setTimeout(() => {
+          setActions(prev => prev.filter(a => !idsToResolve.has(a.id)))
+        }, 1000)
       } else {
         setActionStatus(prev => ({ ...prev, [actionId]: 'Could not apply.' }))
       }
