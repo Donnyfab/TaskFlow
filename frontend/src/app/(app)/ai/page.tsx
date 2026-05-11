@@ -231,7 +231,7 @@ export default function AIPage() {
         setUserInitials(parts.length >= 2 ? parts[0][0] + parts[parts.length-1][0] : d.name.slice(0,2).toUpperCase())
       }
     }).catch(() => {})
-    fetchSidebar()
+    fetchSidebar().then(fetched => { if (fetched.length > 0) loadThread(fetched[0].id) })
 
     // Build calendar context: user events + holidays, today onwards, capped at 60
     ;(async () => {
@@ -263,21 +263,23 @@ export default function AIPage() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
-  async function fetchSidebar() {
+  async function fetchSidebar(): Promise<Thread[]> {
     try {
       const [tRes, pRes] = await Promise.all([
         fetch(apiUrl('/ai/threads'), { credentials: 'include' }),
         fetch(apiUrl('/ai/projects'), { credentials: 'include' }),
       ])
+      let fetchedThreads: Thread[] = []
       if (tRes.ok) {
         const td = await tRes.json()
-        if (td.threads) setThreads(td.threads)
+        if (td.threads) { setThreads(td.threads); fetchedThreads = td.threads }
       }
       if (pRes.ok) {
         const pd = await pRes.json()
         if (pd.projects) setProjects(pd.projects)
       }
-    } catch {}
+      return fetchedThreads
+    } catch { return [] }
   }
 
   async function loadThread(id: number) {
