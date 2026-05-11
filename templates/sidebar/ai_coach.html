@@ -765,6 +765,16 @@
       chatHistory.push({ role: 'user', content: msg });
       const typing = addTyping();
 
+      const _tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const _now = new Date();
+      const _fmt = (opts) => _now.toLocaleString('en-US', { timeZone: _tz, ...opts });
+      const _localDatetime = (
+        `Today is ${_fmt({ weekday: 'long' })}, ` +
+        `${_fmt({ month: 'long' })} ${_fmt({ day: 'numeric' })}, ` +
+        `${_fmt({ year: 'numeric' })}. ` +
+        `The current time is ${_fmt({ hour: 'numeric', minute: '2-digit', hour12: true })} (${_tz}).`
+      );
+
       try {
         const res = await fetch('/ai/chat', {
           method: 'POST',
@@ -776,7 +786,7 @@
             persist_chat: true,
             thread_id: currentThreadId,
             project_id: currentProjectId,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            local_datetime: _localDatetime
           })
         });
         const data = await res.json();
