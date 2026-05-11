@@ -21,6 +21,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build as google_build
@@ -4670,6 +4671,7 @@ def ai_chat():
     messages = data.get("messages", [])
     active_page = str(data.get("active_page") or request.path or "app").strip().lower()
     system = data.get("system", "You are Taskflow AI, a personal life coach.")
+    client_timezone = data.get("timezone", "UTC")
     persist_chat = bool(data.get("persist_chat"))
     thread_id = parse_optional_int(data.get("thread_id"))
     project_id = parse_optional_int(data.get("project_id"))
@@ -4750,7 +4752,18 @@ def ai_chat():
 
         memory_context = build_ai_memory_context(session["user_id"])
         live_context = build_ai_coach_system_context(session["user_id"], active_page)
+        try:
+            tz = ZoneInfo(client_timezone)
+        except (ZoneInfoNotFoundError, KeyError):
+            tz = timezone.utc
+        now = datetime.now(tz)
+        tz_name = client_timezone if tz is not timezone.utc else "UTC"
+        datetime_prefix = (
+            f"Today is {now.strftime('%A')}, {now.strftime('%B')} {now.day}, {now.year}. "
+            f"The current time is {now.strftime('%I:%M %p').lstrip('0')} ({tz_name})."
+        )
         system_parts = [
+            datetime_prefix,
             "You are Taskflow AI - a personal life coach and accountability partner built into the Taskflow productivity app.",
             live_context,
             str(system).strip(),

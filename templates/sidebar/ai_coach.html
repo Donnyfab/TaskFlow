@@ -775,7 +775,8 @@
             active_page: 'ai',
             persist_chat: true,
             thread_id: currentThreadId,
-            project_id: currentProjectId
+            project_id: currentProjectId,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
           })
         });
         const data = await res.json();
