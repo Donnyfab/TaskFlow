@@ -1445,9 +1445,10 @@ AI_ACTION_CANCEL_WORDS = {
 }
 AI_MEMORY_TRIGGER_PATTERN = re.compile(
     r"\b("
-    r"my birthday|remember|call me|my goal|i want to|i need to|"
+    r"my birthday|remember|call me|my goal|i want to|i need to|i have|"
     r"i (?:prefer|like|work best|am most productive)|"
-    r"add|create|schedule|put .* calendar|task|habit|calendar"
+    r"add|create|schedule|put .* calendar|task|habit|calendar|"
+    r"appointment|graduation|my flight|my meeting|my interview|my exam"
     r")\b",
     re.IGNORECASE,
 )
