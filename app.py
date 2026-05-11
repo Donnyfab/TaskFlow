@@ -1445,10 +1445,11 @@ AI_ACTION_CANCEL_WORDS = {
 }
 AI_MEMORY_TRIGGER_PATTERN = re.compile(
     r"\b("
-    r"my birthday|remember|call me|my goal|i want to|i need to|i have|"
+    r"my birthday|birthday|remember|call me|my goal|i want to|i need to|i have|"
     r"i (?:prefer|like|work best|am most productive)|"
     r"add|create|schedule|put .* calendar|task|habit|calendar|"
-    r"appointment|graduation|my flight|my meeting|my interview|my exam"
+    r"appointment|graduation|my flight|my meeting|my interview|my exam|"
+    r"leaving|ship out|deploy|starting|begins|trip|vacation|wedding|anniversary"
     r")\b",
     re.IGNORECASE,
 )
@@ -2858,7 +2859,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         "confidence (0.0-1.0). Only emit add_calendar_event if confidence >= 0.85 and the event has a concrete date — "
         "never for vague mentions like 'someday' or 'eventually'.\n"
         "- If the user asked to add multiple separate tasks/habits/events, return one action object per item.\n"
-        "- For create_calendar_event, payload.event_date must be YYYY-MM-DD and payload.event_time must be HH:MM or null.\n"
+        "- For create_calendar_event, payload must include: title (short event name), event_date (YYYY-MM-DD), event_time (HH:MM 24hr or null), category (birthday/appointment/travel/exam/personal).\n"
         "- If nothing should be saved, return an empty memories array.\n"
         '- If no actions are needed, set "actions" to an empty array.\n'
         "- Never include extra commentary outside the JSON."
@@ -2868,7 +2869,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
         response = call_anthropic_messages_api(
             client,
             model=ANTHROPIC_DEFAULT_MODEL,
-            max_tokens=300,
+            max_tokens=600,
             system="You extract durable user memory and safe confirmation-gated TaskFlow actions.",
             messages=[{"role": "user", "content": prompt}],
         )
