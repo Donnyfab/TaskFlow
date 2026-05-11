@@ -225,6 +225,7 @@ export default function CalendarPage() {
   const theme = useTheme()
   const th = THEMES[theme]
   const now = new Date()
+  const holidayColor = theme === 'light' ? 'rgba(160, 100, 0, 0.9)' : 'rgba(255, 200, 80, 0.85)'
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['calendar'],
@@ -255,7 +256,8 @@ export default function CalendarPage() {
   const holidayEvents = useMemo(() => {
     const thisYear = now.getFullYear()
     return [...buildHolidayEvents(thisYear), ...buildHolidayEvents(thisYear + 1)]
-  }, [now.getFullYear()])
+      .map(ev => ({ ...ev, color: holidayColor }))
+  }, [now.getFullYear(), theme])
 
   // eventsMap merges DB events with client-side holiday events
   const eventsMap = useMemo(() => {
@@ -427,7 +429,7 @@ export default function CalendarPage() {
                 {syncMsg || '↻ Sync Google'}
               </button>
             )}
-            <button onClick={() => setShowHolidays(v => !v)} style={{ background: showHolidays ? 'rgba(255,200,80,0.15)' : th.viewDefBg, border: showHolidays ? '1px solid rgba(255,200,80,0.4)' : `1px solid ${th.viewDefBorder}`, borderRadius: '7px', padding: '5px 11px', fontSize: '11px', color: showHolidays ? 'rgba(255,200,80,0.9)' : th.viewDefColor, cursor: 'pointer' }}>Holidays</button>
+            <button onClick={() => setShowHolidays(v => !v)} style={{ background: showHolidays ? (theme === 'light' ? 'rgba(160,100,0,0.08)' : 'rgba(255,200,80,0.15)') : th.viewDefBg, border: showHolidays ? `1px solid ${theme === 'light' ? 'rgba(160,100,0,0.3)' : 'rgba(255,200,80,0.4)'}` : `1px solid ${th.viewDefBorder}`, borderRadius: '7px', padding: '5px 11px', fontSize: '11px', color: showHolidays ? holidayColor : th.viewDefColor, cursor: 'pointer' }}>Holidays</button>
             <button onClick={() => openModal()} style={{ background: th.addBtnBg, color: th.addBtnColor, border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>+ Add event</button>
           </div>
         </div>
