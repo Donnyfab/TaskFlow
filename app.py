@@ -21,6 +21,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build as google_build
@@ -4671,6 +4672,18 @@ def ai_chat():
     active_page = str(data.get("active_page") or request.path or "app").strip().lower()
     system = data.get("system", "You are Taskflow AI, a personal life coach.")
     local_datetime = data.get("local_datetime", "")
+    if not local_datetime:
+        client_timezone = data.get("timezone", "UTC")
+        try:
+            tz = ZoneInfo(client_timezone)
+        except (ZoneInfoNotFoundError, KeyError):
+            tz = timezone.utc
+            client_timezone = "UTC"
+        now = datetime.now(tz)
+        local_datetime = (
+            f"Today is {now.strftime('%A')}, {now.strftime('%B')} {now.day}, {now.year}. "
+            f"The current time is {now.strftime('%I:%M %p').lstrip('0')} ({client_timezone})."
+        )
     persist_chat = bool(data.get("persist_chat"))
     thread_id = parse_optional_int(data.get("thread_id"))
     project_id = parse_optional_int(data.get("project_id"))

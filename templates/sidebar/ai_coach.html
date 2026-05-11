@@ -786,7 +786,8 @@
             persist_chat: true,
             thread_id: currentThreadId,
             project_id: currentProjectId,
-            local_datetime: _localDatetime
+            local_datetime: _localDatetime,
+            timezone: _tz
           })
         });
         const data = await res.json();
