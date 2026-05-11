@@ -474,6 +474,8 @@ export default function CalendarPage() {
         {/* WEEK VIEW */}
         {view === 'week' && (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+
+            {/* Day header row */}
             <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7,1fr)', borderBottom: `1px solid ${th.weekBorder}`, flexShrink: 0 }}>
               <div />
               {weekDays.map((d, i) => {
@@ -486,6 +488,27 @@ export default function CalendarPage() {
                 )
               })}
             </div>
+
+            {/* All-day strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7,1fr)', borderBottom: `1px solid ${th.weekBorder}`, flexShrink: 0 }}>
+              <div style={{ padding: '5px 6px 5px 0', textAlign: 'right', fontSize: '9px', color: th.timeColor, alignSelf: 'flex-start', paddingTop: '7px' }}>all-day</div>
+              {weekDays.map((d, di) => {
+                const key = getKey(d.getFullYear(), d.getMonth(), d.getDate())
+                const allDayEvs = (eventsMap[key] || []).filter(ev => !ev.time)
+                return (
+                  <div key={di} style={{ borderLeft: `1px solid ${th.weekColBorder}`, padding: '3px 4px', display: 'flex', flexDirection: 'column', gap: '2px', minHeight: '28px' }}>
+                    {allDayEvs.map((ev, ei) => (
+                      <div key={ei} onClick={() => { setSelDay(d.getDate()); setSelMonth(d.getMonth()); setSelYear(d.getFullYear()) }}
+                        style={{ borderRadius: '4px', padding: '2px 6px', fontSize: '9px', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', cursor: 'pointer', background: alphaReplace(ev.color, '0.15'), borderLeft: `3px solid ${ev.color}`, color: ev.color }}>
+                        {ev.title}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Scrollable time grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7,1fr)', flex: 1, overflowY: 'auto' }}>
               {/* Time column */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -498,15 +521,15 @@ export default function CalendarPage() {
               {/* Day columns */}
               {weekDays.map((d, di) => {
                 const key = getKey(d.getFullYear(), d.getMonth(), d.getDate())
-                const evs = eventsMap[key] || []
+                const timedEvs = (eventsMap[key] || []).filter(ev => ev.time)
                 return (
                   <div key={di} style={{ borderLeft: `1px solid ${th.weekColBorder}`, position: 'relative' }}>
                     {Array.from({ length: 24 }, (_, h) => (
                       <div key={h} onClick={() => { setSelDay(d.getDate()); setSelMonth(d.getMonth()); setSelYear(d.getFullYear()); openModal(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, `${String(h).padStart(2,'0')}:00`) }}
                         style={{ height: '48px', borderBottom: `1px solid ${th.timeRowBorder}`, flexShrink: 0, cursor: 'pointer' }} />
                     ))}
-                    {evs.map((ev, ei) => {
-                      const [hh, mm] = (ev.time || '09:00').split(':').map(Number)
+                    {timedEvs.map((ev, ei) => {
+                      const [hh, mm] = ev.time.split(':').map(Number)
                       const top = (hh + mm / 60) * 48
                       return (
                         <div key={ei} style={{ position: 'absolute', left: '3px', right: '3px', top: `${top}px`, height: '44px', borderRadius: '5px', padding: '3px 6px', fontSize: '10px', fontWeight: 500, cursor: 'pointer', zIndex: 2, overflow: 'hidden', background: alphaReplace(ev.color, '0.15'), borderLeft: `3px solid ${ev.color}` }}>
