@@ -2744,7 +2744,11 @@ def normalize_ai_action(raw_action, user):
             return None
 
         try:
-            confidence = float(payload.get("confidence") or 0)
+            confidence = float(
+                payload.get("confidence")
+                if payload.get("confidence") is not None
+                else raw_action.get("confidence") or 0
+            )
         except (TypeError, ValueError):
             confidence = 0.0
         if confidence < 0.85:
