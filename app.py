@@ -2884,6 +2884,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
     if not actions and fallback["actions"]:
         actions = fallback["actions"]
 
+    app.logger.info("analyze_message_actions=%r", [a.get("type") for a in actions])
     return {"memories": memories[:3], "actions": actions[:5]}
 
 
@@ -4895,8 +4896,8 @@ def ai_chat():
             "You are Taskflow AI - a personal life coach and accountability partner built into the Taskflow productivity app.",
             live_context,
             str(system).strip(),
-            "You never directly modify TaskFlow data on your own.",
-            "If the user wants to create, edit, complete, delete, or schedule something, keep the response brief and let TaskFlow ask for explicit confirmation before any change happens.",
+            "When the user asks to add, create, schedule, or track something, you can do it — a confirmation card will appear for the user to approve before anything is saved. Never say you can't add or create things. Instead, respond briefly and positively (e.g. 'Sure! I've queued that up for you — confirm below to add it.') and let the confirmation card handle the approval.",
+            "You do not silently modify data without the user seeing a confirmation card first.",
         ]
         if calendar_block:
             system_parts.insert(1, calendar_block)
