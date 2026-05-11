@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import Holidays from 'date-holidays'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import { useTheme } from '@/hooks/useTheme'
@@ -166,6 +167,26 @@ const THEMES = {
   },
 }
 
+const HOLIDAY_COLOR = 'rgba(255, 200, 80, 0.85)'
+
+function buildHolidayEvents(year: number): CalEvent[] {
+  const hd = new Holidays('US')
+  return hd.getHolidays(year)
+    .filter(h => h.type === 'public')
+    .map(h => {
+      const dateStr = h.date.slice(0, 10)
+      const slug = h.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      return {
+        id: `holiday-${slug}-${year}` as unknown as number,
+        title: h.name,
+        date: dateStr,
+        time: '',
+        category: 'holiday',
+        color: HOLIDAY_COLOR,
+      }
+    })
+}
+
 interface CalEvent { id: number; title: string; date: string; time: string; category: string; color: string }
 interface Task { id: number; title: string }
 interface Data { events: CalEvent[]; upcoming_tasks: Task[]; google_connected: boolean }
@@ -215,9 +236,6 @@ export default function CalendarPage() {
     },
   })
 
-  // eventsMap is derived directly from the query cache
-  const eventsMap = data ? buildEventsMap(data.events) : {}
-
   const [curYear, setCurYear]     = useState(now.getFullYear())
   const [curMonth, setCurMonth]   = useState(now.getMonth())
   const [selDay, setSelDay]       = useState(now.getDate())
@@ -233,6 +251,26 @@ export default function CalendarPage() {
   const [saving, setSaving]       = useState(false)
   const [syncing, setSyncing]     = useState(false)
   const [syncMsg, setSyncMsg]     = useState('')
+  const [showHolidays, setShowHolidays] = useState(true)
+
+  const holidayEvents = useMemo(() => {
+    const thisYear = now.getFullYear()
+    return [...buildHolidayEvents(thisYear), ...buildHolidayEvents(thisYear + 1)]
+  }, [now.getFullYear()])
+
+  // eventsMap merges DB events with client-side holiday events
+  const eventsMap = useMemo(() => {
+    const base = data ? buildEventsMap(data.events) : {}
+    if (!showHolidays) return base
+    const merged: Record<string, CalEvent[]> = { ...base }
+    for (const ev of holidayEvents) {
+      const d = new Date(ev.date + 'T00:00:00')
+      const key = getKey(d.getFullYear(), d.getMonth(), d.getDate())
+      if (!merged[key]) merged[key] = []
+      merged[key] = [...merged[key], ev]
+    }
+    return merged
+  }, [data, holidayEvents, showHolidays])
 
   function openModal(date?: string, time?: string) {
     const y = selYear, m = String(selMonth+1).padStart(2,'0'), d = String(selDay).padStart(2,'0')
@@ -390,6 +428,7 @@ export default function CalendarPage() {
                 {syncMsg || '↻ Sync Google'}
               </button>
             )}
+            <button onClick={() => setShowHolidays(v => !v)} style={{ background: showHolidays ? 'rgba(255,200,80,0.15)' : th.viewDefBg, border: showHolidays ? '1px solid rgba(255,200,80,0.4)' : `1px solid ${th.viewDefBorder}`, borderRadius: '7px', padding: '5px 11px', fontSize: '11px', color: showHolidays ? 'rgba(255,200,80,0.9)' : th.viewDefColor, cursor: 'pointer' }}>Holidays</button>
             <button onClick={() => openModal()} style={{ background: th.addBtnBg, color: th.addBtnColor, border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>+ Add event</button>
           </div>
         </div>
@@ -533,7 +572,9 @@ export default function CalendarPage() {
                 <div style={{ fontSize: '10px', color: th.evTime, marginBottom: '4px' }}>{ev.time || 'All day'}</div>
                 <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '4px', background: th.evTagBg, color: th.evTagColor }}>{ev.category}</span>
               </div>
-              <div onClick={() => deleteEvent(selKey, idx)} style={{ fontSize: '10px', color: th.evDelColor, cursor: 'pointer', padding: '2px 5px', borderRadius: '4px', flexShrink: 0 }}>✕</div>
+              {typeof ev.id === 'number' && (
+                <div onClick={() => deleteEvent(selKey, idx)} style={{ fontSize: '10px', color: th.evDelColor, cursor: 'pointer', padding: '2px 5px', borderRadius: '4px', flexShrink: 0 }}>✕</div>
+              )}
             </div>
           ))
         )}
