@@ -7940,7 +7940,8 @@ def api_calendar_create():
     data = request.get_json(silent=True) or {}
     title    = (data.get("title") or "").strip()
     date     = (data.get("date") or "").strip()
-    time     = (data.get("time") or "09:00").strip()
+    _time    = data.get("time")
+    time     = None if (_time is not None and _time.strip() == "") else (_time or "09:00").strip()
     category = (data.get("category") or "personal").strip()
     color    = (data.get("color") or "rgba(255,255,255,0.7)").strip()
     if not title or not date:
