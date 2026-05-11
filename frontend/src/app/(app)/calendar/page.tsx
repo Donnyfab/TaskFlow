@@ -172,7 +172,6 @@ const HOLIDAY_COLOR = 'rgba(255, 200, 80, 0.85)'
 function buildHolidayEvents(year: number): CalEvent[] {
   const hd = new Holidays('US')
   return hd.getHolidays(year)
-    .filter(h => h.type === 'public')
     .map(h => {
       const dateStr = h.date.slice(0, 10)
       const slug = h.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
