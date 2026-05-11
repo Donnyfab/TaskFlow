@@ -266,11 +266,44 @@ export default function AIPage() {
   async function fetchSidebar() {
     try {
       const [tRes, pRes] = await Promise.all([
-        fetch(apiUrl('/ai/threads/create'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-        fetch(apiUrl('/ai/projects/create'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{"name":"__list__"}' }),
+        fetch(apiUrl('/ai/threads'), { credentials: 'include' }),
+        fetch(apiUrl('/ai/projects'), { credentials: 'include' }),
       ])
+      if (tRes.ok) {
+        const td = await tRes.json()
+        if (td.threads) setThreads(td.threads)
+      }
+      if (pRes.ok) {
+        const pd = await pRes.json()
+        if (pd.projects) setProjects(pd.projects)
+      }
     } catch {}
-    // Just load existing threads via the chat endpoint on first message
+  }
+
+  async function loadThread(id: number) {
+    setThreadId(id)
+    setMessages([])
+    setActions([])
+    setResolvedActions(new Set())
+    setActionStatus({})
+    try {
+      const res = await fetch(apiUrl(`/ai/threads/${id}/messages`), { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.messages) {
+        setMessages(data.messages.map((m: { role: string; content: string; time_label: string }) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timeLabel: m.time_label,
+        })))
+      }
+      if (data.thread) {
+        setThreads(prev => {
+          const filtered = prev.filter(t => t.id !== data.thread.id)
+          return [data.thread, ...filtered]
+        })
+      }
+    } catch {}
   }
 
   async function send(text?: string) {
@@ -595,7 +628,7 @@ export default function AIPage() {
             </div>
           ) : (
             filtered.threads.map(t => (
-              <div key={t.id} onClick={() => { setThreadId(t.id); /* load thread messages */ }}
+              <div key={t.id} onClick={() => loadThread(t.id)}
                 style={{ background: threadId === t.id ? th.itemActiveBg : th.itemBg, border: `1px solid ${threadId === t.id ? th.itemActiveBorder : th.itemBorder}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: th.itemTitle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>

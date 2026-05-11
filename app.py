@@ -5132,6 +5132,34 @@ def delete_ai_thread(thread_id):
     return jsonify({"ok": True, "thread_id": thread_id})
 
 
+@app.route("/ai/threads", methods=["GET"])
+@login_required
+def list_ai_threads():
+    threads = fetch_ai_chat_threads(session["user_id"])
+    return jsonify({"ok": True, "threads": [serialize_ai_chat_thread(t) for t in threads]})
+
+
+@app.route("/ai/projects", methods=["GET"])
+@login_required
+def list_ai_projects():
+    projects = fetch_ai_chat_projects(session["user_id"])
+    return jsonify({"ok": True, "projects": list(projects)})
+
+
+@app.route("/ai/threads/<int:thread_id>/messages", methods=["GET"])
+@login_required
+def get_ai_thread_messages(thread_id):
+    thread = fetch_ai_chat_thread(session["user_id"], thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Chat not found."}), 404
+    messages = fetch_ai_chat_messages(session["user_id"], thread_id)
+    return jsonify({
+        "ok": True,
+        "thread": serialize_ai_chat_thread(thread),
+        "messages": serialize_ai_chat_messages(messages),
+    })
+
+
 @app.route("/ai/actions/<int:action_id>/confirm", methods=["POST"])
 @login_required
 def confirm_ai_action(action_id):
