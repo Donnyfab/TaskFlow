@@ -1505,12 +1505,13 @@ def ensure_ai_support_schema() -> bool:
             )
             """
         )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_user_memories_user_updated
-            ON user_memories (user_id, updated_at)
-            """
-        )
+        if postgres_column_exists(cursor, "user_memories", "updated_at"):
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_user_memories_user_updated
+                ON user_memories (user_id, updated_at)
+                """
+            )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_action_requests (
@@ -2433,21 +2434,25 @@ def fetch_user_memories(user_id: int, limit: int = 6):
     if not ensure_ai_support_schema():
         return []
 
-    db = get_db()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute(
-        """
-        SELECT id, memory_type, memory_key, label, value_text, value_json
-        FROM user_memories
-        WHERE user_id = %s
-        ORDER BY updated_at DESC, id DESC
-        LIMIT %s
-        """,
-        (user_id, limit),
-    )
-    memories = cursor.fetchall()
-    cursor.close()
-    return memories
+    try:
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT id, memory_type, memory_key, label, value_text, value_json
+            FROM user_memories
+            WHERE user_id = %s
+            ORDER BY updated_at DESC, id DESC
+            LIMIT %s
+            """,
+            (user_id, limit),
+        )
+        memories = cursor.fetchall()
+        cursor.close()
+        return memories
+    except Exception:
+        app.logger.exception("fetch_user_memories failed — schema mismatch?")
+        return []
 
 
 def build_ai_memory_context(user_id: int, limit: int = 6) -> str:
@@ -4856,7 +4861,10 @@ def ai_chat():
 
         analysis = analyze_message_for_memories_and_actions(client, user, latest_user_message, active_page)
         if analysis.get("memories"):
-            saved_memories = save_user_memories(session["user_id"], analysis["memories"])
+            try:
+                saved_memories = save_user_memories(session["user_id"], analysis["memories"])
+            except Exception:
+                app.logger.exception("save_user_memories failed; continuing.")
         if analysis.get("actions"):
             created_actions = create_ai_action_requests(session["user_id"], analysis["actions"])
         elif confirmation_choice == "confirm":
