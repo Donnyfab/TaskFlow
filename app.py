@@ -1797,6 +1797,47 @@ GENERIC_AI_CHAT_TITLES = {
 }
 
 
+AI_CHAT_TITLE_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "can",
+    "could",
+    "days",
+    "do",
+    "does",
+    "for",
+    "from",
+    "get",
+    "give",
+    "help",
+    "how",
+    "i",
+    "is",
+    "it",
+    "make",
+    "many",
+    "me",
+    "my",
+    "need",
+    "of",
+    "on",
+    "please",
+    "should",
+    "tell",
+    "the",
+    "this",
+    "to",
+    "until",
+    "what",
+    "when",
+    "with",
+    "would",
+    "you",
+}
+
+
 def is_generic_ai_chat_title(title: str) -> bool:
     cleaned = re.sub(r"\s+", " ", (title or "").strip()).strip("\"' ").rstrip(".!?").lower()
     return not cleaned or cleaned in GENERIC_AI_CHAT_TITLES
@@ -1812,6 +1853,53 @@ def normalize_generated_ai_chat_title(title: str, fallback: str = "New chat") ->
     if is_generic_ai_chat_title(cleaned):
         cleaned = fallback
     return build_ai_chat_title(cleaned, fallback=fallback)
+
+
+def title_case_ai_chat_words(words) -> str:
+    return " ".join(word[:1].upper() + word[1:].lower() for word in words if word)
+
+
+def build_fallback_ai_chat_title(messages, fallback: str = "New chat") -> str:
+    first_user_message = ""
+    for message in messages or []:
+        role = (message.get("role") or "").strip().lower()
+        content = re.sub(r"\s+", " ", (message.get("content") or "").strip())
+        if role == "user" and content:
+            first_user_message = content
+            break
+
+    seed_text = extract_ai_chat_title_seed(first_user_message)
+    if not seed_text:
+        return fallback
+
+    lowered = seed_text.lower()
+    topic_patterns = [
+        (r"\bchristmas\b", "Christmas Planning"),
+        (r"\bcalendar\b|\bschedule\b|\bevent\b", "Calendar Planning"),
+        (r"\bworkout\b|\bexercise\b|\bgym\b|\bfitness\b", "Workout Routine"),
+        (r"\bcode\b|\bcoding\b|\bprogramming\b|\bdebug\b", "Coding Focus"),
+        (r"\btask\b|\btodo\b|\bto-do\b|\borganize\b", "Task Organization"),
+        (r"\bjournal\b|\breflect\b|\breflection\b", "Journal Reflection"),
+        (r"\bmorning\b|\broutine\b", "Morning Routine"),
+        (r"\bhabit\b|\bstreak\b", "Habit Building"),
+        (r"\bgoal\b|\bgoals\b", "Goal Planning"),
+        (r"\bplan\b|\bplanning\b", "Daily Planning"),
+    ]
+    for pattern, title in topic_patterns:
+        if re.search(pattern, lowered):
+            return normalize_generated_ai_chat_title(title, fallback=fallback)
+
+    words = re.findall(r"[A-Za-z0-9]+", seed_text)
+    meaningful_words = [
+        word
+        for word in words
+        if len(word) > 2 and word.lower() not in AI_CHAT_TITLE_STOPWORDS
+    ][:4]
+    if len(meaningful_words) == 1:
+        meaningful_words.append("Planning")
+
+    title = title_case_ai_chat_words(meaningful_words)
+    return normalize_generated_ai_chat_title(title, fallback=fallback)
 
 
 def extract_ai_chat_title_seed(message_text: str) -> str:
@@ -5102,12 +5190,7 @@ def generate_ai_thread_title(thread_id):
     ):
         return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
 
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not anthropic_key:
-        return jsonify({"ok": False, "error": "AI coaching requires an Anthropic API key."}), 503
-
     try:
-        client = create_anthropic_client(anthropic_key)
         stored_messages = fetch_ai_chat_messages(session["user_id"], thread_id, limit=6)
         title_messages = [
             {"role": message.get("role"), "content": message.get("content")}
@@ -5127,18 +5210,23 @@ def generate_ai_thread_title(thread_id):
             for recent_thread in recent_threads[:1]
             if recent_thread.get("title")
         ]
-        title = generate_ai_chat_title(
-            client,
-            title_messages,
-            fallback="New chat",
-            avoid_titles=avoid_titles,
-        )
+        fallback_title = build_fallback_ai_chat_title(title_messages, fallback="New chat")
+        title = fallback_title
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+        if anthropic_key:
+            client = create_anthropic_client(anthropic_key)
+            title = generate_ai_chat_title(
+                client,
+                title_messages,
+                fallback=fallback_title,
+                avoid_titles=avoid_titles,
+            )
         normalized_avoid_titles = {
             normalize_generated_ai_chat_title(existing_title, fallback="")
             for existing_title in avoid_titles
         }
         if normalize_generated_ai_chat_title(title, fallback="") in normalized_avoid_titles:
-            title = ""
+            title = fallback_title
         if title and not is_generic_ai_chat_title(title):
             thread = update_ai_chat_thread_title(
                 session["user_id"],
@@ -5151,7 +5239,19 @@ def generate_ai_thread_title(thread_id):
         return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
     except Exception as e:
         app.logger.exception("AI chat title route failed: %s", e)
-        return jsonify({"ok": False, "error": "Could not generate chat title right now."}), 200
+        try:
+            stored_messages = fetch_ai_chat_messages(session["user_id"], thread_id, limit=6)
+            fallback_title = build_fallback_ai_chat_title(stored_messages, fallback="New chat")
+            if fallback_title and not is_generic_ai_chat_title(fallback_title):
+                thread = update_ai_chat_thread_title(
+                    session["user_id"],
+                    thread_id,
+                    fallback_title,
+                    manually_edited=False,
+                ) or thread
+        except Exception:
+            app.logger.exception("AI chat fallback title failed.")
+        return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
 
 
 @app.route("/ai/projects/<int:project_id>/update", methods=["POST"])

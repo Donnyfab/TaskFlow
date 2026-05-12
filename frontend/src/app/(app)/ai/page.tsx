@@ -440,6 +440,10 @@ export default function AIPage() {
         if (td.threads) {
           fetchedThreads = applyCachedThreadTitles(td.threads)
           setThreads(fetchedThreads)
+          fetchedThreads
+            .filter(thread => thread.message_count > 0 && isGenericThreadTitle(thread.title))
+            .slice(0, 3)
+            .forEach(thread => generateThreadTitleInBackground(thread, ''))
         }
       }
       if (pRes.ok) {
@@ -469,6 +473,9 @@ export default function AIPage() {
       }
       if (data.thread) {
         upsertThread(data.thread)
+        if (data.thread.message_count > 0 && isGenericThreadTitle(data.thread.title)) {
+          generateThreadTitleInBackground(data.thread, '')
+        }
       }
     } catch {}
   }
