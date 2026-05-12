@@ -984,24 +984,38 @@ export default function AIPage() {
 
           {/* Recent chats */}
           <div style={{ padding: '16px 18px 6px', fontFamily: monoFont, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: th.sectionLabel }}>Recent</div>
-          <div style={{ padding: '0 10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ padding: '0 10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filtered.threads.length === 0 ? (
-              <div style={{ padding: '12px 13px', borderRadius: 10, border: `1px solid ${th.emptyItemBorder}`, background: th.emptyItemBg, fontSize: 12, color: th.emptyItemColor, lineHeight: 1.6 }}>
+              <div style={{ padding: '9px 10px', borderRadius: 8, fontSize: 12, color: th.emptyItemColor, lineHeight: 1.5 }}>
                 Start a chat and it will show up here automatically.
               </div>
             ) : (
               filtered.threads.map(t => (
                 <div key={t.id} onClick={() => loadThread(t.id)}
-                  style={{ background: threadId === t.id ? th.itemActiveBg : th.itemBg, border: `1px solid ${threadId === t.id ? th.itemActiveBorder : th.itemBorder}`, borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, color: th.itemTitle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 220ms ease, opacity 220ms ease', animation: animatedTitleIds.has(t.id) ? 'threadTitleSettle 520ms ease' : undefined }}>{t.title}</div>
-                    <div style={{ fontSize: 10, color: th.itemCount, flexShrink: 0, fontFamily: monoFont }}>{t.activity_label}</div>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: th.itemBody, lineHeight: 1.55, marginTop: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.preview || 'No messages yet.'}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, fontSize: 10, color: th.itemMeta, fontFamily: monoFont }}>
-                    {t.project_name && <span style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 999, background: th.itemTagBg, border: `1px solid ${th.itemTagBorder}` }}>{t.project_name}</span>}
-                    <span>{t.message_count} {t.message_count === 1 ? 'message' : 'messages'}</span>
-                  </div>
+                  title={t.title}
+                  style={{
+                    background: threadId === t.id ? th.itemActiveBg : 'transparent',
+                    border: '1px solid transparent',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    minHeight: 34,
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: th.itemTitle,
+                    fontSize: 13,
+                    fontWeight: threadId === t.id ? 560 : 480,
+                    letterSpacing: '-0.01em',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    transition: 'background 160ms ease, color 160ms ease, opacity 220ms ease',
+                    animation: animatedTitleIds.has(t.id) ? 'threadTitleSettle 520ms ease' : undefined,
+                  }}
+                  onMouseEnter={e => { if (threadId !== t.id) e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.045)' }}
+                  onMouseLeave={e => { if (threadId !== t.id) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {t.title}
                 </div>
               ))
             )}
