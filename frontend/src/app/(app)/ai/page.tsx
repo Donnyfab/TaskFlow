@@ -212,7 +212,18 @@ const THEMES = {
 
 interface Message { role: 'user' | 'assistant'; content: string; timeLabel?: string }
 interface ActionCard { id: number; title: string; confirmation_text: string; type?: string }
-interface Thread { id: number; title: string; preview: string; activity_label: string; message_count: number; project_id?: number | null; project_name?: string; is_pinned?: boolean }
+interface Thread {
+  id: number
+  title: string
+  preview: string
+  activity_label: string
+  message_count: number
+  project_id?: number | null
+  project_name?: string
+  is_pinned?: boolean
+  title_generated?: boolean
+  title_manually_edited?: boolean
+}
 interface Project { id: number; name: string; description?: string; chat_count?: number }
 
 const PROMPTS = [
@@ -223,12 +234,46 @@ const PROMPTS = [
 ]
 
 const SYSTEM_PROMPT = `You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`
+const GENERIC_THREAD_TITLES = new Set(['new chat', 'new conversation', 'conversation', 'chat', 'untitled', 'untitled chat'])
+const THREAD_TITLE_CACHE_KEY = 'taskflowAiThreadTitles'
 
 function now12() {
   const d = new Date()
   const h = d.getHours() % 12 || 12
   const m = String(d.getMinutes()).padStart(2, '0')
   return `${h}:${m} ${d.getHours() >= 12 ? 'PM' : 'AM'}`
+}
+
+function isGenericThreadTitle(title?: string) {
+  return GENERIC_THREAD_TITLES.has(String(title || '').trim().replace(/[.!?]+$/g, '').toLowerCase())
+}
+
+function readThreadTitleCache(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(window.sessionStorage.getItem(THREAD_TITLE_CACHE_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+
+function writeThreadTitleCache(thread: Thread) {
+  if (typeof window === 'undefined' || !thread.id || !thread.title || isGenericThreadTitle(thread.title)) return
+  try {
+    const cache = readThreadTitleCache()
+    cache[String(thread.id)] = thread.title
+    const entries = Object.entries(cache).slice(-30)
+    window.sessionStorage.setItem(THREAD_TITLE_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)))
+  } catch {}
+}
+
+function applyCachedThreadTitles(list: Thread[]) {
+  const cache = readThreadTitleCache()
+  return list.map(thread => {
+    const cachedTitle = cache[String(thread.id)]
+    if (!cachedTitle || !isGenericThreadTitle(thread.title)) return thread
+    return { ...thread, title: cachedTitle }
+  })
 }
 
 // SVG icons
@@ -289,9 +334,11 @@ export default function AIPage() {
   const [calendarContext, setCalendarContext] = useState<{title: string; date: string; category: string}[]>([])
   const [hoveredPrompt, setHoveredPrompt]     = useState<string | null>(null)
   const [hoveredToolBtn, setHoveredToolBtn]   = useState(false)
+  const [animatedTitleIds, setAnimatedTitleIds] = useState<Set<number>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
   const historyRef     = useRef<Message[]>([])
+  const pendingTitleRequestsRef = useRef<Set<number>>(new Set())
   historyRef.current = messages
 
   const now = new Date()
@@ -331,6 +378,56 @@ export default function AIPage() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
+  function upsertThread(thread: Thread, animateTitle = false) {
+    writeThreadTitleCache(thread)
+    setThreads(prev => {
+      const existing = prev.find(t => t.id === thread.id)
+      const changedTitle = Boolean(existing && existing.title !== thread.title && !isGenericThreadTitle(thread.title))
+      const filtered = prev.filter(t => t.id !== thread.id)
+      if (animateTitle && changedTitle) {
+        setAnimatedTitleIds(current => new Set([...current, thread.id]))
+        window.setTimeout(() => {
+          setAnimatedTitleIds(current => {
+            const next = new Set(current)
+            next.delete(thread.id)
+            return next
+          })
+        }, 650)
+      }
+      return [thread, ...filtered]
+    })
+  }
+
+  async function generateThreadTitleInBackground(thread: Thread, firstMessage: string) {
+    if (
+      !thread?.id ||
+      thread.title_generated ||
+      thread.title_manually_edited ||
+      !isGenericThreadTitle(thread.title)
+    ) {
+      return
+    }
+
+    if (pendingTitleRequestsRef.current.has(thread.id)) return
+    pendingTitleRequestsRef.current.add(thread.id)
+
+    try {
+      const res = await fetch(apiUrl(`/ai/threads/${thread.id}/generate-title`), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_message: firstMessage }),
+      })
+      const data = await res.json()
+      if (res.ok && data.ok && data.thread && !isGenericThreadTitle(data.thread.title)) {
+        upsertThread(data.thread, true)
+      }
+    } catch {
+    } finally {
+      pendingTitleRequestsRef.current.delete(thread.id)
+    }
+  }
+
   async function fetchSidebar(): Promise<Thread[]> {
     try {
       const [tRes, pRes] = await Promise.all([
@@ -340,7 +437,10 @@ export default function AIPage() {
       let fetchedThreads: Thread[] = []
       if (tRes.ok) {
         const td = await tRes.json()
-        if (td.threads) { setThreads(td.threads); fetchedThreads = td.threads }
+        if (td.threads) {
+          fetchedThreads = applyCachedThreadTitles(td.threads)
+          setThreads(fetchedThreads)
+        }
       }
       if (pRes.ok) {
         const pd = await pRes.json()
@@ -368,10 +468,7 @@ export default function AIPage() {
         })))
       }
       if (data.thread) {
-        setThreads(prev => {
-          const filtered = prev.filter(t => t.id !== data.thread.id)
-          return [data.thread, ...filtered]
-        })
+        upsertThread(data.thread)
       }
     } catch {}
   }
@@ -400,10 +497,8 @@ export default function AIPage() {
       setMessages(prev => [...prev, aiMsg])
       if (data.thread) {
         setThreadId(data.thread.id)
-        setThreads(prev => {
-          const filtered = prev.filter(t => t.id !== data.thread.id)
-          return [data.thread, ...filtered]
-        })
+        upsertThread(data.thread)
+        generateThreadTitleInBackground(data.thread, msg)
       }
       if (data.pending_actions) setActions(prev => [...prev, ...data.pending_actions])
       else if (data.pending_action) setActions(prev => [...prev, data.pending_action])
@@ -438,7 +533,7 @@ export default function AIPage() {
         setActionStatus(prev => ({ ...prev, [actionId]: 'Could not apply.' }))
       }
       if (data.reply) setMessages(prev => [...prev, { role: 'assistant', content: data.reply, timeLabel: now12() }])
-      if (data.thread) { setThreadId(data.thread.id); setThreads(prev => { const f = prev.filter(t => t.id !== data.thread.id); return [data.thread, ...f] }) }
+      if (data.thread) { setThreadId(data.thread.id); upsertThread(data.thread) }
     } catch {
       setActionStatus(prev => ({ ...prev, [actionId]: 'Could not apply.' }))
     }
@@ -476,7 +571,7 @@ export default function AIPage() {
     e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
   }
 
-  function usePrompt(title: string) {
+  function applyPrompt(title: string) {
     setInput(title + ' — ')
     setTimeout(() => {
       if (textareaRef.current) {
@@ -596,7 +691,7 @@ export default function AIPage() {
                   {PROMPTS.map(p => (
                     <button
                       key={p.idx}
-                      onClick={() => usePrompt(p.title)}
+                      onClick={() => applyPrompt(p.title)}
                       onMouseEnter={() => setHoveredPrompt(p.idx)}
                       onMouseLeave={() => setHoveredPrompt(null)}
                       style={{
@@ -892,7 +987,7 @@ export default function AIPage() {
                 <div key={t.id} onClick={() => loadThread(t.id)}
                   style={{ background: threadId === t.id ? th.itemActiveBg : th.itemBg, border: `1px solid ${threadId === t.id ? th.itemActiveBorder : th.itemBorder}`, borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, color: th.itemTitle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: th.itemTitle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 220ms ease, opacity 220ms ease', animation: animatedTitleIds.has(t.id) ? 'threadTitleSettle 520ms ease' : undefined }}>{t.title}</div>
                     <div style={{ fontSize: 10, color: th.itemCount, flexShrink: 0, fontFamily: monoFont }}>{t.activity_label}</div>
                   </div>
                   <div style={{ fontSize: 11.5, color: th.itemBody, lineHeight: 1.55, marginTop: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.preview || 'No messages yet.'}</div>
@@ -928,6 +1023,10 @@ export default function AIPage() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,300;9..144,0,400;9..144,1,300;9..144,1,400&display=swap');
+        @keyframes threadTitleSettle {
+          0% { opacity: 0.42; transform: translateY(2px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
         @keyframes tdot {
           0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
           40% { transform: translateY(-4px); opacity: 0.9; }

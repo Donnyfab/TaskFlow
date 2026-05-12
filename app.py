@@ -1578,7 +1578,9 @@ def ensure_ai_support_schema() -> bool:
                 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP NULL DEFAULT NULL,
                 ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL,
-                ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP NULL DEFAULT NULL
+                ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP NULL DEFAULT NULL,
+                ADD COLUMN IF NOT EXISTS title_generated BOOLEAN NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS title_manually_edited BOOLEAN NOT NULL DEFAULT FALSE
             """
         )
         cursor.execute(
@@ -1783,6 +1785,35 @@ def build_ai_chat_title(seed_text: str, fallback: str = "New chat") -> str:
     return cleaned[:72].rstrip() + ("..." if len(cleaned) > 72 else "")
 
 
+GENERIC_AI_CHAT_TITLES = {
+    "new chat",
+    "new conversation",
+    "conversation",
+    "chat",
+    "untitled",
+    "untitled chat",
+    "general chat",
+    "general conversation",
+}
+
+
+def is_generic_ai_chat_title(title: str) -> bool:
+    cleaned = re.sub(r"\s+", " ", (title or "").strip()).strip("\"' ").rstrip(".!?").lower()
+    return not cleaned or cleaned in GENERIC_AI_CHAT_TITLES
+
+
+def normalize_generated_ai_chat_title(title: str, fallback: str = "New chat") -> str:
+    cleaned = re.sub(r"\s+", " ", (title or "").strip()).strip("\"' ")
+    cleaned = re.sub(r"[.!?;,:\u2014\u2013]+$", "", cleaned).strip()
+    cleaned = re.sub(r"[^\w\s&/-]", "", cleaned).strip()
+    words = cleaned.split()
+    if len(words) > 4:
+        cleaned = " ".join(words[:4])
+    if is_generic_ai_chat_title(cleaned):
+        cleaned = fallback
+    return build_ai_chat_title(cleaned, fallback=fallback)
+
+
 def extract_ai_chat_title_seed(message_text: str) -> str:
     cleaned = re.sub(r"\s+", " ", (message_text or "").strip()).strip("\"' ")
     if not cleaned:
@@ -1832,21 +1863,49 @@ def build_ai_chat_title_from_first_message(message_text: str, fallback: str = "N
     return build_ai_chat_title(seed_text, fallback=fallback)
 
 
-def generate_ai_chat_title_from_first_message(client, message_text: str, fallback: str = "New chat") -> str:
-    fallback_title = build_ai_chat_title_from_first_message(message_text, fallback=fallback)
-    seed_text = extract_ai_chat_title_seed(message_text)
-    if not seed_text:
+def generate_ai_chat_title(client, messages, fallback: str = "New chat", avoid_titles=None) -> str:
+    context_lines = []
+    first_user_message = ""
+    for message in messages or []:
+        role = (message.get("role") or "").strip().lower()
+        content = re.sub(r"\s+", " ", (message.get("content") or "").strip())
+        if not content or role not in {"user", "assistant"}:
+            continue
+        if role == "user" and not first_user_message:
+            first_user_message = content
+        context_lines.append(f"{role}: {content[:500]}")
+        if len(context_lines) >= 6:
+            break
+
+    fallback_title = normalize_generated_ai_chat_title(
+        build_ai_chat_title_from_first_message(first_user_message, fallback=fallback),
+        fallback=fallback,
+    )
+    if not context_lines:
         return fallback_title
 
+    avoid_titles = [
+        normalize_generated_ai_chat_title(title, fallback="")
+        for title in (avoid_titles or [])
+        if not is_generic_ai_chat_title(title)
+    ][:3]
+    avoid_block = ""
+    if avoid_titles:
+        avoid_block = "- Do not use these existing titles: " + ", ".join(avoid_titles) + "\n"
+
     prompt = (
-        "Create a short saved-chat title based only on this first user sentence.\n"
-        "Requirements:\n"
-        "- 4 to 6 words.\n"
-        "- Summarize the topic instead of copying the sentence verbatim.\n"
-        "- No quotes.\n"
-        "- No ending punctuation.\n"
-        "- Return only the title text.\n\n"
-        f"First sentence: {seed_text}"
+        "Generate a short natural conversation title based on this chat.\n"
+        "Rules:\n"
+        "- Maximum 4 words\n"
+        "- Sound human\n"
+        "- Minimalistic\n"
+        "- No punctuation\n"
+        "- Avoid generic titles\n"
+        + avoid_block
+        + "- Focus on the main topic only\n"
+        "- Return only the title text\n\n"
+        "Chat:\n"
+        + "\n".join(context_lines)
     )
 
     try:
@@ -1862,9 +1921,20 @@ def generate_ai_chat_title_from_first_message(client, message_text: str, fallbac
         app.logger.exception("AI chat title generation failed.")
         return fallback_title
 
-    cleaned_title = re.sub(r"\s+", " ", (title or "").strip()).strip("\"' ")
-    cleaned_title = cleaned_title.rstrip(".!?")
-    return build_ai_chat_title(cleaned_title or fallback_title, fallback=fallback_title)
+    title = normalize_generated_ai_chat_title(title, fallback=fallback_title)
+    if title in avoid_titles:
+        return fallback_title
+    if is_generic_ai_chat_title(title):
+        return fallback_title
+    return title
+
+
+def generate_ai_chat_title_from_first_message(client, message_text: str, fallback: str = "New chat") -> str:
+    return generate_ai_chat_title(
+        client,
+        [{"role": "user", "content": message_text}],
+        fallback=fallback,
+    )
 
 
 def serialize_ai_chat_thread(thread_row):
@@ -1882,6 +1952,8 @@ def serialize_ai_chat_thread(thread_row):
         "project_id": thread_row.get("project_id"),
         "project_name": thread_row.get("project_name"),
         "title": build_ai_chat_title(thread_row.get("title") or "", fallback="New chat"),
+        "title_generated": bool(thread_row.get("title_generated")),
+        "title_manually_edited": bool(thread_row.get("title_manually_edited")),
         "preview": preview[:140],
         "message_count": int(thread_row.get("message_count") or 0),
         "is_pinned": bool(thread_row.get("pinned_at")),
@@ -1976,6 +2048,8 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
             t.id,
             t.project_id,
             t.title,
+            t.title_generated,
+            t.title_manually_edited,
             t.created_at,
             t.updated_at,
             t.last_message_at,
@@ -2025,6 +2099,8 @@ def fetch_ai_chat_thread(user_id: int, thread_id: int | None):
             t.id,
             t.project_id,
             t.title,
+            t.title_generated,
+            t.title_manually_edited,
             t.created_at,
             t.updated_at,
             t.last_message_at,
@@ -2226,7 +2302,7 @@ def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int
     return fetch_ai_chat_thread(user_id, thread_id)
 
 
-def update_ai_chat_thread_title(user_id: int, thread_id: int, title: str):
+def update_ai_chat_thread_title(user_id: int, thread_id: int, title: str, manually_edited: bool = True):
     if not ensure_ai_support_schema():
         return None
 
@@ -2236,12 +2312,15 @@ def update_ai_chat_thread_title(user_id: int, thread_id: int, title: str):
     cursor.execute(
         """
         UPDATE ai_chat_threads
-        SET title = %s, updated_at = NOW()
+        SET title = %s,
+            title_generated = %s,
+            title_manually_edited = %s,
+            updated_at = NOW()
         WHERE id = %s
           AND user_id = %s
           AND archived_at IS NULL
         """,
-        (thread_title, thread_id, user_id),
+        (thread_title, not manually_edited, manually_edited, thread_id, user_id),
     )
     updated = cursor.rowcount > 0
     cursor.close()
@@ -5009,16 +5088,18 @@ def generate_ai_thread_title(thread_id):
     data = request.get_json(silent=True) or {}
     first_message = (data.get("first_message") or request.form.get("first_message") or "").strip()
 
-    if not first_message:
-        return jsonify({"ok": False, "error": "First message is required."}), 400
-
     thread = fetch_ai_chat_thread(session["user_id"], thread_id)
     if not thread:
         return jsonify({"ok": False, "error": "Chat not found."}), 404
 
     current_title = build_ai_chat_title(thread.get("title") or "", fallback="New chat")
     message_count = int(thread.get("message_count") or 0)
-    if current_title != "New chat" or message_count > 2:
+    if (
+        thread.get("title_manually_edited")
+        or thread.get("title_generated")
+        or not is_generic_ai_chat_title(current_title)
+        or message_count < 1
+    ):
         return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -5027,13 +5108,44 @@ def generate_ai_thread_title(thread_id):
 
     try:
         client = create_anthropic_client(anthropic_key)
-        title = generate_ai_chat_title_from_first_message(
+        stored_messages = fetch_ai_chat_messages(session["user_id"], thread_id, limit=6)
+        title_messages = [
+            {"role": message.get("role"), "content": message.get("content")}
+            for message in stored_messages
+            if message.get("role") in {"user", "assistant"}
+        ]
+        if first_message and not any(message.get("role") == "user" for message in title_messages):
+            title_messages.insert(0, {"role": "user", "content": first_message})
+
+        recent_threads = [
+            recent_thread
+            for recent_thread in fetch_ai_chat_threads(session["user_id"], limit=4)
+            if int(recent_thread.get("id") or 0) != int(thread_id)
+        ]
+        avoid_titles = [
+            recent_thread.get("title")
+            for recent_thread in recent_threads[:1]
+            if recent_thread.get("title")
+        ]
+        title = generate_ai_chat_title(
             client,
-            first_message,
+            title_messages,
             fallback="New chat",
+            avoid_titles=avoid_titles,
         )
-        if title:
-            thread = update_ai_chat_thread_title(session["user_id"], thread_id, title) or thread
+        normalized_avoid_titles = {
+            normalize_generated_ai_chat_title(existing_title, fallback="")
+            for existing_title in avoid_titles
+        }
+        if normalize_generated_ai_chat_title(title, fallback="") in normalized_avoid_titles:
+            title = ""
+        if title and not is_generic_ai_chat_title(title):
+            thread = update_ai_chat_thread_title(
+                session["user_id"],
+                thread_id,
+                title,
+                manually_edited=False,
+            ) or thread
         else:
             thread = fetch_ai_chat_thread(session["user_id"], thread_id) or thread
         return jsonify({"ok": True, "thread": serialize_ai_chat_thread(thread)})
