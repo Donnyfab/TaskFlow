@@ -2037,6 +2037,7 @@ def serialize_ai_chat_thread(thread_row):
     preview = re.sub(r"\s+", " ", (thread_row.get("preview") or "").strip())
     return {
         "id": thread_row["id"],
+        "chat_id": thread_row["id"],
         "project_id": thread_row.get("project_id"),
         "project_name": thread_row.get("project_name"),
         "title": build_ai_chat_title(thread_row.get("title") or "", fallback="New chat"),
@@ -2046,6 +2047,9 @@ def serialize_ai_chat_thread(thread_row):
         "message_count": int(thread_row.get("message_count") or 0),
         "is_pinned": bool(thread_row.get("pinned_at")),
         "activity_label": format_note_timestamp(activity_at) if activity_at else "",
+        "created_at": thread_row.get("created_at").isoformat() if thread_row.get("created_at") else None,
+        "updated_at": thread_row.get("updated_at").isoformat() if thread_row.get("updated_at") else None,
+        "last_message_at": thread_row.get("last_message_at").isoformat() if thread_row.get("last_message_at") else None,
     }
 
 
@@ -2059,6 +2063,7 @@ def serialize_ai_chat_messages(message_rows):
                 "role": role,
                 "content": row.get("content") or "",
                 "time_label": format_note_timestamp(row.get("created_at")) if row.get("created_at") else "",
+                "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
             }
         )
     return serialized
@@ -2117,7 +2122,12 @@ def fetch_ai_chat_projects(user_id: int, limit: int = 40):
     return projects
 
 
-def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: int = 120):
+def fetch_ai_chat_threads(
+    user_id: int,
+    project_id: int | None = None,
+    limit: int = 120,
+    include_empty: bool = False,
+):
     if not ensure_ai_support_schema():
         return []
 
@@ -2127,6 +2137,16 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
     if project_id is not None:
         conditions.append("t.project_id = %s")
         params.append(project_id)
+
+    message_count_sql = """
+        (
+            SELECT COUNT(*)
+            FROM ai_chat_messages m
+            WHERE m.thread_id = t.id
+        )
+    """
+    if not include_empty:
+        conditions.append(f"{message_count_sql} > 0")
 
     db = get_db()
     cursor = db.cursor(dictionary=True)
@@ -2150,11 +2170,7 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
                 ORDER BY m.id DESC
                 LIMIT 1
             ) AS preview,
-            (
-                SELECT COUNT(*)
-                FROM ai_chat_messages m
-                WHERE m.thread_id = t.id
-            ) AS message_count
+            {message_count_sql} AS message_count
         FROM ai_chat_threads t
         LEFT JOIN ai_chat_projects p
           ON p.id = t.project_id
@@ -2164,7 +2180,7 @@ def fetch_ai_chat_threads(user_id: int, project_id: int | None = None, limit: in
         ORDER BY
             CASE WHEN t.pinned_at IS NULL THEN 1 ELSE 0 END,
             t.pinned_at DESC,
-            COALESCE(t.last_message_at, t.updated_at, t.created_at) DESC,
+            t.updated_at DESC,
             t.id DESC
         LIMIT %s
         """,
@@ -2370,8 +2386,8 @@ def create_ai_chat_thread(user_id: int, title: str = "New chat", project_id: int
     cursor = db.cursor()
     cursor.execute(
         """
-        INSERT INTO ai_chat_threads (user_id, project_id, title)
-        VALUES (%s, %s, %s)
+        INSERT INTO ai_chat_threads (user_id, project_id, title, created_at, updated_at)
+        VALUES (%s, %s, %s, NOW(), NOW())
         RETURNING id
         """,
         (user_id, project_id, thread_title),
@@ -2628,6 +2644,7 @@ def delete_ai_chat_thread(user_id: int, thread_id: int):
 
 
 def save_ai_chat_message(user_id: int, thread_id: int, role: str, content: str):
+    content = str(content or "").strip()
     if not content or not ensure_ai_support_schema():
         return None
 
@@ -2638,6 +2655,22 @@ def save_ai_chat_message(user_id: int, thread_id: int, role: str, content: str):
     normalized_role = "assistant" if (role or "").lower() in {"assistant", "ai"} else "user"
     db = get_db()
     cursor = db.cursor()
+    cursor.execute(
+        """
+        SELECT role, content
+        FROM ai_chat_messages
+        WHERE thread_id = %s
+          AND user_id = %s
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (thread_id, user_id),
+    )
+    last_message = cursor.fetchone()
+    if last_message and last_message[0] == normalized_role and (last_message[1] or "").strip() == content:
+        cursor.close()
+        return True
+
     cursor.execute(
         """
         INSERT INTO ai_chat_messages (thread_id, user_id, role, content)
@@ -5074,14 +5107,18 @@ def ai_chat():
     if pending_actions and confirmation_choice == "confirm":
         result = confirm_ai_action_requests(pending_actions)
         if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
             save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Done.")
             result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
+            result["chat_id"] = thread_id
         return jsonify(result), (200 if result["ok"] else 400)
     if pending_actions and confirmation_choice == "cancel":
         result = cancel_ai_action_requests(pending_actions)
         if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
             save_ai_chat_message(session["user_id"], thread_id, "assistant", result.get("reply") or "Skipped.")
             result["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
+            result["chat_id"] = thread_id
         return jsonify(result)
 
     if persist_chat and thread_id is None:
@@ -5092,16 +5129,29 @@ def ai_chat():
         )
         thread_id = active_thread["id"] if active_thread else None
 
+    if persist_chat and thread_id is None:
+        return jsonify({"ok": False, "reply": "Could not create a saved chat."}), 503
+
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     if not anthropic_key:
-        return jsonify(
-            {
-                "reply": (
-                    "AI coaching requires an Anthropic API key. "
-                    "Add ANTHROPIC_API_KEY to your environment variables."
-                )
-            }
+        reply = (
+            "AI coaching requires an Anthropic API key. "
+            "Add ANTHROPIC_API_KEY to your environment variables."
         )
+        if persist_chat and thread_id:
+            save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
+            save_ai_chat_message(session["user_id"], thread_id, "assistant", reply)
+            active_thread = maybe_generate_ai_chat_thread_title(
+                session["user_id"],
+                thread_id,
+                first_message=latest_user_message,
+                use_ai=False,
+            )
+        payload = {"ok": False, "reply": reply}
+        if persist_chat and thread_id:
+            payload["chat_id"] = thread_id
+            payload["thread"] = serialize_ai_chat_thread(active_thread or fetch_ai_chat_thread(session["user_id"], thread_id))
+        return jsonify(payload), 200
 
     try:
         user = fetch_user_by_id(session["user_id"]) or {}
@@ -5190,11 +5240,12 @@ def ai_chat():
                 first_message=latest_user_message,
                 use_ai=False,
             )
-        payload = {"reply": reply or "I'm here — what do you need?"}
+        payload = {"ok": True, "reply": reply or "I'm here — what do you need?"}
         if created_actions:
             payload["pending_actions"] = created_actions
             payload["pending_action"] = created_actions[0]
         if persist_chat and thread_id:
+            payload["chat_id"] = thread_id
             payload["thread"] = serialize_ai_chat_thread(active_thread or fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(payload)
     except Exception as e:
@@ -5209,8 +5260,9 @@ def ai_chat():
                 first_message=latest_user_message,
                 use_ai=False,
             )
-        payload = {"reply": error_reply}
+        payload = {"ok": False, "reply": error_reply}
         if persist_chat and thread_id:
+            payload["chat_id"] = thread_id
             payload["thread"] = serialize_ai_chat_thread(active_thread or fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(payload), 200
 
@@ -5434,7 +5486,8 @@ def delete_ai_thread(thread_id):
 @app.route("/ai/threads", methods=["GET"])
 @login_required
 def list_ai_threads():
-    threads = fetch_ai_chat_threads(session["user_id"])
+    project_id = parse_optional_int(request.args.get("project_id"))
+    threads = fetch_ai_chat_threads(session["user_id"], project_id=project_id)
     repaired_thread_ids = []
     for thread in threads[:5]:
         if (
@@ -5451,8 +5504,8 @@ def list_ai_threads():
             if repaired_thread:
                 repaired_thread_ids.append(int(thread["id"]))
     if repaired_thread_ids:
-        threads = fetch_ai_chat_threads(session["user_id"])
-    serialized = [serialize_ai_chat_thread(t) for t in threads if int(t.get("message_count") or 0) > 0]
+        threads = fetch_ai_chat_threads(session["user_id"], project_id=project_id)
+    serialized = [serialize_ai_chat_thread(t) for t in threads]
     return jsonify({"ok": True, "threads": serialized})
 
 
@@ -5470,8 +5523,20 @@ def get_ai_thread_messages(thread_id):
     if not thread:
         return jsonify({"ok": False, "error": "Chat not found."}), 404
     messages = fetch_ai_chat_messages(session["user_id"], thread_id)
+    if (
+        int(thread.get("message_count") or 0) > 0
+        and not thread.get("title_generated")
+        and not thread.get("title_manually_edited")
+        and is_generic_ai_chat_title(thread.get("title") or "")
+    ):
+        thread = maybe_generate_ai_chat_thread_title(
+            session["user_id"],
+            thread_id,
+            use_ai=False,
+        ) or thread
     return jsonify({
         "ok": True,
+        "chat_id": thread_id,
         "thread": serialize_ai_chat_thread(thread),
         "messages": serialize_ai_chat_messages(messages),
     })

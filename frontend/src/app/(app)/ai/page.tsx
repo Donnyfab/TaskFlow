@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Holidays from 'date-holidays'
 import { apiUrl } from '@/lib/api-base'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
@@ -235,7 +236,6 @@ const PROMPTS = [
 
 const SYSTEM_PROMPT = `You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`
 const GENERIC_THREAD_TITLES = new Set(['new chat', 'new conversation', 'conversation', 'chat', 'untitled', 'untitled chat'])
-const THREAD_TITLE_CACHE_KEY = 'taskflowAiThreadTitles'
 
 function now12() {
   const d = new Date()
@@ -246,34 +246,6 @@ function now12() {
 
 function isGenericThreadTitle(title?: string) {
   return GENERIC_THREAD_TITLES.has(String(title || '').trim().replace(/[.!?]+$/g, '').toLowerCase())
-}
-
-function readThreadTitleCache(): Record<string, string> {
-  if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(window.sessionStorage.getItem(THREAD_TITLE_CACHE_KEY) || '{}') || {}
-  } catch {
-    return {}
-  }
-}
-
-function writeThreadTitleCache(thread: Thread) {
-  if (typeof window === 'undefined' || !thread.id || !thread.title || isGenericThreadTitle(thread.title)) return
-  try {
-    const cache = readThreadTitleCache()
-    cache[String(thread.id)] = thread.title
-    const entries = Object.entries(cache).slice(-30)
-    window.sessionStorage.setItem(THREAD_TITLE_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)))
-  } catch {}
-}
-
-function applyCachedThreadTitles(list: Thread[]) {
-  const cache = readThreadTitleCache()
-  return list.map(thread => {
-    const cachedTitle = cache[String(thread.id)]
-    if (!cachedTitle || !isGenericThreadTitle(thread.title)) return thread
-    return { ...thread, title: cachedTitle }
-  })
 }
 
 // SVG icons
@@ -314,6 +286,7 @@ const IconChevRight = () => (
 )
 
 export default function AIPage() {
+  const router = useRouter()
   const theme = useTheme()
   const th = THEMES[theme]
   const [messages, setMessages]       = useState<Message[]>([])
@@ -338,8 +311,11 @@ export default function AIPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
   const historyRef     = useRef<Message[]>([])
+  const threadIdRef     = useRef<number | null>(null)
+  const loadRequestRef  = useRef(0)
   const pendingTitleRequestsRef = useRef<Set<number>>(new Set())
   historyRef.current = messages
+  threadIdRef.current = threadId
 
   const now = new Date()
   const dayLabel  = now.toLocaleDateString(undefined, { weekday: 'long' })
@@ -352,7 +328,21 @@ export default function AIPage() {
         setUserInitials(parts.length >= 2 ? parts[0][0] + parts[parts.length-1][0] : d.name.slice(0,2).toUpperCase())
       }
     }).catch(() => {})
-    fetchSidebar().then(fetched => { if (fetched.length > 0) loadThread(fetched[0].id) })
+    fetchSidebar()
+    const selectedChatId = getUrlChatId()
+    if (selectedChatId) {
+      loadThread(selectedChatId)
+    }
+
+    const handleHistoryNavigation = () => {
+      const nextChatId = getUrlChatId()
+      if (nextChatId) {
+        loadThread(nextChatId)
+      } else {
+        resetDraftChat()
+      }
+    }
+    window.addEventListener('popstate', handleHistoryNavigation)
 
     ;(async () => {
       try {
@@ -374,12 +364,14 @@ export default function AIPage() {
         setCalendarContext(combined)
       } catch {}
     })()
+    return () => window.removeEventListener('popstate', handleHistoryNavigation)
+    // This bootstraps from the database and the initial URL once. Later chat switches call loadThread directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
   function upsertThread(thread: Thread, animateTitle = false) {
-    writeThreadTitleCache(thread)
     setThreads(prev => {
       const existing = prev.find(t => t.id === thread.id)
       const changedTitle = Boolean(existing && existing.title !== thread.title && !isGenericThreadTitle(thread.title))
@@ -438,7 +430,7 @@ export default function AIPage() {
       if (tRes.ok) {
         const td = await tRes.json()
         if (td.threads) {
-          fetchedThreads = applyCachedThreadTitles(td.threads)
+          fetchedThreads = td.threads
           setThreads(fetchedThreads)
           fetchedThreads
             .filter(thread => thread.message_count > 0 && isGenericThreadTitle(thread.title))
@@ -454,7 +446,15 @@ export default function AIPage() {
     } catch { return [] }
   }
 
+  function getUrlChatId() {
+    if (typeof window === 'undefined') return null
+    const rawChatId = new URLSearchParams(window.location.search).get('chat')
+    const selectedChatId = rawChatId ? Number(rawChatId) : null
+    return selectedChatId && Number.isInteger(selectedChatId) && selectedChatId > 0 ? selectedChatId : null
+  }
+
   async function loadThread(id: number) {
+    const requestId = ++loadRequestRef.current
     setThreadId(id)
     setMessages([])
     setActions([])
@@ -462,8 +462,15 @@ export default function AIPage() {
     setActionStatus({})
     try {
       const res = await fetch(apiUrl(`/ai/threads/${id}/messages`), { credentials: 'include' })
-      if (!res.ok) return
+      if (!res.ok) {
+        if (requestId === loadRequestRef.current) {
+          setThreadId(null)
+          setMessages([])
+        }
+        return
+      }
       const data = await res.json()
+      if (requestId !== loadRequestRef.current) return
       if (data.messages) {
         setMessages(data.messages.map((m: { role: string; content: string; time_label: string }) => ({
           role: m.role as 'user' | 'assistant',
@@ -477,7 +484,11 @@ export default function AIPage() {
           generateThreadTitleInBackground(data.thread, '')
         }
       }
-    } catch {}
+    } catch {
+      if (requestId === loadRequestRef.current) {
+        setThreadId(null)
+      }
+    }
   }
 
   async function send(text?: string) {
@@ -487,6 +498,8 @@ export default function AIPage() {
     if (textareaRef.current) { textareaRef.current.style.height = 'auto' }
 
     const userMsg: Message = { role: 'user', content: msg, timeLabel: now12() }
+    const activeThreadId = threadIdRef.current
+    const requestStartedForThreadId = activeThreadId
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
 
@@ -496,21 +509,31 @@ export default function AIPage() {
       const res = await fetch(apiUrl('/ai/chat'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT, active_page: 'ai', persist_chat: true, thread_id: threadId, project_id: projectId, calendar_context: calendarContext })
+        body: JSON.stringify({ messages: history, system: SYSTEM_PROMPT, active_page: 'ai', persist_chat: true, thread_id: activeThreadId, project_id: projectId, calendar_context: calendarContext })
       })
       const data = await res.json()
       const reply = data.reply || "I'm here — what do you need?"
       const aiMsg: Message = { role: 'assistant', content: reply, timeLabel: now12() }
-      setMessages(prev => [...prev, aiMsg])
       if (data.thread) {
-        setThreadId(data.thread.id)
         upsertThread(data.thread)
-        generateThreadTitleInBackground(data.thread, msg)
+        if (threadIdRef.current === requestStartedForThreadId) {
+          setThreadId(data.thread.id)
+          router.replace(`/ai?chat=${data.thread.id}`, { scroll: false })
+          setMessages(prev => [...prev, aiMsg])
+          generateThreadTitleInBackground(data.thread, msg)
+        }
+        fetchSidebar()
+      } else if (threadIdRef.current === requestStartedForThreadId) {
+        setMessages(prev => [...prev, aiMsg])
       }
-      if (data.pending_actions) setActions(prev => [...prev, ...data.pending_actions])
-      else if (data.pending_action) setActions(prev => [...prev, data.pending_action])
+      if (threadIdRef.current === requestStartedForThreadId) {
+        if (data.pending_actions) setActions(prev => [...prev, ...data.pending_actions])
+        else if (data.pending_action) setActions(prev => [...prev, data.pending_action])
+      }
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: "I'm here for you. What's on your mind?", timeLabel: now12() }])
+      if (threadIdRef.current === requestStartedForThreadId) {
+        setMessages(prev => [...prev, { role: 'assistant', content: "I'm here for you. What's on your mind?", timeLabel: now12() }])
+      }
     }
     setLoading(false)
   }
@@ -563,12 +586,18 @@ export default function AIPage() {
     } catch {}
   }
 
-  function startNewChat() {
+  function resetDraftChat() {
+    loadRequestRef.current += 1
     setMessages([])
     setThreadId(null)
     setActions([])
     setResolvedActions(new Set())
     setActionStatus({})
+  }
+
+  function startNewChat() {
+    resetDraftChat()
+    router.push('/ai', { scroll: false })
     textareaRef.current?.focus()
   }
 
@@ -991,7 +1020,7 @@ export default function AIPage() {
               </div>
             ) : (
               filtered.threads.map(t => (
-                <div key={t.id} onClick={() => loadThread(t.id)}
+                <div key={t.id} onClick={() => { loadThread(t.id); router.push(`/ai?chat=${t.id}`, { scroll: false }) }}
                   title={t.title}
                   style={{
                     background: threadId === t.id ? th.itemActiveBg : 'transparent',
