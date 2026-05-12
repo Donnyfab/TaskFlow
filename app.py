@@ -2419,6 +2419,80 @@ def update_ai_chat_thread_title(user_id: int, thread_id: int, title: str, manual
     return fetch_ai_chat_thread(user_id, thread_id)
 
 
+def maybe_generate_ai_chat_thread_title(
+    user_id: int,
+    thread_id: int,
+    first_message: str = "",
+    use_ai: bool = True,
+):
+    thread = fetch_ai_chat_thread(user_id, thread_id)
+    if not thread:
+        return None
+
+    current_title = build_ai_chat_title(thread.get("title") or "", fallback="New chat")
+    message_count = int(thread.get("message_count") or 0)
+    if (
+        thread.get("title_manually_edited")
+        or thread.get("title_generated")
+        or not is_generic_ai_chat_title(current_title)
+        or message_count < 1
+    ):
+        return thread
+
+    stored_messages = fetch_ai_chat_messages(user_id, thread_id, limit=6)
+    title_messages = [
+        {"role": message.get("role"), "content": message.get("content")}
+        for message in stored_messages
+        if message.get("role") in {"user", "assistant"}
+    ]
+    if first_message and not any(message.get("role") == "user" for message in title_messages):
+        title_messages.insert(0, {"role": "user", "content": first_message})
+
+    fallback_title = build_fallback_ai_chat_title(title_messages, fallback="New chat")
+    title = fallback_title
+
+    if use_ai:
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+        if anthropic_key:
+            try:
+                recent_threads = [
+                    recent_thread
+                    for recent_thread in fetch_ai_chat_threads(user_id, limit=4)
+                    if int(recent_thread.get("id") or 0) != int(thread_id)
+                ]
+                avoid_titles = [
+                    recent_thread.get("title")
+                    for recent_thread in recent_threads[:1]
+                    if recent_thread.get("title")
+                ]
+                client = create_anthropic_client(anthropic_key)
+                title = generate_ai_chat_title(
+                    client,
+                    title_messages,
+                    fallback=fallback_title,
+                    avoid_titles=avoid_titles,
+                )
+                normalized_avoid_titles = {
+                    normalize_generated_ai_chat_title(existing_title, fallback="")
+                    for existing_title in avoid_titles
+                }
+                if normalize_generated_ai_chat_title(title, fallback="") in normalized_avoid_titles:
+                    title = fallback_title
+            except Exception:
+                app.logger.exception("AI chat title generation failed; using fallback.")
+                title = fallback_title
+
+    if title and not is_generic_ai_chat_title(title):
+        return update_ai_chat_thread_title(
+            user_id,
+            thread_id,
+            title,
+            manually_edited=False,
+        ) or thread
+
+    return thread
+
+
 def assign_ai_chat_thread_project(user_id: int, thread_id: int, project_id: int | None):
     if not ensure_ai_support_schema():
         return None
@@ -5110,12 +5184,18 @@ def ai_chat():
         if persist_chat and thread_id:
             save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
             save_ai_chat_message(session["user_id"], thread_id, "assistant", reply or "I'm here — what do you need?")
+            active_thread = maybe_generate_ai_chat_thread_title(
+                session["user_id"],
+                thread_id,
+                first_message=latest_user_message,
+                use_ai=False,
+            )
         payload = {"reply": reply or "I'm here — what do you need?"}
         if created_actions:
             payload["pending_actions"] = created_actions
             payload["pending_action"] = created_actions[0]
         if persist_chat and thread_id:
-            payload["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
+            payload["thread"] = serialize_ai_chat_thread(active_thread or fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(payload)
     except Exception as e:
         app.logger.exception("AI chat failed: %s", e)
@@ -5123,9 +5203,15 @@ def ai_chat():
         if persist_chat and thread_id:
             save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
             save_ai_chat_message(session["user_id"], thread_id, "assistant", error_reply)
+            active_thread = maybe_generate_ai_chat_thread_title(
+                session["user_id"],
+                thread_id,
+                first_message=latest_user_message,
+                use_ai=False,
+            )
         payload = {"reply": error_reply}
         if persist_chat and thread_id:
-            payload["thread"] = serialize_ai_chat_thread(fetch_ai_chat_thread(session["user_id"], thread_id))
+            payload["thread"] = serialize_ai_chat_thread(active_thread or fetch_ai_chat_thread(session["user_id"], thread_id))
         return jsonify(payload), 200
 
 
@@ -5349,6 +5435,23 @@ def delete_ai_thread(thread_id):
 @login_required
 def list_ai_threads():
     threads = fetch_ai_chat_threads(session["user_id"])
+    repaired_thread_ids = []
+    for thread in threads[:5]:
+        if (
+            int(thread.get("message_count") or 0) > 0
+            and not thread.get("title_generated")
+            and not thread.get("title_manually_edited")
+            and is_generic_ai_chat_title(thread.get("title") or "")
+        ):
+            repaired_thread = maybe_generate_ai_chat_thread_title(
+                session["user_id"],
+                int(thread["id"]),
+                use_ai=False,
+            )
+            if repaired_thread:
+                repaired_thread_ids.append(int(thread["id"]))
+    if repaired_thread_ids:
+        threads = fetch_ai_chat_threads(session["user_id"])
     serialized = [serialize_ai_chat_thread(t) for t in threads if int(t.get("message_count") or 0) > 0]
     return jsonify({"ok": True, "threads": serialized})
 
