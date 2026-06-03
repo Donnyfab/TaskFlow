@@ -238,6 +238,7 @@ export default function Sidebar() {
 
   return (
     <aside
+      className="tf-app-sidebar"
       onMouseEnter={() => setSidebarHovered(true)}
       onMouseLeave={() => setSidebarHovered(false)}
       style={{

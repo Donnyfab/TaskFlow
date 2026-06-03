@@ -98,6 +98,10 @@ body {
 }
 
 @media (max-width: 640px) {
+  .tf-app-sidebar {
+    display: none !important;
+  }
+
   .tf-home-topbar {
     align-items: stretch !important;
     flex-direction: column !important;
