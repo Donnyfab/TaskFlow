@@ -345,8 +345,142 @@ export default function HomePage() {
 
   if (!data) return null
 
+  const remainingTasks = Math.max(data.tasks_total - data.tasks_done, 0)
+  const displayName = data.name?.trim() || 'there'
+  const initials = data.name
+    ? data.name.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase()
+    : 'TF'
+  const mobileSubtext = remainingTasks === 1
+    ? "You're 1 task away from a great day"
+    : remainingTasks > 1
+      ? `You're ${remainingTasks} tasks away from a great day`
+      : "You're clear for a great day"
+
   return (
     <div className="tf-home" style={{ overflowY:'auto', minHeight:'100vh' }}>
+
+      <div className="tf-home-mobile">
+        <section className="tf-home-mobile-hero">
+          <div>
+            <div className="tf-home-mobile-date">{todayDate}</div>
+            <h1>Good {greeting}, {displayName}</h1>
+            <p>{mobileSubtext}</p>
+          </div>
+          <Link href="/settings" className="tf-home-mobile-avatar" aria-label="Open profile">
+            {initials}
+          </Link>
+        </section>
+
+        <section className="tf-home-mobile-score-card">
+          <div>
+            <div className="tf-home-mobile-kicker">Growth score</div>
+            <div className="tf-home-mobile-score">{score}</div>
+            <div className="tf-home-mobile-muted">out of 100 today</div>
+          </div>
+          <div className="tf-home-mobile-ring">
+            <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+              <circle cx="48" cy="48" r="38" fill="none" stroke="currentColor" strokeWidth="9" opacity="0.12"/>
+              <circle
+                cx="48"
+                cy="48"
+                r="38"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="9"
+                strokeDasharray="239"
+                strokeDashoffset={239 - (239 * score / 100)}
+                strokeLinecap="round"
+              />
+            </svg>
+            <span>{score}%</span>
+          </div>
+        </section>
+
+        {data.ai_insight && (
+          <section className="tf-home-mobile-ai-card">
+            <div className="tf-home-mobile-sparkle">✦</div>
+            <div>
+              <strong>AI insight</strong>
+              <p>{data.ai_insight}</p>
+            </div>
+          </section>
+        )}
+
+        <section className="tf-home-mobile-card">
+          <div className="tf-home-mobile-section-head">
+            <h2>Today&apos;s tasks</h2>
+            <Link href="/tasks">View all</Link>
+          </div>
+          <div className="tf-home-mobile-list">
+            {tasks.length === 0
+              ? <div className="tf-home-mobile-empty">No tasks yet</div>
+              : tasks.map(task => (
+                <button key={task.id} className="tf-home-mobile-task-row" onClick={() => toggleTask(task.id)}>
+                  <span className="tf-home-mobile-priority" style={{ background: priorityColor(task.priority) }}/>
+                  <span className={task.completed ? 'is-done' : ''}>{task.title}</span>
+                  <span className={task.completed ? 'tf-home-mobile-check is-checked' : 'tf-home-mobile-check'}>
+                    {task.completed ? '✓' : ''}
+                  </span>
+                </button>
+              ))
+            }
+          </div>
+          <div className="tf-home-mobile-add">
+            <input
+              value={taskInput}
+              onChange={e => setTaskInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addQuickTask()}
+              placeholder="Add a task"
+            />
+            <button onClick={addQuickTask}>Add</button>
+          </div>
+        </section>
+
+        <section className="tf-home-mobile-card">
+          <div className="tf-home-mobile-section-head">
+            <h2>Habits</h2>
+            <Link href="/habits">View all</Link>
+          </div>
+          <div className="tf-home-mobile-list">
+            {habits.length === 0
+              ? <div className="tf-home-mobile-empty">No habits yet</div>
+              : habits.map(habit => (
+                <div key={habit.id} className="tf-home-mobile-habit-row">
+                  <div>
+                    <span>{habit.name}</span>
+                    <small>{habit.streak} day streak</small>
+                  </div>
+                  <button
+                    className={habit.completed_today ? 'tf-home-mobile-switch is-on' : 'tf-home-mobile-switch'}
+                    onClick={() => toggleHabit(habit.id)}
+                    aria-label={`Toggle ${habit.name}`}
+                    aria-pressed={habit.completed_today}
+                  >
+                    <span />
+                  </button>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+
+        <button className="tf-home-mobile-cta" onClick={planMyDay}>✦ Plan my day with AI</button>
+
+        <nav className="tf-home-mobile-nav" aria-label="Primary">
+          {[
+            { href:'/home', label:'Home', icon:'⌂' },
+            { href:'/tasks', label:'Tasks', icon:'✓' },
+            { href:'/habits', label:'Habits', icon:'○' },
+            { href:'/journal', label:'Journal', icon:'□' },
+            { href:'/settings', label:'Profile', icon:'◌' },
+          ].map(item => (
+            <Link key={item.href} href={item.href} className={item.href === '/home' ? 'is-active' : ''}>
+              <span>{item.icon}</span>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       {/* TOPBAR */}
       <div className="tf-home-topbar" style={s.topbar}>
