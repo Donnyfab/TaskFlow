@@ -24,3 +24,174 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.tf-home,
+.tf-home * {
+  box-sizing: border-box;
+}
+
+.tf-home {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.tf-home-panel,
+.tf-home-stat-card,
+.tf-home-banner,
+.tf-home-content,
+.tf-home-main-grid,
+.tf-home-bottom-grid,
+.tf-home-stats {
+  min-width: 0;
+}
+
+.tf-home-title,
+.tf-home-subtitle,
+.tf-home-task-title,
+.tf-home-habit-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tf-home-task-title,
+.tf-home-habit-title {
+  line-height: 1.4;
+}
+
+.tf-home-task-tag {
+  max-width: 40%;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-home-quick-add input,
+.tf-home-journal-area {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .tf-home-bottom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tf-home-bottom-grid > .tf-home-panel:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .tf-home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tf-home-main-grid,
+  .tf-home-bottom-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tf-home-bottom-grid > .tf-home-panel:last-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .tf-home-topbar {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    padding: 14px 16px !important;
+  }
+
+  .tf-home-actions {
+    width: 100%;
+    justify-content: flex-start !important;
+  }
+
+  .tf-home-plan-btn {
+    flex: 1;
+    justify-content: center !important;
+    min-width: 0;
+  }
+
+  .tf-home-title {
+    font-size: 16px !important;
+    line-height: 1.25;
+  }
+
+  .tf-home-subtitle {
+    line-height: 1.45;
+  }
+
+  .tf-home-content {
+    padding: 18px 16px !important;
+  }
+
+  .tf-home-banner {
+    padding: 14px 14px !important;
+    gap: 10px !important;
+  }
+
+  .tf-home-panel-header {
+    padding: 14px 16px !important;
+  }
+
+  .tf-home-task-row,
+  .tf-home-habit-row {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .tf-home-quick-add {
+    padding: 10px 16px !important;
+  }
+
+  .tf-home-growth-body {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .tf-home-growth-body > div:last-child {
+    width: 100%;
+  }
+
+  .tf-home-journal-area {
+    width: calc(100% - 32px) !important;
+    margin-left: 16px !important;
+    margin-right: 16px !important;
+  }
+
+  .tf-home-calendar-grid {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .tf-home-modal-backdrop {
+    padding: 16px;
+  }
+
+  .tf-home-modal {
+    width: 100% !important;
+    padding: 22px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .tf-home-stats {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tf-home-quick-add {
+    flex-direction: column !important;
+  }
+
+  .tf-home-quick-add button {
+    width: 100%;
+  }
+
+  .tf-home-task-tag {
+    max-width: 32%;
+  }
+}

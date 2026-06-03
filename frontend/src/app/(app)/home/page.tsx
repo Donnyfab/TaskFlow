@@ -213,7 +213,6 @@ export default function HomePage() {
   const [journalText, setJournalText] = useState('')
   const [planOpen, setPlanOpen]       = useState(false)
   const [planText, setPlanText]       = useState('Generating your personalized plan...')
-  const [planLoading, setPlanLoading] = useState(false)
 
   // Initialize journal textarea from cache on first load
   if (data && journalText === '' && data.today_journal_entry?.content) {
@@ -293,7 +292,6 @@ export default function HomePage() {
 
   async function planMyDay() {
     setPlanOpen(true)
-    setPlanLoading(true)
     setPlanText('Generating your personalized plan...')
     try {
       const res = await fetch(apiUrl('/ai/plan'), { method: 'POST', credentials: 'include' })
@@ -302,7 +300,6 @@ export default function HomePage() {
     } catch {
       setPlanText('Could not generate plan right now. Try again shortly.')
     }
-    setPlanLoading(false)
   }
 
   const priorityColor = (p: string) =>
@@ -349,29 +346,29 @@ export default function HomePage() {
   if (!data) return null
 
   return (
-    <div style={{ overflowY:'auto', minHeight:'100vh' }}>
+    <div className="tf-home" style={{ overflowY:'auto', minHeight:'100vh' }}>
 
       {/* TOPBAR */}
-      <div style={s.topbar}>
+      <div className="tf-home-topbar" style={s.topbar}>
         <div style={{ display:'flex', alignItems:'center', gap:'12px', minWidth:0 }}>
           <SidebarReopenButton />
           <div style={{ display:'flex', flexDirection:'column', gap:'2px', minWidth:0 }}>
-            <div style={s.topbarTitle}>Good {greeting}, {data.name}</div>
-            <div style={s.topbarSub}>{todayDate} · {data.streak} day streak · {data.habits_due} habits due today</div>
+            <div className="tf-home-title" style={s.topbarTitle}>Good {greeting}, {data.name}</div>
+            <div className="tf-home-subtitle" style={s.topbarSub}>{todayDate} · {data.streak} day streak · {data.habits_due} habits due today</div>
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-          <button style={s.aiBtnStyle} onClick={planMyDay}>✦ Plan my day</button>
+        <div className="tf-home-actions" style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+          <button className="tf-home-plan-btn" style={s.aiBtnStyle} onClick={planMyDay}>✦ Plan my day</button>
           <Link href="/tasks" style={s.iconBtn}>+</Link>
           <Link href="/settings" style={s.iconBtn}>⚙</Link>
         </div>
       </div>
 
-      <div style={s.content}>
+      <div className="tf-home-content" style={s.content}>
 
         {/* AI BANNER */}
         {data.ai_insight && showBanner && (
-          <div style={s.banner}>
+          <div className="tf-home-banner" style={s.banner}>
             <div style={{ width:'28px', height:'28px', borderRadius:'8px', background: th.bannerIconBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', flexShrink:0 }}>✦</div>
             <div style={{ fontSize:'13px', color: th.bannerText, lineHeight:1.6, flex:1 }}>
               <strong style={{ color: th.bannerStrong, fontWeight:500 }}>AI insight — </strong>{data.ai_insight}
@@ -381,14 +378,14 @@ export default function HomePage() {
         )}
 
         {/* STATS */}
-        <div style={s.statsGrid}>
+        <div className="tf-home-stats" style={s.statsGrid}>
           {[
             { label:'Current streak', value: data.streak,      sub:'days in a row' },
             { label:'Tasks today',    value: data.tasks_done,  sub2:`/${data.tasks_total}`,  sub:`${data.tasks_total  - data.tasks_done}  remaining` },
             { label:'Habits done',   value: data.habits_done, sub2:`/${data.habits_total}`, sub:`${data.habits_total - data.habits_done} still pending` },
             { label:'Growth score',  value: data.growth_score, sub:'out of 100' },
           ].map(card => (
-            <div key={card.label} style={s.statCard}>
+            <div key={card.label} className="tf-home-stat-card" style={s.statCard}>
               <div style={s.statLabel}>{card.label}</div>
               <div style={s.statValue}>
                 {card.value}
@@ -400,31 +397,31 @@ export default function HomePage() {
         </div>
 
         {/* MAIN GRID */}
-        <div style={s.mainGrid}>
+        <div className="tf-home-main-grid" style={s.mainGrid}>
 
           {/* TASKS PANEL */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <div style={s.panelTitle}>Today's priorities</div>
+          <div className="tf-home-panel" style={s.panel}>
+            <div className="tf-home-panel-header" style={s.panelHeader}>
+              <div style={s.panelTitle}>Today&apos;s priorities</div>
               <Link href="/tasks" style={s.panelAction}>View all →</Link>
             </div>
             <div>
               {tasks.length === 0
                 ? <div style={{ padding:'24px 20px', fontSize:'12px', color: th.emptyText, textAlign:'center' }}>No tasks yet — add your first one below</div>
                 : tasks.map(task => (
-                  <div key={task.id} onClick={() => toggleTask(task.id)}
+                  <div key={task.id} className="tf-home-task-row" onClick={() => toggleTask(task.id)}
                     style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 20px', cursor:'pointer' }}>
                     <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: priorityColor(task.priority), flexShrink:0 }}/>
                     <div style={{ width:'15px', height:'15px', borderRadius:'50%', border: task.completed ? 'none' : `1px solid ${th.taskCheckBorder}`, background: task.completed ? th.taskCheckBg : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'8px', flexShrink:0 }}>
                       {task.completed ? '✓' : ''}
                     </div>
-                    <div style={{ fontSize:'12px', color: task.completed ? th.taskDone : th.taskText, flex:1, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.title}</div>
-                    <div style={{ fontSize:'9px', padding:'2px 7px', borderRadius:'4px', background: th.taskTagBg, color: th.taskTagColor }}>{task.category || 'Task'}</div>
+                    <div className="tf-home-task-title" style={{ fontSize:'12px', color: task.completed ? th.taskDone : th.taskText, flex:1, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.title}</div>
+                    <div className="tf-home-task-tag" style={{ fontSize:'9px', padding:'2px 7px', borderRadius:'4px', background: th.taskTagBg, color: th.taskTagColor }}>{task.category || 'Task'}</div>
                   </div>
                 ))
               }
             </div>
-            <div style={{ display:'flex', gap:'6px', padding:'10px 20px', borderTop:`1px solid ${th.taskFooterBorder}` }}>
+            <div className="tf-home-quick-add" style={{ display:'flex', gap:'6px', padding:'10px 20px', borderTop:`1px solid ${th.taskFooterBorder}` }}>
               <input
                 value={taskInput}
                 onChange={e => setTaskInput(e.target.value)}
@@ -437,17 +434,17 @@ export default function HomePage() {
           </div>
 
           {/* HABITS PANEL */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <div style={s.panelTitle}>Today's habits</div>
+          <div className="tf-home-panel" style={s.panel}>
+            <div className="tf-home-panel-header" style={s.panelHeader}>
+              <div style={s.panelTitle}>Today&apos;s habits</div>
               <Link href="/habits" style={s.panelAction}>View all →</Link>
             </div>
             <div>
               {habits.length === 0
                 ? <div style={{ padding:'24px 20px', fontSize:'12px', color: th.emptyText, textAlign:'center' }}>No habits yet</div>
                 : habits.map(habit => (
-                  <div key={habit.id} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 20px', borderBottom:`1px solid ${th.habitBorder}` }}>
-                    <div style={{ fontSize:'12px', color: th.habitText, flex:1 }}>{habit.name}</div>
+                  <div key={habit.id} className="tf-home-habit-row" style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 20px', borderBottom:`1px solid ${th.habitBorder}` }}>
+                    <div className="tf-home-habit-title" style={{ fontSize:'12px', color: th.habitText, flex:1 }}>{habit.name}</div>
                     <div style={{ fontSize:'10px', color: th.habitStreak, marginRight:'4px' }}>{habit.streak >= 3 ? '🔥' : ''} {habit.streak}d</div>
                     <button onClick={() => toggleHabit(habit.id)} style={{ width:'22px', height:'22px', borderRadius:'6px', border: habit.completed_today ? 'none' : `1px solid ${th.habitCheckBorder}`, background: habit.completed_today ? th.habitCheckBg : 'transparent', color: habit.completed_today ? th.habitCheckColor : th.habitCheckEmpty, fontSize:'9px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                       {habit.completed_today ? '✓' : ''}
@@ -460,15 +457,15 @@ export default function HomePage() {
         </div>
 
         {/* BOTTOM GRID */}
-        <div style={s.bottomGrid}>
+        <div className="tf-home-bottom-grid" style={s.bottomGrid}>
 
           {/* GROWTH SCORE */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
+          <div className="tf-home-panel" style={s.panel}>
+            <div className="tf-home-panel-header" style={s.panelHeader}>
               <div style={s.panelTitle}>Growth score</div>
               <div style={{ fontSize:'10px', color:'rgba(255,255,255,0.25)' }}>Today</div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'16px', padding:'20px' }}>
+            <div className="tf-home-growth-body" style={{ display:'flex', alignItems:'center', gap:'16px', padding:'20px' }}>
               <div style={{ position:'relative', width:'80px', height:'80px', flexShrink:0 }}>
                 <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform:'rotate(-90deg)' }}>
                   <circle cx="40" cy="40" r="32" fill="none" stroke={th.scoreTrack} strokeWidth="6"/>
@@ -480,7 +477,7 @@ export default function HomePage() {
                   <div style={{ fontSize:'8px', color: th.scoreSub }}>/100</div>
                 </div>
               </div>
-              <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'6px' }}>
+              <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:'6px' }}>
                 {[
                   { label:'Tasks',   pct: tasksPct },
                   { label:'Habits',  pct: habitsPct },
@@ -499,8 +496,8 @@ export default function HomePage() {
           </div>
 
           {/* JOURNAL */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
+          <div className="tf-home-panel" style={s.panel}>
+            <div className="tf-home-panel-header" style={s.panelHeader}>
               <div style={s.panelTitle}>Journal</div>
               <Link href="/journal" style={s.panelAction}>Open →</Link>
             </div>
@@ -511,6 +508,7 @@ export default function HomePage() {
               value={journalText}
               onChange={e => setJournalText(e.target.value)}
               placeholder="Write your thoughts here..."
+              className="tf-home-journal-area"
               style={{ width:'calc(100% - 40px)', margin:'0 20px', background: th.journalAreaBg, border:`1px solid ${th.journalAreaBorder}`, borderRadius:'7px', padding:'9px 11px', fontSize:'11px', color: th.journalAreaColor, resize:'none', outline:'none', lineHeight:1.6, minHeight:'70px', display:'block', fontFamily:'inherit' }}
             />
             <div style={{ display:'flex', justifyContent:'flex-end', padding:'8px 20px 16px' }}>
@@ -519,7 +517,7 @@ export default function HomePage() {
           </div>
 
           {/* CALENDAR */}
-          <div style={s.panel}>
+          <div className="tf-home-panel" style={s.panel}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px 0' }}>
               <div style={{ fontSize:'11px', fontWeight:600, color: th.calMonthColor }}>{data.current_month}</div>
               <div style={{ display:'flex', gap:'4px' }}>
@@ -527,7 +525,7 @@ export default function HomePage() {
                 <button style={{ background: th.calNavBg, border:`1px solid ${th.calNavBorder}`, color: th.calNavColor, borderRadius:'4px', padding:'2px 7px', fontSize:'10px', cursor:'pointer' }}>›</button>
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'2px', padding:'12px 20px 16px' }}>
+            <div className="tf-home-calendar-grid" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'2px', padding:'12px 20px 16px' }}>
               {['S','M','T','W','T','F','S'].map((d, i) => (
                 <div key={i} style={{ fontSize:'8px', color: th.calDayHeader, textAlign:'center', padding:'2px 0' }}>{d}</div>
               ))}
@@ -550,9 +548,9 @@ export default function HomePage() {
 
       {/* PLAN MODAL */}
       {planOpen && (
-        <div onClick={e => e.target === e.currentTarget && setPlanOpen(false)}
+        <div className="tf-home-modal-backdrop" onClick={e => e.target === e.currentTarget && setPlanOpen(false)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ background: th.modalBg, border:`1px solid ${th.modalBorder}`, borderRadius:'18px', padding:'28px', maxWidth:'480px', width:'90%', maxHeight:'80vh', overflowY:'auto' }}>
+          <div className="tf-home-modal" style={{ background: th.modalBg, border:`1px solid ${th.modalBorder}`, borderRadius:'18px', padding:'28px', maxWidth:'480px', width:'90%', maxHeight:'80vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'18px' }}>
               <div style={{ fontSize:'15px', fontWeight:700, color: th.modalTitle }}>✦ Your plan for today</div>
               <div onClick={() => setPlanOpen(false)} style={{ cursor:'pointer', color: th.modalClose, fontSize:'16px' }}>✕</div>
