@@ -39,6 +39,12 @@ from psycopg2.pool import SimpleConnectionPool
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from blog_content import BLOG_POSTS, BLOG_POSTS_BY_SLUG
+from forge_memory import (
+    build_system_prompt,
+    flag_avoided_task,
+    get_user_context,
+    update_pattern,
+)
 
 
 
