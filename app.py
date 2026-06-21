@@ -4768,6 +4768,168 @@ def api_forge_coach_context():
         return jsonify({"ok": False, "error": "Could not load Coach context."}), 500
 
 
+@app.route("/api/forge/mission", methods=["PATCH"])
+def api_update_forge_mission():
+    """Update the authenticated user's single active Forge mission."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Request body must be JSON."}), 400
+
+    updates = []
+    values = []
+    for field in ("description", "outcome"):
+        if field in data:
+            value = " ".join(str(data.get(field) or "").split()).strip() or None
+            updates.append(f"{field} = %s")
+            values.append(value)
+
+    if "deadline" in data:
+        raw_deadline = str(data.get("deadline") or "").strip()
+        if raw_deadline:
+            try:
+                deadline = datetime.strptime(raw_deadline, "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify(
+                    {"ok": False, "error": "Deadline must use YYYY-MM-DD."}
+                ), 422
+        else:
+            deadline = None
+        updates.append("deadline = %s")
+        values.append(deadline)
+
+    if "status" in data:
+        status = str(data.get("status") or "").strip().lower()
+        if status not in {"active", "paused", "completed", "archived"}:
+            return jsonify({"ok": False, "error": "Invalid mission status."}), 422
+        updates.append("status = %s")
+        values.append(status)
+
+    if not updates:
+        return jsonify({"ok": False, "error": "No mission changes were provided."}), 400
+
+    user_id = session["user_id"]
+    cursor = get_db().cursor(dictionary=True)
+    try:
+        values.append(user_id)
+        cursor.execute(
+            f"""
+            UPDATE missions
+            SET {', '.join(updates)}, updated_at = NOW()
+            WHERE id = (
+                SELECT id
+                FROM missions
+                WHERE user_id = %s AND status = 'active'
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+            )
+            RETURNING id, title, description, outcome, obstacle, deadline,
+                      status, created_at, updated_at
+            """,
+            tuple(values),
+        )
+        mission = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    if mission is None:
+        return jsonify({"ok": False, "error": "No active mission was found."}), 404
+
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True, "mission": dict(mission)})
+
+
+@app.route("/api/forge/commitments/<int:commitment_id>", methods=["PATCH"])
+def api_update_forge_commitment(commitment_id):
+    """Resolve one Forge commitment owned by the authenticated user."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    status = str((data or {}).get("status") or "").strip().lower()
+    if status not in {"kept", "missed", "pending"}:
+        return jsonify({"ok": False, "error": "Invalid commitment status."}), 422
+
+    user_id = session["user_id"]
+    cursor = get_db().cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            UPDATE commitments
+            SET status = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+            RETURNING id, mission_id, text, deadline, status, times_carried,
+                      created_at, updated_at
+            """,
+            (status, commitment_id, user_id),
+        )
+        commitment = cursor.fetchone()
+        if commitment is not None and status in {"kept", "missed"}:
+            cursor.execute(
+                """
+                INSERT INTO coach_memory (user_id, last_checkin_at, updated_at)
+                VALUES (%s, NOW(), NOW())
+                ON CONFLICT (user_id)
+                DO UPDATE SET last_checkin_at = NOW(), updated_at = NOW()
+                """,
+                (user_id,),
+            )
+    finally:
+        cursor.close()
+
+    if commitment is None:
+        return jsonify({"ok": False, "error": "Commitment not found."}), 404
+
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True, "commitment": dict(commitment)})
+
+
+@app.route("/api/forge/outputs", methods=["POST"])
+def api_create_forge_output():
+    """Log one concrete output against the authenticated user's active mission."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    description = " ".join(str((data or {}).get("description") or "").split()).strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Describe what you finished."}), 422
+    if len(description) > 2_000:
+        return jsonify({"ok": False, "error": "Output cannot exceed 2,000 characters."}), 422
+
+    user_id = session["user_id"]
+    cursor = get_db().cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            INSERT INTO outputs (user_id, mission_id, description)
+            SELECT %s, id, %s
+            FROM missions
+            WHERE user_id = %s AND status = 'active'
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            RETURNING id, mission_id, description, logged_at
+            """,
+            (user_id, description, user_id),
+        )
+        output = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    if output is None:
+        return jsonify(
+            {"ok": False, "error": "Create an active mission before logging output."}
+        ), 409
+
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True, "output": dict(output)}), 201
+
+
 @app.route("/api/onboarding/status", methods=["GET"])
 def api_onboarding_status():
     """Return the authenticated user's server-authoritative onboarding state."""

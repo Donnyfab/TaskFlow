@@ -158,6 +158,7 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         "times_missed_row": missed_count,
         "commitments": commitments,
         "pattern_label": memory.get("pattern_label"),
+        "pattern_updated_at": memory.get("updated_at"),
         "avoided_task": memory.get("avoided_task"),
         "days_active": int(memory.get("days_active") or 0),
         "last_checkin_at": memory.get("last_checkin_at"),

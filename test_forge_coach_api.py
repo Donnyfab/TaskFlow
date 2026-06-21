@@ -20,6 +20,29 @@ class AnthropicResponse:
         self.content = [TextBlock(text)]
 
 
+class StubCursor:
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.queries = []
+
+    def execute(self, query, params=None):
+        self.queries.append((query, params))
+
+    def fetchone(self):
+        return self.rows.pop(0) if self.rows else None
+
+    def close(self):
+        pass
+
+
+class StubDatabase:
+    def __init__(self, rows):
+        self.cursor_instance = StubCursor(rows)
+
+    def cursor(self, dictionary=False):
+        return self.cursor_instance
+
+
 class ForgeCoachApiTests(unittest.TestCase):
     def setUp(self):
         app_module.app.config.update(TESTING=True, SECRET_KEY="forge-coach-test-secret")
@@ -40,6 +63,104 @@ class ForgeCoachApiTests(unittest.TestCase):
 
         self.assertEqual(status_response.status_code, 401)
         self.assertEqual(complete_response.status_code, 401)
+
+    def test_forge_page_mutations_require_authentication(self):
+        mission = self.client.patch("/api/forge/mission", json={"status": "completed"})
+        commitment = self.client.patch(
+            "/api/forge/commitments/4",
+            json={"status": "kept"},
+        )
+        output = self.client.post(
+            "/api/forge/outputs",
+            json={"description": "Published the launch page"},
+        )
+
+        self.assertEqual(mission.status_code, 401)
+        self.assertEqual(commitment.status_code, 401)
+        self.assertEqual(output.status_code, 401)
+
+    def test_active_mission_can_be_updated(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 3,
+                "title": "Launch Forge",
+                "description": "Ship the first release",
+                "outcome": "Five active users",
+                "status": "active",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.patch(
+                "/api/forge/mission",
+                json={
+                    "description": "Ship the first release",
+                    "outcome": "Five active users",
+                    "deadline": "2026-08-01",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["mission"]["id"], 3)
+        invalidate.assert_called_once_with(7)
+        query, params = database.cursor_instance.queries[0]
+        self.assertIn("UPDATE missions", query)
+        self.assertEqual(params[-1], 7)
+
+    def test_commitment_status_updates_coach_checkin(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 4,
+                "mission_id": 3,
+                "text": "Publish the landing page",
+                "status": "kept",
+                "times_carried": 0,
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.patch(
+                "/api/forge/commitments/4",
+                json={"status": "kept"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["commitment"]["status"], "kept")
+        self.assertEqual(len(database.cursor_instance.queries), 2)
+        self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[1][0])
+        invalidate.assert_called_once_with(7)
+
+    def test_output_is_logged_against_active_mission(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 8,
+                "mission_id": 3,
+                "description": "Published the launch page",
+                "logged_at": "2026-06-21T12:00:00",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.post(
+                "/api/forge/outputs",
+                json={"description": "Published the launch page"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["output"]["mission_id"], 3)
+        query, params = database.cursor_instance.queries[0]
+        self.assertIn("INSERT INTO outputs", query)
+        self.assertEqual(params, (7, "Published the launch page", 7))
+        invalidate.assert_called_once_with(7)
 
     @patch.object(
         app_module,
