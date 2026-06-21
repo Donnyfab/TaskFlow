@@ -35,18 +35,6 @@ const IconJournal = () => (
     <path d="M6 6.5h5M6 9.5h3.5"/>
   </svg>
 )
-const IconCalendar = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3.5" width="13" height="11.5" rx="2"/>
-    <path d="M2 7.5h13M5.5 2v3M11.5 2v3"/>
-  </svg>
-)
-const IconFocus = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="8.5" cy="8.5" r="2.5"/>
-    <circle cx="8.5" cy="8.5" r="6"/>
-  </svg>
-)
 const IconAI = () => (
   <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8.5 2C5.46 2 3 4.46 3 7.5c0 1.86.9 3.5 2.3 4.52v1.98h6.4v-1.98A5.48 5.48 0 0014 7.5C14 4.46 11.54 2 8.5 2z"/>
@@ -62,15 +50,13 @@ const IconCollapseLeft = () => (
 
 /* ─── Nav groups ─────────────────────────────────────────────────── */
 const GROUP_1 = [
-  { href: '/home',    Icon: IconHome,    label: 'Home'    },
-  { href: '/tasks',   Icon: IconTasks,   label: 'Tasks'   },
-  { href: '/habits',  Icon: IconHabits,  label: 'Habits'  },
-  { href: '/journal', Icon: IconJournal, label: 'Journal' },
+  { href: '/ai',      Icon: IconAI,      label: 'Coach'       },
+  { href: '/home',    Icon: IconHome,    label: 'Mission'     },
+  { href: '/tasks',   Icon: IconTasks,   label: 'Commitments' },
+  { href: '/journal', Icon: IconJournal, label: 'Output Log'  },
 ]
 const GROUP_2 = [
-  { href: '/calendar', Icon: IconCalendar, label: 'Calendar'     },
-  { href: '/focus',    Icon: IconFocus,    label: 'Focus Mode'   },
-  { href: '/ai',       Icon: IconAI,       label: 'AI Coach'     },
+  { href: '/habits', Icon: IconHabits, label: 'Patterns' },
 ]
 
 /* ─── Theme tokens ───────────────────────────────────────────────── */
