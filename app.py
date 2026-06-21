@@ -45,6 +45,11 @@ from forge_memory import (
     get_user_context,
     update_pattern,
 )
+from forge_coach import (
+    extract_latest_user_message,
+    get_coach_messages,
+    save_coach_message,
+)
 
 
 
@@ -787,6 +792,7 @@ def _load_user_by_id_from_db(user_id: int):
             username,
             email,
             profile_image,
+            onboarding_complete,
             auth_provider,
             is_verified,
             google_access_token,
@@ -4690,6 +4696,7 @@ ANTHROPIC_CHAT_MAX_TOKENS = 350
 ANTHROPIC_CHAT_TITLE_MAX_TOKENS = 20
 ANTHROPIC_PLAN_MAX_TOKENS = 250
 ANTHROPIC_JOURNAL_MAX_TOKENS = 120
+FORGE_COACH_MAX_TOKENS = max(100, int(os.environ.get("FORGE_COACH_MAX_TOKENS", "1000")))
 
 
 def extract_anthropic_text(response) -> str:
@@ -4730,6 +4737,107 @@ def normalize_ai_chat_messages(messages):
         normalized.append({"role": role, "content": content_text})
 
     return normalized
+
+
+@app.route("/api/coach/context", methods=["GET"])
+def api_forge_coach_context():
+    """Return the authenticated user's Forge memory and recent conversation."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    user_id = session["user_id"]
+    try:
+        db = get_db()
+        context = get_user_context(user_id, db=db)
+        messages = get_coach_messages(user_id, db=db)
+        return jsonify({"ok": True, "context": context, "messages": messages})
+    except LookupError:
+        return jsonify({"ok": False, "error": "User not found."}), 404
+    except Exception:
+        app.logger.exception("Forge Coach context failed for user %s", user_id)
+        return jsonify({"ok": False, "error": "Could not load Coach context."}), 500
+
+
+@app.route("/api/coach", methods=["POST"])
+def api_forge_coach():
+    """Generate and persist one authenticated Forge Coach exchange."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    try:
+        latest_user_message = extract_latest_user_message(data)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Forge Coach is not configured.",
+            }
+        ), 503
+
+    user_id = session["user_id"]
+    try:
+        db = get_db()
+        context = get_user_context(user_id, db=db)
+        system_prompt = build_system_prompt(context)
+        stored_messages = get_coach_messages(user_id, db=db)
+        model_messages = [
+            {"role": message["role"], "content": message["content"]}
+            for message in stored_messages
+        ]
+        model_messages.append({"role": "user", "content": latest_user_message})
+
+        saved_user_message = save_coach_message(
+            user_id,
+            "user",
+            latest_user_message,
+            db=db,
+        )
+
+        client = create_anthropic_client(anthropic_key)
+        response = call_anthropic_messages_api(
+            client,
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=FORGE_COACH_MAX_TOKENS,
+            system=system_prompt,
+            messages=model_messages,
+        )
+        reply = extract_anthropic_text(response)
+        if not reply:
+            raise RuntimeError("Anthropic returned an empty Forge Coach response")
+
+        saved_coach_message = save_coach_message(
+            user_id,
+            "assistant",
+            reply,
+            db=db,
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "reply": reply,
+                "messages": [saved_user_message, saved_coach_message],
+            }
+        )
+    except LookupError:
+        return jsonify({"ok": False, "error": "User not found."}), 404
+    except Exception as exc:
+        app.logger.exception("Forge Coach response failed for user %s", user_id)
+        return jsonify(
+            {
+                "ok": False,
+                "error": humanize_anthropic_error(
+                    exc,
+                    "Forge could not respond right now. Try again in a moment.",
+                ),
+            }
+        ), 503
 
 
 @app.route("/home")
@@ -8094,6 +8202,7 @@ def api_me():
         "username":      user["username"],
         "email":         user["email"],
         "profile_image": profile_image_url,
+        "onboarding_complete": bool(user.get("onboarding_complete")),
     })
 
 @app.route("/api/logout", methods=["POST", "OPTIONS"])
