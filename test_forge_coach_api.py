@@ -34,6 +34,13 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.get_json()["error"], "unauthorized")
 
+    def test_onboarding_endpoints_require_authentication(self):
+        status_response = self.client.get("/api/onboarding/status")
+        complete_response = self.client.post("/api/onboarding/complete", json={})
+
+        self.assertEqual(status_response.status_code, 401)
+        self.assertEqual(complete_response.status_code, 401)
+
     @patch.object(
         app_module,
         "fetch_user_by_id",
@@ -120,6 +127,148 @@ class ForgeCoachApiTests(unittest.TestCase):
         response = self.client.post("/api/coach", json={"message": "   "})
         self.assertEqual(response.status_code, 400)
         self.assertIn("required", response.get_json()["error"])
+
+    def test_onboarding_status_uses_authenticated_session_user(self):
+        self.login(7)
+        database = object()
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(
+                app_module,
+                "get_onboarding_status",
+                return_value={"onboarding_complete": False},
+            ) as get_status,
+        ):
+            response = self.client.get("/api/onboarding/status")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.get_json()["onboarding_complete"])
+        get_status.assert_called_once_with(7, database)
+
+    def test_onboarding_complete_ignores_client_user_id(self):
+        self.login(7)
+        database = object()
+        payload = {
+            "user_id": 999,
+            "mission": "Launch Forge",
+            "outcome": "Five active testers",
+            "obstacle": "Over-polishing",
+            "deadline": "2026-08-01",
+            "commitment_text": "Invite one tester",
+            "commitment_deadline": "2026-06-22T18:00:00-05:00",
+        }
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(
+                app_module,
+                "complete_onboarding",
+                return_value={"success": True, "mission_id": 11},
+            ) as complete,
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.post("/api/onboarding/complete", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        complete.assert_called_once_with(7, payload, database)
+        invalidate.assert_called_once_with(7)
+
+    def test_onboarding_validation_errors_return_422(self):
+        self.login(7)
+        with (
+            patch.object(app_module, "get_db", return_value=object()),
+            patch.object(
+                app_module,
+                "complete_onboarding",
+                side_effect=app_module.OnboardingValidationError(
+                    ["Missing or empty: mission"]
+                ),
+            ),
+        ):
+            response = self.client.post("/api/onboarding/complete", json={})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            response.get_json()["details"],
+            ["Missing or empty: mission"],
+        )
+
+    def test_onboarding_mode_adds_completion_protocol_and_timezone(self):
+        self.login(7)
+        saved_messages = [
+            {"id": 1, "role": "user", "content": "I want to launch Forge"},
+            {"id": 2, "role": "assistant", "content": "What does done look like?"},
+        ]
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch.object(app_module, "get_db", return_value=object()),
+            patch.object(
+                app_module,
+                "get_user_context",
+                return_value={
+                    "user": {"id": 7, "onboarding_complete": False}
+                },
+            ),
+            patch.object(app_module, "build_system_prompt", return_value="Base prompt"),
+            patch.object(app_module, "get_coach_messages", return_value=[]),
+            patch.object(
+                app_module,
+                "save_coach_message",
+                side_effect=saved_messages,
+            ),
+            patch.object(app_module, "create_anthropic_client", return_value=object()),
+            patch.object(
+                app_module,
+                "call_anthropic_messages_api",
+                return_value=AnthropicResponse("What does done look like?"),
+            ) as call_anthropic,
+        ):
+            response = self.client.post(
+                "/api/coach",
+                json={
+                    "message": "I want to launch Forge",
+                    "mode": "onboarding",
+                    "timezone": "America/Chicago",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        system_prompt = call_anthropic.call_args.kwargs["system"]
+        self.assertIn("ONBOARDING COMPLETION PROTOCOL", system_prompt)
+        self.assertIn("User timezone: America/Chicago", system_prompt)
+        self.assertIn("FORGE_COMPLETE||", system_prompt)
+
+    def test_registration_routes_new_user_to_onboarding(self):
+        with (
+            patch.object(app_module, "fetch_user_by_username", return_value=None),
+            patch.object(app_module, "fetch_user_by_email", return_value=None),
+            patch.object(app_module, "create_user_local", return_value=42),
+            patch.object(
+                app_module,
+                "generate_email_verification_token",
+                return_value="verification-token",
+            ),
+            patch.object(app_module, "set_email_verification_token"),
+            patch.object(app_module, "_send_registration_emails_bg"),
+        ):
+            response = self.client.post(
+                "/register",
+                data={
+                    "first_name": "Donald",
+                    "last_name": "Fabuluje",
+                    "email": "donald@example.com",
+                    "username": "donny",
+                    "password": "secure-test-password",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers["Location"],
+            f"{app_module.APP_PUBLIC_URL}/onboarding",
+        )
+        with self.client.session_transaction() as session:
+            self.assertEqual(session["user_id"], 42)
 
 
 if __name__ == "__main__":

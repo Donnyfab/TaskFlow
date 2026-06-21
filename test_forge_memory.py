@@ -61,6 +61,9 @@ class ForgeMemoryTests(unittest.TestCase):
                     "id": 11,
                     "title": "Launch Forge",
                     "description": "Ship the execution coach",
+                    "outcome": "Five people use the daily check-in",
+                    "obstacle": "Polishing instead of testing",
+                    "deadline": datetime(2026, 8, 1, tzinfo=timezone.utc).date(),
                     "status": "active",
                     "created_at": now,
                     "updated_at": now,
@@ -112,6 +115,10 @@ class ForgeMemoryTests(unittest.TestCase):
 
         self.assertTrue(db.dictionary_requested)
         self.assertEqual(context["mission"]["title"], "Launch Forge")
+        self.assertEqual(
+            context["mission"]["outcome"],
+            "Five people use the daily check-in",
+        )
         self.assertEqual(context["active_commitment"]["id"], 21)
         self.assertEqual(context["times_missed_row"], 1)
         self.assertEqual(context["outputs_this_week"], 1)
@@ -131,6 +138,9 @@ class ForgeMemoryTests(unittest.TestCase):
                 "mission": {
                     "title": "Launch Forge",
                     "description": "Ship an execution coach",
+                    "outcome": "Five people complete a daily check-in",
+                    "obstacle": "Polishing instead of testing",
+                    "deadline": "2026-08-01",
                     "status": "active",
                 },
                 "active_commitment": {
@@ -156,6 +166,8 @@ class ForgeMemoryTests(unittest.TestCase):
 
         self.assertIn("You are Forge", prompt)
         self.assertIn("Mission: Launch Forge", prompt)
+        self.assertIn("Mission outcome: Five people complete a daily check-in", prompt)
+        self.assertIn("Mission deadline: 2026-08-01", prompt)
         self.assertIn("Active commitment: Finish the memory service", prompt)
         self.assertIn("Pattern label: commits but does not execute", prompt)
         self.assertIn("Created the schema", prompt)

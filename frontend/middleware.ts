@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/landing']
-const PROTECTED_PATHS = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/ai', '/focus', '/score', '/settings', '/account']
+const PROTECTED_PATHS = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/ai', '/focus', '/score', '/settings', '/account', '/onboarding']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -35,5 +35,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/auth/:path*'],
+  matcher: ['/', '/home/:path*', '/tasks/:path*', '/habits/:path*', '/journal/:path*', '/calendar/:path*', '/ai/:path*', '/focus/:path*', '/score/:path*', '/settings/:path*', '/account/:path*', '/onboarding/:path*', '/auth/:path*'],
 }

@@ -50,6 +50,12 @@ from forge_coach import (
     get_coach_messages,
     save_coach_message,
 )
+from forge_onboarding import (
+    FORGE_ONBOARDING_COMPLETION_PROTOCOL,
+    OnboardingValidationError,
+    complete_onboarding,
+    get_onboarding_status,
+)
 
 
 
@@ -3820,7 +3826,7 @@ def register_page():
         except Exception:
             app.logger.exception("Post-registration email/token step failed for %s.", email)
 
-        return redirect(APP_PUBLIC_URL + "/home")
+        return redirect(APP_PUBLIC_URL + "/onboarding")
 
     return render_template("auth/register.html")
 
@@ -4759,6 +4765,61 @@ def api_forge_coach_context():
         return jsonify({"ok": False, "error": "Could not load Coach context."}), 500
 
 
+@app.route("/api/onboarding/status", methods=["GET"])
+def api_onboarding_status():
+    """Return the authenticated user's server-authoritative onboarding state."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    user_id = session["user_id"]
+    try:
+        status = get_onboarding_status(user_id, get_db())
+        return jsonify({"ok": True, **status})
+    except LookupError:
+        return jsonify({"ok": False, "error": "User not found."}), 404
+    except Exception:
+        app.logger.exception("Onboarding status failed for user %s", user_id)
+        return jsonify({"ok": False, "error": "Could not load onboarding status."}), 500
+
+
+@app.route("/api/onboarding/complete", methods=["POST"])
+def api_complete_onboarding():
+    """Atomically persist the confirmed Forge onboarding result."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    user_id = session["user_id"]
+    data = request.get_json(silent=True)
+    try:
+        result = complete_onboarding(user_id, data, get_db())
+        invalidate_user_cached_data(user_id)
+        return jsonify({"ok": True, **result})
+    except OnboardingValidationError as exc:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Validation failed.",
+                "details": exc.errors,
+            }
+        ), 422
+    except LookupError:
+        return jsonify({"ok": False, "error": "User not found."}), 404
+    except Exception:
+        app.logger.exception("Onboarding completion failed for user %s", user_id)
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Save failed.",
+                "message": (
+                    "Something went wrong saving your session. Your conversation is "
+                    "preserved, so you can try again."
+                ),
+            }
+        ), 500
+
+
 @app.route("/api/coach", methods=["POST"])
 def api_forge_coach():
     """Generate and persist one authenticated Forge Coach exchange."""
@@ -4767,6 +4828,10 @@ def api_forge_coach():
         return jsonify({"error": "unauthorized"}), 401
 
     data = request.get_json(silent=True)
+    mode = str((data or {}).get("mode") or "coach").strip().lower()
+    if mode not in {"coach", "onboarding"}:
+        return jsonify({"ok": False, "error": "mode must be 'coach' or 'onboarding'."}), 400
+
     try:
         latest_user_message = extract_latest_user_message(data)
     except ValueError as exc:
@@ -4786,6 +4851,26 @@ def api_forge_coach():
         db = get_db()
         context = get_user_context(user_id, db=db)
         system_prompt = build_system_prompt(context)
+        if mode == "onboarding":
+            if bool((context.get("user") or {}).get("onboarding_complete")):
+                return jsonify(
+                    {"ok": False, "error": "Onboarding is already complete."}
+                ), 409
+
+            timezone_name = str((data or {}).get("timezone") or "UTC").strip()
+            try:
+                client_timezone = ZoneInfo(timezone_name)
+            except (ZoneInfoNotFoundError, ValueError):
+                timezone_name = "UTC"
+                client_timezone = timezone.utc
+
+            local_now = datetime.now(client_timezone)
+            system_prompt = (
+                f"{system_prompt}\n\n{FORGE_ONBOARDING_COMPLETION_PROTOCOL}\n\n"
+                "CURRENT TIME CONTEXT\n"
+                f"User timezone: {timezone_name}\n"
+                f"Current local datetime: {local_now.isoformat(timespec='seconds')}"
+            )
         stored_messages = get_coach_messages(user_id, db=db)
         model_messages = [
             {"role": message["role"], "content": message["content"]}
@@ -4822,6 +4907,7 @@ def api_forge_coach():
             {
                 "ok": True,
                 "reply": reply,
+                "mode": mode,
                 "messages": [saved_user_message, saved_coach_message],
             }
         )
@@ -7994,6 +8080,7 @@ def google_callback():
 
         user = fetch_user_by_email(email)
 
+        onboarding_complete = bool(user and user.get("onboarding_complete"))
         if user:
             user_id = user["id"]
             username = user["username"]
@@ -8031,7 +8118,8 @@ def google_callback():
 
     begin_user_session(user_id, name, username)
 
-    return redirect(f"{APP_PUBLIC_URL}/home")
+    destination = "/home" if onboarding_complete else "/onboarding"
+    return redirect(f"{APP_PUBLIC_URL}{destination}")
 
 # Sidebar links pages
 @app.route("/tasks")

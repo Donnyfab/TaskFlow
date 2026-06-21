@@ -76,7 +76,8 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
 
         cursor.execute(
             """
-            SELECT id, title, description, status, created_at, updated_at
+            SELECT id, title, description, outcome, obstacle, deadline,
+                   status, created_at, updated_at
             FROM missions
             WHERE user_id = %s
               AND status = 'active'
@@ -192,6 +193,9 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             f"Onboarding complete: {bool(user.get('onboarding_complete'))}",
             f"Mission: {mission.get('title') or 'None established'}",
             f"Mission description: {mission.get('description') or 'None'}",
+            f"Mission outcome: {mission.get('outcome') or 'None established'}",
+            f"Mission obstacle: {mission.get('obstacle') or 'None identified'}",
+            f"Mission deadline: {_iso_value(mission.get('deadline')) or 'None'}",
             f"Mission status: {mission.get('status') or 'None'}",
             f"Active commitment: {commitment.get('text') or 'None locked'}",
             f"Commitment deadline: {_iso_value(commitment.get('deadline')) or 'None'}",

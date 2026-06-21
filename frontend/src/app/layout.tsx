@@ -20,6 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {
+              if (window.location.pathname === '/onboarding') {
+                document.body.style.background = '#F9F9F7';
+                document.body.style.color = '#111111';
+                return;
+              }
               var t = localStorage.getItem('tf-theme');
               if (t === 'light') {
                 document.body.style.background = '#F5F5F5';

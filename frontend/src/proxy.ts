@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server'
 const SESSION_COOKIE = process.env.NEXT_PUBLIC_SESSION_COOKIE_NAME || 'taskflow_session'
 const FLASK_URL = (process.env.NEXT_PUBLIC_FLASK_URL || 'http://localhost:8001').replace(/\/$/, '')
 
-const PROTECTED = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/focus', '/ai', '/settings']
+const PROTECTED = ['/home', '/tasks', '/habits', '/journal', '/calendar', '/focus', '/ai', '/settings', '/onboarding']
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -40,5 +40,6 @@ export const config = {
     '/focus/:path*',
     '/ai/:path*',
     '/settings/:path*',
+    '/onboarding/:path*',
   ],
 }
