@@ -71,7 +71,6 @@ function TypingIndicator({ label }: { label: string }) {
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -322,20 +321,12 @@ export default function OnboardingPage() {
     || saveState === 'complete'
 
   return (
-    <main className={styles.page} data-theme={theme}>
+    <main className={styles.page}>
       <header className={styles.header}>
         <div className={styles.brand} aria-label="Forge">
           <span className={styles.brandMark} aria-hidden="true" />
           <span>Forge</span>
         </div>
-        <button
-          className={styles.themeButton}
-          type="button"
-          aria-pressed={theme === 'dark'}
-          onClick={() => setTheme(current => current === 'light' ? 'dark' : 'light')}
-        >
-          {theme === 'light' ? 'Dark' : 'Light'}
-        </button>
       </header>
 
       <section className={styles.feed} aria-live="polite">

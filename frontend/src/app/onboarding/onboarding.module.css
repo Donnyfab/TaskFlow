@@ -21,17 +21,19 @@
   transition: background-color 180ms ease, color 180ms ease;
 }
 
-.page[data-theme="dark"] {
-  --canvas: #0e0e0e;
-  --surface: #181818;
-  --border: #2a2a2a;
-  --text: #ededed;
-  --text-mid: #777777;
-  --text-dim: #444444;
-  --user-bg: #1e1e1e;
-  --user-text: #dadada;
-  --button: #ededed;
-  --button-text: #0e0e0e;
+@media (prefers-color-scheme: dark) {
+  .page {
+    --canvas: #0e0e0e;
+    --surface: #181818;
+    --border: #2a2a2a;
+    --text: #ededed;
+    --text-mid: #777777;
+    --text-dim: #444444;
+    --user-bg: #1e1e1e;
+    --user-text: #dadada;
+    --button: #ededed;
+    --button-text: #0e0e0e;
+  }
 }
 
 .header {
@@ -42,7 +44,7 @@
   left: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: 70px;
   padding: 18px 28px 16px;
   background: var(--canvas);
@@ -65,23 +67,6 @@
   flex: 0 0 auto;
   background: currentColor;
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-}
-
-.themeButton {
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-mid);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  transition: border-color 150ms ease, color 150ms ease;
-}
-
-.themeButton:hover {
-  border-color: var(--text-mid);
-  color: var(--text);
 }
 
 .feed {
