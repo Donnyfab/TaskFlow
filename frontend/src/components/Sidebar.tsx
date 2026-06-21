@@ -11,36 +11,6 @@ import {
   syncSidebarCollapsed,
 } from '@/components/sidebar-state'
 
-/* ─── SVG Icons ──────────────────────────────────────────────────── */
-const IconHome = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 8L8.5 2.5 15 8v7a1 1 0 01-1 1H11v-4.5H6V16H3a1 1 0 01-1-1z"/>
-  </svg>
-)
-const IconTasks = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2.5" y="2.5" width="12" height="12" rx="2.5"/>
-    <path d="M5.5 8.5l2.2 2.2 4-4.5"/>
-  </svg>
-)
-const IconHabits = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="8.5" cy="8.5" r="6"/>
-    <path d="M8.5 5.5v3l2 1.5"/>
-  </svg>
-)
-const IconJournal = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="2" width="11" height="13" rx="2"/>
-    <path d="M6 6.5h5M6 9.5h3.5"/>
-  </svg>
-)
-const IconAI = () => (
-  <svg viewBox="0 0 17 17" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8.5 2C5.46 2 3 4.46 3 7.5c0 1.86.9 3.5 2.3 4.52v1.98h6.4v-1.98A5.48 5.48 0 0014 7.5C14 4.46 11.54 2 8.5 2z"/>
-    <path d="M5.8 14.5h5.4"/>
-  </svg>
-)
 const IconCollapseLeft = () => (
   <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 3.5L4.5 8L9 12.5"/>
@@ -48,26 +18,23 @@ const IconCollapseLeft = () => (
   </svg>
 )
 
-/* ─── Nav groups ─────────────────────────────────────────────────── */
-const GROUP_1 = [
-  { href: '/ai',      Icon: IconAI,      label: 'Coach'       },
-  { href: '/home',    Icon: IconHome,    label: 'Mission'     },
-  { href: '/tasks',   Icon: IconTasks,   label: 'Commitments' },
-  { href: '/journal', Icon: IconJournal, label: 'Output Log'  },
-]
-const GROUP_2 = [
-  { href: '/habits', Icon: IconHabits, label: 'Patterns' },
+/* ─── Navigation ─────────────────────────────────────────────────── */
+const NAV_ITEMS = [
+  { href: '/ai',      label: 'Coach'       },
+  { href: '/home',    label: 'Mission'     },
+  { href: '/tasks',   label: 'Commitments' },
+  { href: '/journal', label: 'Output Log'  },
+  { href: '/habits',  label: 'Patterns'    },
 ]
 
 /* ─── Theme tokens ───────────────────────────────────────────────── */
 const THEMES = {
   dark: {
-    bg:             '#0d0d10',
-    border:         'rgba(255,255,255,0.06)',
-    linkDefault:    '#76767c',
-    linkActive:     '#ececee',
-    linkActiveBg:   'rgba(255,255,255,0.06)',
-    linkActiveLine: '#ececee',
+    bg:             '#111111',
+    border:         '#1E1E1E',
+    linkDefault:    '#888888',
+    linkActive:     '#F0F0F0',
+    linkActiveLine: '#F0F0F0',
     linkHoverBg:    'rgba(255,255,255,0.035)',
     profileBg:      'linear-gradient(135deg,#5e5b6e 0%,#2a2932 100%)',
     profileText:    '#ececee',
@@ -85,12 +52,11 @@ const THEMES = {
     collapseHover:  'rgba(255,255,255,0.06)',
   },
   light: {
-    bg:             '#f4f4f3',
-    border:         'rgba(0,0,0,0.07)',
-    linkDefault:    '#8a8a90',
-    linkActive:     '#18181b',
-    linkActiveBg:   'rgba(0,0,0,0.06)',
-    linkActiveLine: '#18181b',
+    bg:             '#F4F4F2',
+    border:         '#E4E4E2',
+    linkDefault:    '#6B6B6B',
+    linkActive:     '#111111',
+    linkActiveLine: '#111111',
     linkHoverBg:    'rgba(0,0,0,0.035)',
     profileBg:      'rgba(0,0,0,0.08)',
     profileText:    '#18181b',
@@ -129,7 +95,6 @@ export default function Sidebar() {
     if (typeof window === 'undefined') return false
     return readSidebarCollapsed()
   })
-  const [hovered, setHovered]         = useState<string | null>(null)
   const [sidebarHovered, setSidebarHovered] = useState(false)
 
   useEffect(() => {
@@ -153,7 +118,7 @@ export default function Sidebar() {
   }
 
   const t = THEMES[theme]
-  const W = collapsed ? '0px' : '220px'
+  const W = collapsed ? '0px' : '200px'
 
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
@@ -162,59 +127,39 @@ export default function Sidebar() {
 
   if (pathname.startsWith('/auth')) return null
 
-  const navBtn = (href: string, active: boolean) => ({
+  const navBtn = (active: boolean) => ({
     display:        'flex' as const,
     alignItems:     'center' as const,
-    justifyContent: collapsed ? 'center' : 'flex-start',
-    gap:            '10px',
-    width:          collapsed ? '38px' : 'calc(100% - 16px)',
-    height:         '32px',
-    margin:         collapsed ? '1px 0' : '1px 8px',
-    borderRadius:   '6px',
-    padding:        collapsed ? '0' : '0 10px',
-    fontSize:       '13.5px',
-    fontWeight:     active ? 500 : 400,
-    letterSpacing:  '-0.005em',
-    color:          active ? t.linkActive : (hovered === href ? t.linkActive : t.linkDefault),
-    background:     active ? t.linkActiveBg : (hovered === href ? t.linkHoverBg : 'transparent'),
+    width:          '100%',
+    padding:        '8px 18px',
+    fontSize:       '14px',
+    fontWeight:     active ? 600 : 400,
+    letterSpacing:  active ? '-0.01em' : 'normal',
+    color:          active ? t.linkActive : t.linkDefault,
+    background:     'transparent',
     border:         'none',
+    borderLeft:     `2px solid ${active ? t.linkActiveLine : 'transparent'}`,
     textDecoration: 'none',
     cursor:         'pointer',
-    transition:     'background 120ms ease, color 120ms ease, width 0.22s, padding 0.22s',
+    transition:     'color 120ms ease, border-color 120ms ease',
     flexShrink:     0 as const,
   })
 
-  const renderGroup = (links: typeof GROUP_1) =>
-    links.map(({ href, Icon, label }) => {
+  const renderNavigation = () =>
+    NAV_ITEMS.map(({ href, label }) => {
       const active = pathname === href || pathname.startsWith(href + '/')
       return (
         <Link
           key={href}
           href={href}
           title={label}
-          style={navBtn(href, active)}
-          onMouseEnter={() => { setHovered(href); prefetchRoute(queryClient, href) }}
-          onMouseLeave={() => setHovered(null)}
+          style={navBtn(active)}
+          onMouseEnter={() => prefetchRoute(queryClient, href)}
         >
-          <div style={{
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'center',
-            width:          '16px',
-            height:         '16px',
-            flexShrink:      0,
-            color:          active ? t.linkActive : (hovered === href ? t.linkActive : t.linkDefault),
-            opacity:        active ? 1 : 0.85,
-            transition:     'color 120ms ease, opacity 120ms ease',
-          }}>
-            <Icon />
-          </div>
           <span style={{
             whiteSpace: 'nowrap',
             overflow:   'hidden',
-            opacity:     collapsed ? 0 : 1,
-            maxWidth:    collapsed ? '0px' : '160px',
-            transition: 'opacity 0.1s, max-width 0.22s',
+            textAlign:   'left',
           }}>
             {label}
           </span>
@@ -232,6 +177,7 @@ export default function Sidebar() {
         borderRight:   collapsed ? 'none' : `1px solid ${t.border}`,
         paddingTop:    '10px',
         paddingBottom: '10px',
+        fontFamily:    "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif",
         display:       'flex',
         flexDirection: 'column',
         minHeight:     '100vh',
@@ -373,22 +319,10 @@ export default function Sidebar() {
       {/* Top padding when collapsed (no profile shown) */}
       {collapsed && <div style={{ height: '12px' }} />}
 
-      {/* ── Separator ── */}
-      <div style={{ height: '1px', background: t.sep, margin: collapsed ? '0 14px 8px' : '0 16px 8px', transition: 'margin 0.22s' }} />
-
-      {/* ── Group 1 ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
-        {renderGroup(GROUP_1)}
-      </div>
-
-      <div style={{ height: '1px', background: t.sep, margin: collapsed ? '8px 14px' : '8px 16px', transition: 'margin 0.22s' }} />
-
-      {/* ── Group 2 ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch' }}>
-        {renderGroup(GROUP_2)}
-      </div>
-
-      <div style={{ flex: 1 }} />
+      {/* ── Navigation ── */}
+      <nav style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
+        {renderNavigation()}
+      </nav>
 
     </aside>
   )
