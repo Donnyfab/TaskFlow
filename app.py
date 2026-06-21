@@ -4696,7 +4696,10 @@ def humanize_anthropic_error(exc, fallback: str):
     return fallback
 
 
-ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
+ANTHROPIC_DEFAULT_MODEL = (
+    os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip()
+    or "claude-sonnet-4-6"
+)
 ANTHROPIC_CHAT_HISTORY_LIMIT = 10
 ANTHROPIC_CHAT_MAX_TOKENS = 350
 ANTHROPIC_CHAT_TITLE_MAX_TOKENS = 20
