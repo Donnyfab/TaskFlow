@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import QueryProvider from '@/provider/QueryProvider'
 import Prefetcher from '@/components/Prefetcher'
@@ -6,6 +6,14 @@ import Prefetcher from '@/components/Prefetcher'
 export const metadata: Metadata = {
   title: 'TaskFlow',
   description: 'Your personal life OS',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+  colorScheme: 'light dark',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,8 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           (function() {
             try {
               if (window.location.pathname === '/onboarding') {
-                document.body.style.background = '#F9F9F7';
-                document.body.style.color = '#111111';
+                var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.body.style.background = dark ? '#0E0E0E' : '#F7F7F5';
+                document.body.style.color = dark ? '#EDEDED' : '#111111';
                 return;
               }
               var t = localStorage.getItem('tf-theme');

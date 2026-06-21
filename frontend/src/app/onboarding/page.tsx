@@ -473,7 +473,7 @@ export default function OnboardingPage() {
               rows={1}
               value={input}
               disabled={composerDisabled}
-              placeholder="Tell Forge what you're working toward"
+              placeholder="Reply to Forge"
               onChange={event => {
                 setInput(event.target.value)
                 event.target.style.height = 'auto'

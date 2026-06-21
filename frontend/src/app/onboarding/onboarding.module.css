@@ -14,7 +14,9 @@
   --user-text: #333333;
   --button: #111111;
   --button-text: #ffffff;
+  min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--canvas);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
@@ -46,7 +48,7 @@
   align-items: center;
   justify-content: flex-start;
   min-height: 70px;
-  padding: 18px 28px 16px;
+  padding: calc(18px + env(safe-area-inset-top)) 28px 16px;
   background: var(--canvas);
 }
 
@@ -70,8 +72,10 @@
 }
 
 .feed {
+  min-height: 100vh;
   min-height: 100dvh;
-  padding: 112px 0 148px;
+  padding: calc(112px + env(safe-area-inset-top)) 0
+    calc(148px + env(safe-area-inset-bottom));
 }
 
 .column {
@@ -99,6 +103,7 @@
   max-width: 610px;
   margin: 0;
   color: var(--text);
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -131,6 +136,7 @@
   font-size: 15px;
   font-weight: 400;
   line-height: 1.6;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -181,6 +187,7 @@
 .confirmPrimary,
 .confirmSecondary {
   flex: 1;
+  min-height: 44px;
   padding: 10px;
   border-radius: 10px;
   cursor: pointer;
@@ -246,6 +253,7 @@
 
 .retryButton {
   flex: 0 0 auto;
+  min-height: 44px;
   padding: 9px 13px;
   border-radius: 8px;
   font-size: 13px;
@@ -294,6 +302,7 @@
 
 .enterButton {
   width: 100%;
+  min-height: 48px;
   margin-top: 4px;
   padding: 13px;
   border-radius: 12px;
@@ -322,7 +331,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 16px 24px 28px;
+  padding: 16px 24px calc(28px + env(safe-area-inset-bottom));
   background: var(--canvas);
 }
 
@@ -442,24 +451,75 @@
 @media (max-width: 640px) {
   .header {
     min-height: 64px;
-    padding: 16px 18px;
+    padding: calc(14px + env(safe-area-inset-top)) 18px 12px;
   }
 
   .feed {
-    padding: 98px 0 136px;
+    padding: calc(92px + env(safe-area-inset-top)) 0
+      calc(124px + env(safe-area-inset-bottom));
   }
 
   .column {
     padding: 0 18px;
   }
 
+  .coachBlock {
+    margin-bottom: 26px;
+  }
+
+  .coachText {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .coachQuestion {
+    font-size: 21px;
+    line-height: 1.38;
+  }
+
+  .userBlock {
+    margin-bottom: 24px;
+  }
+
+  .userMessage {
+    max-width: calc(100% - 18px);
+    padding: 10px 14px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .confirmBox {
+    padding: 18px;
+  }
+
+  .completeCard {
+    padding: 26px 20px;
+  }
+
   .composerWrap {
-    padding: 12px 14px 18px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   }
 
   .composer {
     gap: 6px;
-    padding-left: 10px;
+    min-height: 60px;
+    padding: 7px 7px 7px 10px;
+    border-radius: 30px;
+  }
+
+  .plusButton,
+  .iconButton,
+  .sendButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .input {
+    min-height: 32px;
+    max-height: min(150px, 28dvh);
+    padding: 9px 0;
+    font-size: 16px;
+    line-height: 1.45;
   }
 
   .composerHint {
@@ -473,6 +533,66 @@
   .error {
     align-items: flex-start;
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .retryButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .header {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .column {
+    padding: 0 14px;
+  }
+
+  .composerWrap {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .composer {
+    gap: 4px;
+    padding-left: 8px;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .header {
+    min-height: 54px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+    padding-bottom: 8px;
+  }
+
+  .feed {
+    padding-top: calc(72px + env(safe-area-inset-top));
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .coachBlock,
+  .userBlock,
+  .typing {
+    margin-bottom: 20px;
+  }
+
+  .composerWrap {
+    padding-top: 6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .composer {
+    min-height: 52px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .input {
+    max-height: 96px;
   }
 }
 
