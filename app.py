@@ -43,6 +43,7 @@ from forge_memory import (
     build_system_prompt,
     flag_avoided_task,
     get_user_context,
+    recalculate_pattern,
     update_pattern,
 )
 from forge_coach import (
@@ -4960,6 +4961,12 @@ def api_update_forge_commitment(commitment_id):
     if commitment is None:
         return jsonify({"ok": False, "error": "Commitment not found."}), 404
 
+    if status in {"kept", "missed"}:
+        try:
+            recalculate_pattern(user_id, db=get_db())
+        except Exception:
+            app.logger.exception("Pattern recalculation failed for user %s", user_id)
+
     invalidate_user_cached_data(user_id)
     return jsonify({"ok": True, "commitment": dict(commitment)})
 
@@ -5001,6 +5008,11 @@ def api_create_forge_output():
         return jsonify(
             {"ok": False, "error": "Create an active mission before logging output."}
         ), 409
+
+    try:
+        recalculate_pattern(user_id, db=get_db())
+    except Exception:
+        app.logger.exception("Pattern recalculation failed for user %s", user_id)
 
     invalidate_user_cached_data(user_id)
     return jsonify({"ok": True, "output": dict(output)}), 201
@@ -5110,6 +5122,8 @@ def api_forge_coach():
                     )
                     if checkin_result and checkin_result.get("status") == "missed":
                         flag_avoided_task(user_id, db=db)
+                    if checkin_result:
+                        recalculate_pattern(user_id, db=db)
 
         if detected_pattern or checkin_result:
             invalidate_user_cached_data(user_id)

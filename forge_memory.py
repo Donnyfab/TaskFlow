@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -79,6 +80,13 @@ def _same_utc_day(left: Any, right: datetime) -> bool:
     return parsed.astimezone(timezone.utc).date() == right.astimezone(timezone.utc).date()
 
 
+def _commitment_is_recent(value: Any, now: datetime, days: int = 7) -> bool:
+    parsed = _parse_datetime(value)
+    if parsed is None:
+        return False
+    return (now - parsed.astimezone(timezone.utc)).total_seconds() <= days * 24 * 60 * 60
+
+
 def _build_checkin_prompt(commitment: dict[str, Any]) -> str:
     text = commitment.get("text") or "your commitment"
     deadline = commitment.get("deadline")
@@ -142,11 +150,13 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
 
         cursor.execute(
             """
-            SELECT id, mission_id, description, logged_at
+            SELECT outputs.id, outputs.mission_id, outputs.description, outputs.logged_at,
+                   missions.title AS mission_title
             FROM outputs
-            WHERE user_id = %s
-            ORDER BY logged_at DESC, id DESC
-            LIMIT 10
+            LEFT JOIN missions ON missions.id = outputs.mission_id
+            WHERE outputs.user_id = %s
+            ORDER BY outputs.logged_at DESC, outputs.id DESC
+            LIMIT 100
             """,
             (user_id,),
         )
@@ -173,6 +183,18 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
             (user_id,),
         )
         memory = _row_to_dict(cursor.fetchone()) or {}
+
+        cursor.execute(
+            """
+            SELECT id, pattern_label, reason, evidence, created_at
+            FROM pattern_events
+            WHERE user_id = %s
+            ORDER BY created_at DESC, id DESC
+            LIMIT 12
+            """,
+            (user_id,),
+        )
+        pattern_history = [_row_to_dict(row) for row in cursor.fetchall()]
     finally:
         cursor.close()
 
@@ -192,6 +214,13 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
     )
     due_commitment = active_commitment if needs_checkin else None
     checkin_prompt = _build_checkin_prompt(due_commitment) if due_commitment else None
+
+    weekly_summary = build_weekly_summary(
+        commitments=commitments,
+        outputs_this_week=int(output_count_row.get("outputs_this_week") or 0),
+        pattern_label=memory.get("pattern_label"),
+        now=now,
+    )
 
     return {
         "user": user,
@@ -213,6 +242,45 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         "summary": memory.get("summary"),
         "outputs_this_week": int(output_count_row.get("outputs_this_week") or 0),
         "recent_outputs": recent_outputs,
+        "pattern_history": pattern_history,
+        "weekly_summary": weekly_summary,
+    }
+
+
+def build_weekly_summary(
+    *,
+    commitments: list[dict[str, Any]],
+    outputs_this_week: int,
+    pattern_label: str | None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Return a compact behavior summary for the Patterns page."""
+
+    reference = now or datetime.now(timezone.utc)
+    recent = [
+        commitment
+        for commitment in commitments
+        if _commitment_is_recent(
+            commitment.get("updated_at") or commitment.get("created_at"),
+            reference,
+            days=7,
+        )
+    ]
+    kept = sum(1 for commitment in recent if commitment.get("status") == "kept")
+    missed = sum(1 for commitment in recent if commitment.get("status") == "missed")
+    pending = sum(1 for commitment in recent if commitment.get("status") == "pending")
+    made = len(recent)
+    resolved = kept + missed
+    commitment_rate = round((kept / resolved) * 100) if resolved else 0
+
+    return {
+        "commitments_made": made,
+        "commitments_kept": kept,
+        "commitments_missed": missed,
+        "commitments_pending": pending,
+        "outputs_logged": int(outputs_this_week or 0),
+        "commitment_rate": commitment_rate,
+        "pattern_status": pattern_label or "Not enough evidence yet",
     }
 
 
@@ -226,6 +294,7 @@ def build_system_prompt(context: dict[str, Any]) -> str:
     mission = context.get("mission") or {}
     commitment = context.get("active_commitment") or {}
     outputs = context.get("recent_outputs") or []
+    weekly = context.get("weekly_summary") or {}
 
     output_lines = [
         f"  - {_iso_value(item.get('logged_at'))}: {item.get('description')}"
@@ -257,6 +326,10 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             f"Avoided task: {context.get('avoided_task') or 'None flagged'}",
             f"Days active: {int(context.get('days_active') or 0)}",
             f"Outputs this week: {int(context.get('outputs_this_week') or 0)}",
+            f"Weekly commitments made: {int(weekly.get('commitments_made') or 0)}",
+            f"Weekly commitments kept: {int(weekly.get('commitments_kept') or 0)}",
+            f"Weekly commitments missed: {int(weekly.get('commitments_missed') or 0)}",
+            f"Weekly commitment rate: {int(weekly.get('commitment_rate') or 0)}%",
             f"Coach summary: {context.get('summary') or 'None yet'}",
             "Recent outputs:",
             *output_lines,
@@ -289,6 +362,149 @@ def update_pattern(user_id: int, new_label: str, db=None) -> dict[str, Any]:
             (user_id, normalized_label),
         )
         return _row_to_dict(cursor.fetchone()) or {}
+    finally:
+        cursor.close()
+
+
+def recalculate_pattern(user_id: int, db=None) -> dict[str, Any]:
+    """Recalculate the user's current pattern from the last 7 days of behavior."""
+
+    user_id = _validate_user_id(user_id)
+    cursor = _resolve_db(db).cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT id, text, deadline, status, times_carried, created_at, updated_at
+            FROM commitments
+            WHERE user_id = %s
+              AND COALESCE(updated_at, created_at) >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+            ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+            LIMIT 20
+            """,
+            (user_id,),
+        )
+        commitments = [_row_to_dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS outputs_this_week
+            FROM outputs
+            WHERE user_id = %s
+              AND logged_at >= date_trunc('week', CURRENT_TIMESTAMP)
+            """,
+            (user_id,),
+        )
+        output_count_row = _row_to_dict(cursor.fetchone()) or {}
+        outputs_this_week = int(output_count_row.get("outputs_this_week") or 0)
+
+        cursor.execute(
+            """
+            SELECT pattern_label
+            FROM coach_memory
+            WHERE user_id = %s
+            """,
+            (user_id,),
+        )
+        current_memory = _row_to_dict(cursor.fetchone()) or {}
+        previous_label = current_memory.get("pattern_label")
+
+        kept = [item for item in commitments if item.get("status") == "kept"]
+        missed = [item for item in commitments if item.get("status") == "missed"]
+        pending = [item for item in commitments if item.get("status") == "pending"]
+        carried = [
+            item
+            for item in commitments
+            if int(item.get("times_carried") or 0) >= 3
+            and item.get("status") in {"pending", "missed"}
+        ]
+        made_count = len(commitments)
+
+        evidence: list[str] = []
+        if carried:
+            top = carried[0]
+            evidence.append(
+                f"“{top.get('text')}” has been carried {int(top.get('times_carried') or 0)} times."
+            )
+        if missed:
+            evidence.append(
+                f"{len(missed)} commitment{'s' if len(missed) != 1 else ''} missed in the last 7 days."
+            )
+            for item in missed[:2]:
+                evidence.append(f"Missed: “{item.get('text')}”.")
+        if kept:
+            evidence.append(
+                f"{len(kept)} commitment{'s' if len(kept) != 1 else ''} kept in the last 7 days."
+            )
+        if outputs_this_week:
+            evidence.append(
+                f"{outputs_this_week} real output{'s' if outputs_this_week != 1 else ''} logged this week."
+            )
+        elif made_count:
+            evidence.append("No real outputs logged this week.")
+
+        if carried:
+            label = "avoids the same commitment repeatedly"
+            reason = "A commitment crossed the carried-three-times threshold."
+        elif missed and len(missed) > len(kept):
+            label = "commits more than follows through"
+            reason = "Missed commitments outnumber kept commitments this week."
+        elif made_count >= 2 and outputs_this_week == 0:
+            label = "plans without shipping output"
+            reason = "Commitments exist, but no outputs were logged this week."
+        elif kept and outputs_this_week > 0 and len(kept) >= len(missed):
+            label = "executes when the next action is concrete"
+            reason = "Kept commitments and logged outputs show execution."
+        elif pending and not kept and not missed:
+            label = "pattern still forming"
+            reason = "There are pending commitments, but not enough resolved behavior yet."
+        else:
+            label = previous_label or "pattern still forming"
+            reason = "Forge needs more completed check-ins before changing the pattern."
+
+        summary = (
+            f"Weekly pattern: {label}. "
+            f"Made {made_count}, kept {len(kept)}, missed {len(missed)}, "
+            f"outputs {outputs_this_week}."
+        )
+        evidence = evidence[:5] or ["Not enough behavioral evidence yet."]
+
+        cursor.execute(
+            """
+            INSERT INTO coach_memory (user_id, pattern_label, summary, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                pattern_label = EXCLUDED.pattern_label,
+                summary = EXCLUDED.summary,
+                updated_at = NOW()
+            RETURNING user_id, pattern_label, avoided_task, days_active,
+                      last_checkin_at, summary, created_at, updated_at
+            """,
+            (user_id, label, summary),
+        )
+        memory = _row_to_dict(cursor.fetchone()) or {}
+
+        if label != previous_label:
+            cursor.execute(
+                """
+                INSERT INTO pattern_events (user_id, pattern_label, reason, evidence)
+                VALUES (%s, %s, %s, %s::jsonb)
+                RETURNING id, pattern_label, reason, evidence, created_at
+                """,
+                (user_id, label, reason, json.dumps(evidence)),
+            )
+            event = _row_to_dict(cursor.fetchone())
+        else:
+            event = None
+
+        return {
+            "pattern_label": label,
+            "previous_label": previous_label,
+            "reason": reason,
+            "evidence": evidence,
+            "event": event,
+            "memory": memory,
+        }
     finally:
         cursor.close()
 

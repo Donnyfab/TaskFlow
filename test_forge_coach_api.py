@@ -191,6 +191,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         ])
         with (
             patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "recalculate_pattern") as recalculate,
             patch.object(app_module, "invalidate_user_cached_data") as invalidate,
         ):
             response = self.client.patch(
@@ -203,6 +204,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(len(database.cursor_instance.queries), 2)
         self.assertIn("times_carried = CASE", database.cursor_instance.queries[0][0])
         self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[1][0])
+        recalculate.assert_called_once_with(7, db=database)
         invalidate.assert_called_once_with(7)
 
     def test_killing_commitment_requires_reason(self):
@@ -228,6 +230,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         ])
         with (
             patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "recalculate_pattern") as recalculate,
             patch.object(app_module, "invalidate_user_cached_data") as invalidate,
         ):
             response = self.client.patch(
@@ -249,6 +252,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("INSERT INTO coach_memory", memory_query)
         self.assertIn("Commitment killed or missed", memory_params[1])
         self.assertIn("no longer the right next move", memory_params[1])
+        recalculate.assert_called_once_with(7, db=database)
         invalidate.assert_called_once_with(7)
 
     def test_output_is_logged_against_active_mission(self):
@@ -263,6 +267,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         ])
         with (
             patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "recalculate_pattern") as recalculate,
             patch.object(app_module, "invalidate_user_cached_data") as invalidate,
         ):
             response = self.client.post(
@@ -275,6 +280,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         query, params = database.cursor_instance.queries[0]
         self.assertIn("INSERT INTO outputs", query)
         self.assertEqual(params, (7, "Published the launch page", 7))
+        recalculate.assert_called_once_with(7, db=database)
         invalidate.assert_called_once_with(7)
 
     @patch.object(
@@ -503,6 +509,7 @@ class ForgeCoachApiTests(unittest.TestCase):
                 },
             ) as record_outcome,
             patch.object(app_module, "flag_avoided_task") as flag_avoided,
+            patch.object(app_module, "recalculate_pattern") as recalculate,
             patch.object(app_module, "invalidate_user_cached_data") as invalidate,
         ):
             response = self.client.post(
@@ -526,6 +533,7 @@ class ForgeCoachApiTests(unittest.TestCase):
             db=get_db.return_value,
         )
         flag_avoided.assert_called_once_with(7, db=get_db.return_value)
+        recalculate.assert_called_once_with(7, db=get_db.return_value)
         invalidate.assert_called_with(7)
         self.assertIn("CURRENT CHECK-IN OUTCOME", call_anthropic.call_args.kwargs["system"])
 

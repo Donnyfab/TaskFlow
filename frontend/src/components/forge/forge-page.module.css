@@ -449,6 +449,14 @@
   line-height: 1.58;
 }
 
+.outputList article > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--mid);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .patternHero h1 {
   font-size: clamp(28px, 4vw, 36px);
   line-height: 1.23;
@@ -489,6 +497,13 @@
   color: var(--text);
 }
 
+.summaryLine {
+  margin: -4px 0 16px;
+  color: var(--mid);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .rateTrack {
   height: 3px;
   overflow: hidden;
@@ -502,6 +517,10 @@
   border-radius: inherit;
   background: var(--text);
   transition: width 500ms ease;
+}
+
+.patternHistoryList {
+  display: grid;
 }
 
 .patternHistory {

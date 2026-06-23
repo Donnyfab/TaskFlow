@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import { useTheme } from '@/hooks/useTheme'
@@ -36,8 +36,27 @@ type Commitment = {
 type Output = {
   id: number
   mission_id: number
+  mission_title?: string | null
   description: string
   logged_at?: string | null
+}
+
+type PatternEvent = {
+  id: number
+  pattern_label: string
+  reason?: string | null
+  evidence?: string[] | null
+  created_at?: string | null
+}
+
+type WeeklySummary = {
+  commitments_made: number
+  commitments_kept: number
+  commitments_missed: number
+  commitments_pending: number
+  outputs_logged: number
+  commitment_rate: number
+  pattern_status: string
 }
 
 type ForgeContext = {
@@ -51,6 +70,8 @@ type ForgeContext = {
   avoided_task?: string | null
   days_active?: number
   summary?: string | null
+  pattern_history?: PatternEvent[]
+  weekly_summary?: WeeklySummary
 }
 
 type MissionCloseStatus = 'completed' | 'archived'
@@ -595,6 +616,7 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
             <article key={output.id}>
               <span>{dateValue(output.logged_at)}</span>
               <p>{output.description}</p>
+              <small>{output.mission_title ? `Mission: ${output.mission_title}` : 'Mission linked'}</small>
             </article>
           ))}
           <p className={styles.quietNote}>This is the proof: work that exists outside your plans.</p>
@@ -615,17 +637,20 @@ function PatternsPage({ context }: { context: ForgeContext }) {
   const kept = recent.filter(item => item.status === 'kept').length
   const missed = recent.filter(item => item.status === 'missed').length
   const totalResolved = kept + missed
-  const rate = totalResolved ? Math.round((kept / totalResolved) * 100) : 0
+  const fallbackRate = totalResolved ? Math.round((kept / totalResolved) * 100) : 0
+  const weekly = context.weekly_summary
+  const history = context.pattern_history || []
+  const latestHistory = history[0]
+  const rate = weekly?.commitment_rate ?? fallbackRate
 
-  const evidence = useMemo(() => {
-    const items: string[] = []
-    if (context.avoided_task) items.push(`“${context.avoided_task}” has been carried repeatedly without resolution.`)
-    if (missed) items.push(`${missed} recent commitment${missed === 1 ? ' was' : 's were'} missed.`)
-    if (kept) items.push(`${kept} recent commitment${kept === 1 ? ' was' : 's were'} kept.`)
-    if (context.outputs_this_week) items.push(`${context.outputs_this_week} real output${context.outputs_this_week === 1 ? '' : 's'} logged this week.`)
-    if (context.summary) items.push(context.summary)
-    return items
-  }, [context.avoided_task, context.outputs_this_week, context.summary, kept, missed])
+  const evidenceItems: string[] = []
+  if (latestHistory?.evidence?.length) evidenceItems.push(...latestHistory.evidence)
+  if (context.avoided_task) evidenceItems.push(`“${context.avoided_task}” has been carried repeatedly without resolution.`)
+  if (missed) evidenceItems.push(`${missed} recent commitment${missed === 1 ? ' was' : 's were'} missed.`)
+  if (kept) evidenceItems.push(`${kept} recent commitment${kept === 1 ? ' was' : 's were'} kept.`)
+  if (context.outputs_this_week) evidenceItems.push(`${context.outputs_this_week} real output${context.outputs_this_week === 1 ? '' : 's'} logged this week.`)
+  if (context.summary) evidenceItems.push(context.summary)
+  const evidence = Array.from(new Set(evidenceItems)).slice(0, 5)
 
   return (
     <>
@@ -649,13 +674,14 @@ function PatternsPage({ context }: { context: ForgeContext }) {
       <div className={styles.rule} />
 
       <section className={styles.section}>
-        <Label>Last 7 days</Label>
+        <Label>Weekly summary</Label>
         <div className={styles.weekGrid}>
-          <Stat label="Made" value={recent.length} />
-          <Stat label="Kept" value={kept} />
-          <Stat label="Missed" value={missed} />
-          <Stat label="Shipped" value={context.outputs_this_week || 0} />
+          <Stat label="Made" value={weekly?.commitments_made ?? recent.length} />
+          <Stat label="Kept" value={weekly?.commitments_kept ?? kept} />
+          <Stat label="Missed" value={weekly?.commitments_missed ?? missed} />
+          <Stat label="Shipped" value={weekly?.outputs_logged ?? context.outputs_this_week ?? 0} />
         </div>
+        {weekly?.pattern_status ? <p className={styles.summaryLine}>{weekly.pattern_status}</p> : null}
         <div className={styles.rateHeader}><span>Commitment rate</span><strong>{rate}%</strong></div>
         <div className={styles.rateTrack}><span style={{ width: `${rate}%` }} /></div>
       </section>
@@ -664,10 +690,22 @@ function PatternsPage({ context }: { context: ForgeContext }) {
 
       <section className={styles.section}>
         <Label>Pattern history</Label>
-        {context.pattern_label ? (
+        {history.length ? (
+          <div className={styles.patternHistoryList}>
+            {history.map(event => (
+              <div className={styles.patternHistory} key={event.id}>
+                <span>{dateValue(event.created_at)}</span>
+                <div>
+                  <p>{event.pattern_label}</p>
+                  {event.reason ? <small>{event.reason}</small> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : context.pattern_label ? (
           <div className={styles.patternHistory}>
             <span>{dateValue(context.pattern_updated_at)}</span>
-            <div><p>{context.pattern_label}</p><small>Current</small></div>
+            <div><p>{context.pattern_label}</p><small>Current pattern</small></div>
           </div>
         ) : <p className={styles.bodyCopy}>No pattern changes have been recorded yet.</p>}
       </section>

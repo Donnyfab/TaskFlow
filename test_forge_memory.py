@@ -5,6 +5,7 @@ from forge_memory import (
     build_system_prompt,
     flag_avoided_task,
     get_user_context,
+    recalculate_pattern,
     update_pattern,
 )
 
@@ -125,6 +126,11 @@ class ForgeMemoryTests(unittest.TestCase):
         self.assertIn("Did you do it?", context["checkin_prompt"])
         self.assertEqual(context["times_missed_row"], 1)
         self.assertEqual(context["outputs_this_week"], 1)
+        self.assertEqual(context["weekly_summary"]["outputs_logged"], 1)
+        self.assertEqual(
+            context["weekly_summary"]["pattern_status"],
+            "commits but delays execution",
+        )
         self.assertEqual(context["pattern_label"], "commits but delays execution")
         self.assertTrue(db.cursor_instance.closed)
 
@@ -231,11 +237,105 @@ class ForgeMemoryTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(db.cursor_instance.executions[1][1], (7, None))
 
+    def test_recalculate_pattern_records_changed_pattern_event(self):
+        now = datetime(2026, 6, 20, 12, 0, tzinfo=timezone.utc)
+        db = FakeDatabase(
+            [
+                [
+                    {
+                        "id": 21,
+                        "text": "Send the launch email",
+                        "deadline": now,
+                        "status": "missed",
+                        "times_carried": 3,
+                        "created_at": now,
+                        "updated_at": now,
+                    },
+                    {
+                        "id": 22,
+                        "text": "Post the product demo",
+                        "deadline": now,
+                        "status": "missed",
+                        "times_carried": 1,
+                        "created_at": now,
+                        "updated_at": now,
+                    },
+                ],
+                {"outputs_this_week": 0},
+                {"pattern_label": "pattern still forming"},
+                {
+                    "user_id": 7,
+                    "pattern_label": "avoids the same commitment repeatedly",
+                    "avoided_task": None,
+                    "days_active": 0,
+                    "last_checkin_at": None,
+                    "summary": "Weekly pattern: avoids the same commitment repeatedly.",
+                    "created_at": now,
+                    "updated_at": now,
+                },
+                {
+                    "id": 3,
+                    "pattern_label": "avoids the same commitment repeatedly",
+                    "reason": "A commitment crossed the carried-three-times threshold.",
+                    "evidence": ["Send the launch email was carried."],
+                    "created_at": now,
+                },
+            ]
+        )
+
+        result = recalculate_pattern(7, db=db)
+
+        self.assertEqual(
+            result["pattern_label"],
+            "avoids the same commitment repeatedly",
+        )
+        self.assertEqual(result["previous_label"], "pattern still forming")
+        self.assertIn("carried", result["reason"])
+        self.assertEqual(result["event"]["id"], 3)
+        self.assertIn("INSERT INTO pattern_events", db.cursor_instance.executions[4][0])
+
+    def test_recalculate_pattern_skips_event_when_label_is_unchanged(self):
+        now = datetime(2026, 6, 20, 12, 0, tzinfo=timezone.utc)
+        db = FakeDatabase(
+            [
+                [
+                    {
+                        "id": 21,
+                        "text": "Publish the clip",
+                        "deadline": now,
+                        "status": "kept",
+                        "times_carried": 0,
+                        "created_at": now,
+                        "updated_at": now,
+                    },
+                ],
+                {"outputs_this_week": 1},
+                {"pattern_label": "executes when the next action is concrete"},
+                {
+                    "user_id": 7,
+                    "pattern_label": "executes when the next action is concrete",
+                    "avoided_task": None,
+                    "days_active": 0,
+                    "last_checkin_at": None,
+                    "summary": "Weekly pattern: executes when the next action is concrete.",
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            ]
+        )
+
+        result = recalculate_pattern(7, db=db)
+
+        self.assertIsNone(result["event"])
+        self.assertEqual(len(db.cursor_instance.executions), 4)
+
     def test_invalid_inputs_are_rejected(self):
         with self.assertRaises(ValueError):
             get_user_context(0, db=FakeDatabase([]))
         with self.assertRaises(ValueError):
             update_pattern(7, "   ", db=FakeDatabase([]))
+        with self.assertRaises(ValueError):
+            recalculate_pattern(0, db=FakeDatabase([]))
 
 
 if __name__ == "__main__":
