@@ -120,6 +120,9 @@ class ForgeMemoryTests(unittest.TestCase):
             "Five people use the daily check-in",
         )
         self.assertEqual(context["active_commitment"]["id"], 21)
+        self.assertEqual(context["due_commitment"]["id"], 21)
+        self.assertTrue(context["needs_checkin"])
+        self.assertIn("Did you do it?", context["checkin_prompt"])
         self.assertEqual(context["times_missed_row"], 1)
         self.assertEqual(context["outputs_this_week"], 1)
         self.assertEqual(context["pattern_label"], "commits but delays execution")
@@ -169,6 +172,8 @@ class ForgeMemoryTests(unittest.TestCase):
         self.assertIn("Mission outcome: Five people complete a daily check-in", prompt)
         self.assertIn("Mission deadline: 2026-08-01", prompt)
         self.assertIn("Active commitment: Finish the memory service", prompt)
+        self.assertIn("Commitment needs check-in now: False", prompt)
+        self.assertIn("Check-in prompt: None", prompt)
         self.assertIn("Pattern label: commits but does not execute", prompt)
         self.assertIn("Created the schema", prompt)
         self.assertIn("do not invent missing details", prompt)

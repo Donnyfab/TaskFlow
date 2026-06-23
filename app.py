@@ -46,9 +46,15 @@ from forge_memory import (
     update_pattern,
 )
 from forge_coach import (
+    FORGE_COMMITMENT_CAPTURE_PROTOCOL,
+    classify_checkin_reply,
+    detect_avoidance_pattern,
     extract_latest_user_message,
     get_coach_messages,
+    persist_commitment_capture,
+    record_checkin_outcome,
     save_coach_message,
+    split_commitment_capture,
 )
 from forge_onboarding import (
     FORGE_ONBOARDING_COMPLETION_PROTOCOL,
@@ -5015,7 +5021,41 @@ def api_forge_coach():
     try:
         db = get_db()
         context = get_user_context(user_id, db=db)
+        checkin_result = None
+        detected_pattern = None
+        if mode == "coach":
+            detected_pattern = detect_avoidance_pattern(latest_user_message)
+            if detected_pattern:
+                update_pattern(user_id, detected_pattern, db=db)
+
+            due_commitment = context.get("due_commitment") or {}
+            if due_commitment.get("id"):
+                checkin_outcome = classify_checkin_reply(latest_user_message)
+                if checkin_outcome:
+                    checkin_result = record_checkin_outcome(
+                        user_id,
+                        due_commitment["id"],
+                        checkin_outcome,
+                        db=db,
+                    )
+                    if checkin_result and checkin_result.get("status") == "missed":
+                        flag_avoided_task(user_id, db=db)
+
+        if detected_pattern or checkin_result:
+            invalidate_user_cached_data(user_id)
+            context = get_user_context(user_id, db=db)
+
         system_prompt = build_system_prompt(context)
+        if checkin_result:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                "CURRENT CHECK-IN OUTCOME\n"
+                f"User answered: {checkin_result.get('checkin_outcome')}\n"
+                f"Commitment: {checkin_result.get('text')}\n"
+                "If kept: acknowledge briefly and lock the next commitment. "
+                "If missed or partial: treat it as incomplete, ask what happened internally, "
+                "name the likely avoidance pattern, and set a smaller concrete next action."
+            )
         if mode == "onboarding":
             if bool((context.get("user") or {}).get("onboarding_complete")):
                 return jsonify(
@@ -5036,6 +5076,8 @@ def api_forge_coach():
                 f"User timezone: {timezone_name}\n"
                 f"Current local datetime: {local_now.isoformat(timespec='seconds')}"
             )
+        else:
+            system_prompt = f"{system_prompt}\n\n{FORGE_COMMITMENT_CAPTURE_PROTOCOL}"
         stored_messages = get_coach_messages(user_id, db=db)
         model_messages = [
             {"role": message["role"], "content": message["content"]}
@@ -5062,17 +5104,31 @@ def api_forge_coach():
         if not reply:
             raise RuntimeError("Anthropic returned an empty Forge Coach response")
 
+        visible_reply, commitment_payload = split_commitment_capture(reply)
+        if not visible_reply:
+            visible_reply = "Commitment locked."
+        captured_commitment = persist_commitment_capture(
+            user_id,
+            commitment_payload,
+            db=db,
+        )
+        if captured_commitment is not None:
+            invalidate_user_cached_data(user_id)
+
         saved_coach_message = save_coach_message(
             user_id,
             "assistant",
-            reply,
+            visible_reply,
             db=db,
         )
         return jsonify(
             {
                 "ok": True,
-                "reply": reply,
+                "reply": visible_reply,
                 "mode": mode,
+                "commitment": captured_commitment,
+                "checkin": checkin_result,
+                "pattern": detected_pattern,
                 "messages": [saved_user_message, saved_coach_message],
             }
         )

@@ -339,7 +339,7 @@ export default function OnboardingPage() {
             <div className={styles.coachBlock}>
               <p className={styles.coachLabel}>Forge</p>
               <p className={styles.coachText}>
-                Before we begin, I need to understand what you&apos;re building.
+                Before we begin, I need to understand what you&apos;re building. I&apos;m going to be direct: I&apos;ll look at what you say you want, what your actions show, and the first commitment you can prove.
               </p>
             </div>
           )}

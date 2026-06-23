@@ -237,11 +237,182 @@ class ForgeCoachApiTests(unittest.TestCase):
             save_message.call_args_list[1].args[:3],
             (7, "assistant", "Name the deadline."),
         )
-        self.assertEqual(call_anthropic.call_args.kwargs["system"], "Forge system prompt")
+        self.assertIn("Forge system prompt", call_anthropic.call_args.kwargs["system"])
+        self.assertIn(
+            "COMMITMENT CAPTURE PROTOCOL",
+            call_anthropic.call_args.kwargs["system"],
+        )
         self.assertEqual(
             call_anthropic.call_args.kwargs["messages"],
             [{"role": "user", "content": "Ship Forge"}],
         )
+
+    @patch.object(
+        app_module,
+        "extract_anthropic_text",
+        return_value=(
+            "Locked. I will ask you about it tomorrow.\n"
+            'FORGE_COMMITMENT||{"commitment_text":"Publish one demo clip",'
+            '"commitment_deadline":"2026-06-24T18:00:00-05:00"}'
+        ),
+    )
+    @patch.object(
+        app_module,
+        "call_anthropic_messages_api",
+        return_value=AnthropicResponse("unused"),
+    )
+    @patch.object(app_module, "create_anthropic_client", return_value=object())
+    @patch.object(
+        app_module,
+        "persist_commitment_capture",
+        return_value={
+            "id": 12,
+            "text": "Publish one demo clip",
+            "deadline": "2026-06-24T23:00:00+00:00",
+            "status": "pending",
+        },
+    )
+    @patch.object(
+        app_module,
+        "save_coach_message",
+        side_effect=[
+            {"id": 1, "role": "user", "content": "I will publish it."},
+            {
+                "id": 2,
+                "role": "assistant",
+                "content": "Locked. I will ask you about it tomorrow.",
+            },
+        ],
+    )
+    @patch.object(app_module, "get_coach_messages", return_value=[])
+    @patch.object(app_module, "build_system_prompt", return_value="Forge system prompt")
+    @patch.object(app_module, "get_user_context", return_value={"user": {"id": 7}})
+    @patch.object(app_module, "get_db", return_value=object())
+    def test_post_strips_and_persists_commitment_capture(
+        self,
+        get_db,
+        _get_user_context,
+        _build_system_prompt,
+        _get_messages,
+        save_message,
+        persist_capture,
+        _create_client,
+        _call_anthropic,
+        _extract_text,
+    ):
+        self.login(7)
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.post(
+                "/api/coach",
+                json={"message": "I will publish it."},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["reply"], "Locked. I will ask you about it tomorrow.")
+        self.assertNotIn("FORGE_COMMITMENT", body["reply"])
+        self.assertEqual(body["commitment"]["id"], 12)
+        persist_capture.assert_called_once_with(
+            7,
+            {
+                "commitment_text": "Publish one demo clip",
+                "commitment_deadline": "2026-06-24T18:00:00-05:00",
+            },
+            db=get_db.return_value,
+        )
+        self.assertEqual(
+            save_message.call_args_list[1].args[:3],
+            (7, "assistant", "Locked. I will ask you about it tomorrow."),
+        )
+        invalidate.assert_called_once_with(7)
+
+    @patch.object(app_module, "extract_anthropic_text", return_value="What happened when the time came?")
+    @patch.object(
+        app_module,
+        "call_anthropic_messages_api",
+        return_value=AnthropicResponse("What happened when the time came?"),
+    )
+    @patch.object(app_module, "create_anthropic_client", return_value=object())
+    @patch.object(
+        app_module,
+        "save_coach_message",
+        side_effect=[
+            {"id": 1, "role": "user", "content": "No, I didn't do it."},
+            {"id": 2, "role": "assistant", "content": "What happened when the time came?"},
+        ],
+    )
+    @patch.object(app_module, "get_coach_messages", return_value=[])
+    @patch.object(app_module, "build_system_prompt", return_value="Forge system prompt")
+    @patch.object(
+        app_module,
+        "get_user_context",
+        side_effect=[
+            {
+                "user": {"id": 7},
+                "due_commitment": {"id": 12, "text": "Publish one demo clip"},
+            },
+            {
+                "user": {"id": 7},
+                "due_commitment": None,
+                "pattern_label": "fear disguised as research",
+            },
+        ],
+    )
+    @patch.object(app_module, "get_db", return_value=object())
+    def test_post_records_due_checkin_and_pattern_before_response(
+        self,
+        get_db,
+        _get_user_context,
+        _build_system_prompt,
+        _get_messages,
+        _save_message,
+        _create_client,
+        call_anthropic,
+        _extract_text,
+    ):
+        self.login(7)
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch.object(app_module, "update_pattern") as update_pattern,
+            patch.object(
+                app_module,
+                "record_checkin_outcome",
+                return_value={
+                    "id": 12,
+                    "text": "Publish one demo clip",
+                    "status": "missed",
+                    "checkin_outcome": "missed",
+                },
+            ) as record_outcome,
+            patch.object(app_module, "flag_avoided_task") as flag_avoided,
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.post(
+                "/api/coach",
+                json={"message": "No, I didn't do it. I kept researching."},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["checkin"]["status"], "missed")
+        self.assertEqual(body["pattern"], "fear disguised as research")
+        update_pattern.assert_called_once_with(
+            7,
+            "fear disguised as research",
+            db=get_db.return_value,
+        )
+        record_outcome.assert_called_once_with(
+            7,
+            12,
+            "missed",
+            db=get_db.return_value,
+        )
+        flag_avoided.assert_called_once_with(7, db=get_db.return_value)
+        invalidate.assert_called_with(7)
+        self.assertIn("CURRENT CHECK-IN OUTCOME", call_anthropic.call_args.kwargs["system"])
 
     def test_post_rejects_empty_message_before_calling_anthropic(self):
         self.login(7)
@@ -357,6 +528,8 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("ONBOARDING COMPLETION PROTOCOL", system_prompt)
         self.assertIn("User timezone: America/Chicago", system_prompt)
         self.assertIn("FORGE_COMPLETE||", system_prompt)
+        self.assertIn("last 30 days", system_prompt)
+        self.assertIn("gap between their stated", system_prompt)
 
     def test_registration_routes_new_user_to_onboarding(self):
         with (

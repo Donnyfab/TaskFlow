@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 
@@ -54,6 +54,37 @@ def _row_to_dict(row) -> dict[str, Any] | None:
     if row is None:
         return None
     return {key: _iso_value(value) for key, value in dict(row).items()}
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _same_utc_day(left: Any, right: datetime) -> bool:
+    parsed = _parse_datetime(left)
+    if parsed is None:
+        return False
+    return parsed.astimezone(timezone.utc).date() == right.astimezone(timezone.utc).date()
+
+
+def _build_checkin_prompt(commitment: dict[str, Any]) -> str:
+    text = commitment.get("text") or "your commitment"
+    deadline = commitment.get("deadline")
+    if deadline:
+        return f'You said you would “{text}” by {deadline}. Did you do it?'
+    return f'You said you would “{text}.” Did you do it?'
 
 
 def get_user_context(user_id: int, db=None) -> dict[str, Any]:
@@ -148,10 +179,27 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
     missed_count = sum(
         1 for commitment in commitments if commitment.get("status") == "missed"
     )
+    now = datetime.now(timezone.utc)
+    last_checkin_at = memory.get("last_checkin_at")
+    active_deadline = _parse_datetime(
+        active_commitment.get("deadline") if active_commitment else None
+    )
+    needs_checkin = bool(
+        active_commitment
+        and active_deadline
+        and active_deadline <= now
+        and not _same_utc_day(last_checkin_at, now)
+    )
+    due_commitment = active_commitment if needs_checkin else None
+    checkin_prompt = _build_checkin_prompt(due_commitment) if due_commitment else None
+
     return {
         "user": user,
         "mission": mission,
         "active_commitment": active_commitment,
+        "due_commitment": due_commitment,
+        "needs_checkin": needs_checkin,
+        "checkin_prompt": checkin_prompt,
         "commitment_status": (
             active_commitment.get("status") if active_commitment else None
         ),
@@ -201,6 +249,8 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             f"Active commitment: {commitment.get('text') or 'None locked'}",
             f"Commitment deadline: {_iso_value(commitment.get('deadline')) or 'None'}",
             f"Commitment status: {commitment.get('status') or 'None'}",
+            f"Commitment needs check-in now: {bool(context.get('needs_checkin'))}",
+            f"Check-in prompt: {context.get('checkin_prompt') or 'None'}",
             f"Times carried: {int(commitment.get('times_carried') or 0)}",
             f"Missed commitments in recent context: {int(context.get('times_missed_row') or 0)}",
             f"Pattern label: {context.get('pattern_label') or 'Not identified yet'}",

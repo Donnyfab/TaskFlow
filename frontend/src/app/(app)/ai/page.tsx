@@ -45,6 +45,9 @@ type CoachContext = {
     title?: string
   } | null
   active_commitment?: Commitment | null
+  due_commitment?: Commitment | null
+  needs_checkin?: boolean
+  checkin_prompt?: string | null
   days_active?: number
   last_checkin_at?: string | null
 }
@@ -94,11 +97,15 @@ function messagesAfterOnboarding(messages: StoredMessage[]) {
 }
 
 function buildOpening(context: CoachContext) {
+  if (context.needs_checkin && context.checkin_prompt) {
+    return context.checkin_prompt
+  }
+
   const commitment = context.active_commitment?.text?.trim()
   const checkedInToday = isToday(context.last_checkin_at)
 
   if (commitment && !checkedInToday) {
-    return `Yesterday you committed to “${commitment}.” Did you do it?`
+    return `You committed to “${commitment}.” Did you do it?`
   }
   if (commitment) {
     return `Your current commitment is “${commitment}.” What could stop you from finishing it?`
@@ -250,9 +257,40 @@ export default function CoachPage() {
           timezone,
         }),
       })
-      const payload = await response.json() as { reply?: string; error?: string }
+      const payload = await response.json() as {
+        reply?: string
+        error?: string
+        commitment?: Commitment | null
+        checkin?: (Commitment & { checkin_outcome?: string }) | null
+      }
       if (!response.ok || !payload.reply) {
         throw new Error(payload.error || 'Forge could not respond.')
+      }
+
+      if (payload.commitment) {
+        setContext(current => current ? ({
+          ...current,
+          active_commitment: payload.commitment || current.active_commitment,
+          due_commitment: null,
+          needs_checkin: false,
+          checkin_prompt: null,
+        }) : current)
+      }
+
+      if (payload.checkin) {
+        setContext(current => {
+          if (!current) return current
+          const checkedInCommitment = payload.checkin
+          const isActive = current.active_commitment?.id === checkedInCommitment?.id
+          return {
+            ...current,
+            active_commitment: isActive ? null : current.active_commitment,
+            due_commitment: null,
+            needs_checkin: false,
+            checkin_prompt: null,
+            last_checkin_at: new Date().toISOString(),
+          }
+        })
       }
 
       setMessages(current => [

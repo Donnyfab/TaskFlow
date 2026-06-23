@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-23T04:52:29Z",
+  "title": "Design System: TaskFlow",
+  "extensions": {
+    "colorMeta": {
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Command Black",
+        "canonical": "#0A0A0A",
+        "tonalRamp": ["#050505", "#0A0A0A", "#111111", "#1A1A1A", "#242424", "#333333", "#555555", "#EFEFEF"]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Surface Black",
+        "canonical": "#111111",
+        "tonalRamp": ["#050505", "#0A0A0A", "#111111", "#141414", "#1A1A1A", "#242424", "#333333", "#888888"]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Primary Text",
+        "canonical": "#EFEFEF",
+        "tonalRamp": ["#242424", "#333333", "#555555", "#888888", "#B2B2AF", "#D0D0CE", "#E6E6E4", "#EFEFEF"]
+      },
+      "accent-amber": {
+        "role": "primary",
+        "displayName": "Accountability Amber",
+        "canonical": "#E8A838",
+        "tonalRamp": ["#2A1A05", "#55360A", "#80520F", "#AA7018", "#C98B25", "#E8A838", "#F1C46F", "#FAE2AC"]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Consequence Red",
+        "canonical": "#C25B54",
+        "tonalRamp": ["#260A08", "#4F1410", "#78231D", "#9D2F29", "#C25B54", "#D98782", "#ECB6B2", "#F8DEDC"]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Completion Green",
+        "canonical": "#74A574",
+        "tonalRamp": ["#071B07", "#153515", "#245024", "#2D6A2D", "#538853", "#74A574", "#A9CAA9", "#DCECDC"]
+      },
+      "canvas-light": {
+        "role": "neutral",
+        "displayName": "Light Canvas",
+        "canonical": "#F9F9F7",
+        "tonalRamp": ["#111111", "#333333", "#777777", "#B2B2AF", "#D0D0CE", "#E6E6E4", "#F2F2F0", "#F9F9F7"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page-level product headings and mission titles."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Numeric stats and high-emphasis dashboard values."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, commitment titles, and compact section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Main product copy, descriptions, and form content."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Short metadata labels and compact markers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay-deep",
+        "value": "0 14px 34px rgba(0,0,0,0.38)",
+        "purpose": "Profile dropdowns and anchored menus on dark surfaces."
+      },
+      {
+        "name": "mobile-sheet",
+        "value": "0 12px 28px rgba(0,0,0,0.22)",
+        "purpose": "Mobile navigation trigger or sheet elements that need separation."
+      },
+      {
+        "name": "modal-deep",
+        "value": "0 18px 40px rgba(0,0,0,0.38)",
+        "purpose": "Temporary overlays and mobile panels."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "140ms ease",
+        "purpose": "Default hover, border, and color state transition."
+      },
+      {
+        "name": "shell-collapse",
+        "value": "220ms cubic-bezier(0.4,0,0.2,1)",
+        "purpose": "Sidebar collapse and shell-level structural transitions."
+      },
+      {
+        "name": "skeleton-pulse",
+        "value": "1.5s ease-in-out infinite",
+        "purpose": "Skeleton loading blocks, disabled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "420px"
+      },
+      {
+        "name": "tablet",
+        "value": "720px"
+      },
+      {
+        "name": "mobile-nav",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-emphasis product action on a dark surface.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 9px 16px; border: 1px solid #EFEFEF; border-radius: 8px; background: #EFEFEF; color: #111111; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease; } .ds-btn-primary:hover { background: #FFFFFF; border-color: #FFFFFF; } .ds-btn-primary:focus-visible { outline: 2px solid #E8A838; outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.985); } .ds-btn-primary:disabled { cursor: default; opacity: 0.45; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet product action for secondary choices.",
+      "html": "<button class=\"ds-btn-secondary\">Update mission</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 9px 16px; border: 1px solid #242424; border-radius: 8px; background: transparent; color: #EFEFEF; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; font-size: 13px; font-weight: 500; transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease; } .ds-btn-secondary:hover { background: #1A1A1A; border-color: #333333; } .ds-btn-secondary:focus-visible { outline: 2px solid #E8A838; outline-offset: 2px; } .ds-btn-secondary:active { transform: scale(0.985); }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Compact text field for product forms.",
+      "html": "<label class=\"ds-field\"><span>Deadline</span><input value=\"2026-06-23\" /></label>",
+      "css": ".ds-field { display: grid; gap: 7px; color: #888888; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; font-size: 11px; font-weight: 650; } .ds-field input { width: 100%; padding: 11px 12px; border: 1px solid #242424; border-radius: 8px; outline: none; background: #141414; color: #EFEFEF; font: inherit; font-size: 14px; line-height: 1.55; } .ds-field input:focus { border-color: #333333; } .ds-field input:focus-visible { outline: 2px solid #E8A838; outline-offset: 2px; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card-raised",
+      "description": "Flat metric card with tonal separation and tabular value.",
+      "html": "<div class=\"ds-stat\"><span>Outputs logged</span><strong>12</strong><small>4 this week</small></div>",
+      "css": ".ds-stat { min-width: 0; padding: 16px; border: 1px solid #242424; border-radius: 10px; background: #1A1A1A; color: #EFEFEF; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; } .ds-stat span, .ds-stat small { display: block; color: #888888; font-size: 11px; line-height: 1.3; } .ds-stat strong { display: block; margin-top: 8px; color: #EFEFEF; font-size: 26px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.045em; line-height: 1; } .ds-stat small { margin-top: 6px; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "navigation-item",
+      "description": "Compact app-shell navigation with quiet active state.",
+      "html": "<a class=\"ds-nav-item ds-active\" href=\"#\">Mission</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; width: 100%; padding: 8px 18px; border: none; border-left: 1px solid transparent; background: transparent; color: #888888; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; font-size: 14px; font-weight: 400; text-decoration: none; cursor: pointer; transition: color 120ms ease, border-color 120ms ease, background 120ms ease; } .ds-nav-item:hover { background: rgba(255,255,255,0.035); color: #EFEFEF; } .ds-nav-item:focus-visible { outline: 2px solid #E8A838; outline-offset: -2px; } .ds-nav-item.ds-active { border-left-color: #EFEFEF; color: #EFEFEF; font-weight: 600; letter-spacing: -0.01em; }"
+    },
+    {
+      "name": "AI-Origin Note",
+      "kind": "custom",
+      "refersTo": "ai-note",
+      "description": "Subtle treatment for AI-generated content that needs provenance without costume.",
+      "html": "<aside class=\"ds-ai-note\"><span>Coach synthesis</span><p>Patterns are emerging around delayed commitments after high-output days.</p></aside>",
+      "css": ".ds-ai-note { padding: 16px; border: 1px solid rgba(232,168,56,0.22); border-radius: 10px; background: rgba(232,168,56,0.06); color: #EFEFEF; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif; } .ds-ai-note span { display: block; margin-bottom: 8px; color: #E8A838; font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; } .ds-ai-note p { margin: 0; color: #EFEFEF; font-size: 14px; line-height: 1.6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Command Ledger",
+    "overview": "TaskFlow is a compact operating surface for people who already know what they are trying to improve. The visual language is restrained, dark, and precise: black canvas, near-black panels, fine borders, compact type, and state changes that happen quickly enough to stay out of the user's way.",
+    "keyCharacteristics": [
+      "Dark monochromatic product shell with light-mode support on select task surfaces.",
+      "System/SF typography for speed, density, and native product trust.",
+      "Thin borders and tonal layers instead of decorative shadows.",
+      "Amber appears only for meaningful semantic moments, especially achievement or AI-origin cues.",
+      "Motion is brief and functional, never expressive for its own sake."
+    ],
+    "rules": [
+      {
+        "name": "The Rare Amber Rule",
+        "body": "Amber must not become decoration. Use it for completion, AI-sourced content, or a genuinely meaningful state, and keep it below roughly 5-10% of any screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Product Type Rule",
+        "body": "Use system/SF typography for authenticated product UI. Inter and Syne exist in older marketing surfaces, but product screens should prioritize native density and clarity.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Resting product surfaces use borders and tonal contrast. Shadows are reserved for overlays, temporary sheets, or hover/focus states that need physical stacking.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep TaskFlow in a command-center posture: dark, compact, precise, and accountable.",
+      "Do reserve #E8A838 for completion, achievement, or AI-origin signals.",
+      "Do use one-pixel borders, tonal layers, and restrained opacity changes before adding decorative color or shadows.",
+      "Do preserve reduced-motion alternatives; state transitions should be functional and fast."
+    ],
+    "donts": [
+      "Don't make TaskFlow look like Notion's soft minimalism, Todoist's chirpy productivity, pastel gamification, startup pink-and-blue gradients, or glowing SaaS cards.",
+      "Don't use gradient text.",
+      "Don't use confetti-like streaks, bouncy encouragement loops, or motion that celebrates rather than orients.",
+      "Don't use cards inside cards or decorative card grids as a default layout answer.",
+      "Don't use border-left or border-right greater than 1px as a colored accent stripe.",
+      "Don't let amber become a generic brand color."
+    ]
+  }
+}
