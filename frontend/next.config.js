@@ -2,7 +2,6 @@
 const backendOrigin = (process.env.BACKEND_PROXY_URL || 'https://api.tflow.live').replace(/\/$/, '')
 
 const nextConfig = {
-  outputFileTracingRoot: __dirname,
   typescript: {
     ignoreBuildErrors: true,
   },
