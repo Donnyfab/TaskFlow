@@ -261,7 +261,8 @@
 }
 
 .editForm,
-.outputForm {
+.outputForm,
+.decisionPanel {
   display: grid;
   gap: 18px;
 }
@@ -279,7 +280,8 @@
 
 .editForm textarea,
 .editForm input,
-.outputForm textarea {
+.outputForm textarea,
+.decisionPanel textarea {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--border);
@@ -293,19 +295,22 @@
 }
 
 .editForm textarea,
-.outputForm textarea {
+.outputForm textarea,
+.decisionPanel textarea {
   resize: vertical;
 }
 
 .editForm textarea:focus,
 .editForm input:focus,
-.outputForm textarea:focus {
+.outputForm textarea:focus,
+.decisionPanel textarea:focus {
   border-color: var(--border-strong);
 }
 
 .commitmentCard,
 .avoided,
-.outputForm {
+.outputForm,
+.decisionPanel {
   margin-top: 12px;
   padding: 20px;
   border: 1px solid var(--border);
@@ -320,6 +325,19 @@
   font-weight: 580;
   letter-spacing: -0.02em;
   line-height: 1.42;
+}
+
+.decisionPanel {
+  background: var(--raised);
+}
+
+.panelTitle {
+  margin: -8px 0 -4px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
 }
 
 .deadline {
@@ -373,6 +391,14 @@
   color: var(--text);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.historyRow small {
+  display: block;
+  margin-top: 6px;
+  color: var(--mid);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .rowDate {

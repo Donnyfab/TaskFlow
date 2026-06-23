@@ -53,6 +53,8 @@ type ForgeContext = {
   summary?: string | null
 }
 
+type MissionCloseStatus = 'completed' | 'archived'
+
 type ContextResponse = {
   context?: ForgeContext
   error?: string
@@ -192,6 +194,8 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
   const [deadline, setDeadline] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [closeIntent, setCloseIntent] = useState<MissionCloseStatus | null>(null)
+  const [closeReason, setCloseReason] = useState('')
 
   useEffect(() => {
     setDescription(mission?.description || '')
@@ -227,17 +231,27 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
     }
   }
 
-  async function closeMission(status: 'completed' | 'archived') {
-    const label = status === 'completed' ? 'complete' : 'abandon'
-    const reason = window.prompt(`Why are you marking this mission as ${label}? One honest sentence.`)?.trim()
-    if (!reason) return
+  function beginCloseMission(status: MissionCloseStatus) {
+    setCloseIntent(status)
+    setCloseReason('')
+    setError('')
+  }
+
+  async function closeMission(event: FormEvent) {
+    event.preventDefault()
+    if (!closeIntent || closeReason.trim().length < 12) {
+      setError('Write one honest sentence before closing this mission.')
+      return
+    }
     setSaving(true)
     setError('')
     try {
       await jsonRequest('/api/forge/mission', {
         method: 'PATCH',
-        body: JSON.stringify({ status, reason }),
+        body: JSON.stringify({ status: closeIntent, reason: closeReason.trim() }),
       })
+      setCloseIntent(null)
+      setCloseReason('')
       await refresh()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Mission could not be updated.')
@@ -299,10 +313,44 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.actions}>
             <button className={styles.secondaryButton} onClick={() => setEditing(true)}>Update mission</button>
-            <button className={styles.secondaryButton} onClick={() => closeMission('completed')} disabled={saving}>Mark complete</button>
-            <button className={styles.dangerButton} onClick={() => closeMission('archived')} disabled={saving}>Abandon</button>
+            <button className={styles.secondaryButton} onClick={() => beginCloseMission('completed')} disabled={saving}>Mark complete</button>
+            <button className={styles.dangerButton} onClick={() => beginCloseMission('archived')} disabled={saving}>Abandon</button>
           </div>
-          <p className={styles.quietNote}>A completed mission remains part of your history and will be acknowledged by Coach.</p>
+          {closeIntent ? (
+            <form className={styles.decisionPanel} onSubmit={closeMission}>
+              <Label>{closeIntent === 'completed' ? 'Complete mission' : 'Abandon mission'}</Label>
+              <p className={styles.panelTitle}>
+                {closeIntent === 'completed'
+                  ? 'What proves this mission is complete?'
+                  : 'Why is this mission being abandoned?'}
+              </p>
+              <textarea
+                value={closeReason}
+                onChange={event => setCloseReason(event.target.value)}
+                rows={3}
+                placeholder="One honest sentence. Coach will remember it."
+                autoFocus
+              />
+              <div className={styles.actions}>
+                <button className={styles.primaryButton} type="submit" disabled={saving || closeReason.trim().length < 12}>
+                  {saving ? 'Saving…' : closeIntent === 'completed' ? 'Confirm complete' : 'Confirm abandon'}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  type="button"
+                  onClick={() => {
+                    setCloseIntent(null)
+                    setCloseReason('')
+                    setError('')
+                  }}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : null}
+          <p className={styles.quietNote}>Closed missions remain part of your history and will be acknowledged by Coach.</p>
         </>
       )}
     </>
@@ -318,6 +366,8 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
   const [outputText, setOutputText] = useState('')
   const [loggingOutput, setLoggingOutput] = useState(false)
   const [error, setError] = useState('')
+  const [killId, setKillId] = useState<number | null>(null)
+  const [killReason, setKillReason] = useState('')
 
   async function setStatus(id: number, status: 'kept' | 'missed') {
     setSavingId(id)
@@ -335,9 +385,20 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
     }
   }
 
-  async function killCommitment(id: number) {
-    const reason = window.prompt('Why are you killing this commitment? One honest sentence.')?.trim()
-    if (!reason) return
+  function beginKillCommitment(id: number) {
+    setKillId(id)
+    setKillReason('')
+    setError('')
+  }
+
+  async function killCommitment(event: FormEvent) {
+    event.preventDefault()
+    if (!killId || killReason.trim().length < 12) {
+      setError('Write one honest sentence before killing this commitment.')
+      return
+    }
+    const reason = killReason.trim()
+    const id = killId
     setSavingId(id)
     setError('')
     try {
@@ -345,6 +406,8 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
         method: 'PATCH',
         body: JSON.stringify({ status: 'missed', kill: true, reason }),
       })
+      setKillId(null)
+      setKillReason('')
       await refresh()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Commitment could not be killed.')
@@ -383,8 +446,38 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
             <div className={styles.splitActions}>
               <button className={styles.primaryButton} onClick={() => setStatus(active.id, 'kept')} disabled={savingId === active.id}>I did it</button>
               <button className={styles.secondaryButton} onClick={() => setStatus(active.id, 'missed')} disabled={savingId === active.id}>I didn&apos;t do it</button>
-              <button className={styles.dangerButton} onClick={() => killCommitment(active.id)} disabled={savingId === active.id}>Kill it</button>
+              <button className={styles.dangerButton} onClick={() => beginKillCommitment(active.id)} disabled={savingId === active.id}>Kill it</button>
             </div>
+            {killId === active.id ? (
+              <form className={styles.decisionPanel} onSubmit={killCommitment}>
+                <Label>Kill commitment</Label>
+                <p className={styles.panelTitle}>Why is this no longer the right commitment?</p>
+                <textarea
+                  value={killReason}
+                  onChange={event => setKillReason(event.target.value)}
+                  rows={3}
+                  placeholder="One honest sentence. Coach will use this context."
+                  autoFocus
+                />
+                <div className={styles.actions}>
+                  <button className={styles.primaryButton} type="submit" disabled={savingId === active.id || killReason.trim().length < 12}>
+                    {savingId === active.id ? 'Saving…' : 'Confirm kill'}
+                  </button>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    onClick={() => {
+                      setKillId(null)
+                      setKillReason('')
+                      setError('')
+                    }}
+                    disabled={savingId === active.id}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </div>
         ) : (
           <p className={styles.bodyCopy}>No active commitment. Coach will ask you to lock in the next concrete action.</p>
@@ -430,6 +523,7 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
                 <div>
                   <span className={styles.rowDate}>{dateValue(item.updated_at || item.created_at)}</span>
                   <p className={item.status === 'missed' ? styles.missedText : undefined}>{item.text}</p>
+                  <small>Deadline {dateTimeValue(item.deadline)}</small>
                 </div>
                 <span className={`${styles.status} ${styles[item.status]}`}>{item.status}</span>
               </div>
