@@ -31,6 +31,11 @@ class StubCursor:
     def fetchone(self):
         return self.rows.pop(0) if self.rows else None
 
+    def fetchall(self):
+        rows = self.rows
+        self.rows = []
+        return rows
+
     def close(self):
         pass
 
@@ -74,10 +79,98 @@ class ForgeCoachApiTests(unittest.TestCase):
             "/api/forge/outputs",
             json={"description": "Published the launch page"},
         )
+        push_key = self.client.get("/api/push/vapid-public-key")
+        push_save = self.client.post("/api/push/subscriptions", json={})
 
         self.assertEqual(mission.status_code, 401)
         self.assertEqual(commitment.status_code, 401)
         self.assertEqual(output.status_code, 401)
+        self.assertEqual(push_key.status_code, 401)
+        self.assertEqual(push_save.status_code, 401)
+
+    def test_push_public_key_requires_configuration(self):
+        self.login(7)
+        with patch.object(app_module, "VAPID_PUBLIC_KEY", ""):
+            response = self.client.get("/api/push/vapid-public-key")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("not configured", response.get_json()["error"])
+
+    def test_push_subscription_validation_requires_endpoint_and_keys(self):
+        self.login(7)
+        response = self.client.post(
+            "/api/push/subscriptions",
+            json={"subscription": {"endpoint": "https://example.com/push"}},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("keys", response.get_json()["error"])
+
+    def test_push_subscription_is_saved_for_authenticated_user(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 11,
+                "endpoint": "https://push.example/sub",
+                "timezone": "America/Chicago",
+                "enabled": True,
+            }
+        ])
+        payload = {
+            "timezone": "America/Chicago",
+            "subscription": {
+                "endpoint": "https://push.example/sub",
+                "keys": {"p256dh": "abc", "auth": "def"},
+            },
+        }
+
+        with patch.object(app_module, "get_db", return_value=database):
+            response = self.client.post("/api/push/subscriptions", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["subscription"]["id"], 11)
+        query, params = database.cursor_instance.queries[0]
+        self.assertIn("INSERT INTO push_subscriptions", query)
+        self.assertEqual(params[0], 7)
+        self.assertEqual(params[1], "https://push.example/sub")
+        self.assertEqual(params[3], "America/Chicago")
+
+    def test_daily_commitment_cron_requires_secret(self):
+        response = self.client.post("/api/cron/daily-commitment-reminders")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_daily_commitment_cron_sends_due_commitment_when_forced(self):
+        database = StubDatabase([
+            {
+                "id": 9,
+                "user_id": 7,
+                "subscription": {
+                    "endpoint": "https://push.example/sub",
+                    "keys": {"p256dh": "abc", "auth": "def"},
+                },
+                "timezone": "America/Chicago",
+                "last_sent_on": None,
+                "commitment_text": "Publish one product photo",
+                "deadline": None,
+            }
+        ])
+
+        with (
+            patch.object(app_module, "CRON_SECRET", "secret"),
+            patch.object(app_module, "VAPID_PRIVATE_KEY", "private"),
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "_send_web_push", return_value={"sent": True}) as send,
+        ):
+            response = self.client.post(
+                "/api/cron/daily-commitment-reminders?force=1",
+                headers={"Authorization": "Bearer secret"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["sent"], 1)
+        send.assert_called_once()
+        self.assertIn("UPDATE push_subscriptions", database.cursor_instance.queries[1][0])
 
     def test_active_mission_can_be_updated(self):
         self.login(7)

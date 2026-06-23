@@ -34,15 +34,19 @@ export default function SidebarReopenButton({
   title = 'Expand sidebar',
   style,
 }: SidebarReopenButtonProps) {
-  const [collapsed, setCollapsed] = useState<boolean | null>(null)
+  const [collapsed, setCollapsed] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null
+    return readSidebarCollapsed()
+  })
   const [hovered, setHovered] = useState(false)
-  const [detectedTheme, setDetectedTheme] = useState<ButtonTheme>('dark')
+  const [detectedTheme, setDetectedTheme] = useState<ButtonTheme>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    return localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark'
+  })
 
   useEffect(() => {
     const readTheme = (): ButtonTheme =>
       localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark'
-
-    setDetectedTheme(readTheme())
 
     const syncFromStorage = (nextValue?: string | null) => {
       if (nextValue === 'true' || nextValue === 'false') {
@@ -51,8 +55,6 @@ export default function SidebarReopenButton({
       }
       setCollapsed(readSidebarCollapsed())
     }
-
-    syncFromStorage()
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === SIDEBAR_COLLAPSED_KEY) {

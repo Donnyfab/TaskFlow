@@ -12,8 +12,8 @@ __pycache__/
 .env*
 !.env.example
 secrets.txt
+.secrets/
 
 # file types
 *.log
 *.tmp
-

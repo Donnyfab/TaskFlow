@@ -19,6 +19,7 @@ mysql-connector-python==9.5.0
 packaging==26.0
 psycopg2-binary==2.9.11
 pycparser==2.23
+pywebpush==2.3.0
 python-dotenv==1.2.1
 requests==2.32.5
 urllib3==2.6.2

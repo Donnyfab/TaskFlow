@@ -77,6 +77,17 @@ function calcStreak(items: LogbookItem[]): number {
   return n
 }
 
+function readStoredLogbookItems(): LogbookItem[] {
+  if (typeof window === 'undefined') return []
+  const raw = localStorage.getItem(STORAGE_KEY)
+  try {
+    const parsed: LogbookItem[] = raw ? JSON.parse(raw) : []
+    return parsed.filter(i => !SEED_KEYS.has(i.key))
+  } catch {
+    return []
+  }
+}
+
 /* ─── LogbookView ────────────────────────────────────────────────── */
 export default function LogbookView({ colors: C, theme }: { colors: LogbookColors; theme: ThemeMode }) {
   const [items, setItems]               = useState<LogbookItem[]>([])
@@ -94,18 +105,16 @@ export default function LogbookView({ colors: C, theme }: { colors: LogbookColor
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const raw = localStorage.getItem(STORAGE_KEY)
-    try {
-      const parsed: LogbookItem[] = raw ? JSON.parse(raw) : []
-      setItems(parsed.filter(i => !SEED_KEYS.has(i.key)))
-    } catch { setItems([]) }
-    setHydrated(true)
+    queueMicrotask(() => {
+      setItems(readStoredLogbookItems())
+      setHydrated(true)
+    })
   }, [])
 
   useEffect(() => {
     if (hydrated && typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  }, [items, hydrated])
+  }, [hydrated, items])
+
 
   useEffect(() => {
     if (!notice) return
@@ -113,21 +122,6 @@ export default function LogbookView({ colors: C, theme }: { colors: LogbookColor
     noticeTimer.current = setTimeout(() => setNotice(''), 2_200)
     return () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }
   }, [notice])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const t = e.target as HTMLElement
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return
-      if (e.key === 'Escape') { setSelMode(false); setSelectedKeys([]); setSearchOpen(false); return }
-      if (e.key === 'm')      { e.preventDefault(); setSelMode(p => { if (p) setSelectedKeys([]); return !p }); return }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        e.preventDefault(); setSelMode(true); setSelectedKeys(filtered.map(i => i.key)); return
-      }
-      if (e.key === 'r' && selectedKeys.length > 0) { e.preventDefault(); void restore(selectedKeys) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
 
   /* Filtered + sorted */
   const q = deferred.trim().toLowerCase()
@@ -161,6 +155,21 @@ export default function LogbookView({ colors: C, theme }: { colors: LogbookColor
     setNotice(keys.length === 1 ? 'Moved back to active' : `${keys.length} items restored`)
     if (selMode && !selectedKeys.filter(k => !keys.includes(k)).length) setSelMode(false)
   }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return
+      if (e.key === 'Escape') { setSelMode(false); setSelectedKeys([]); setSearchOpen(false); return }
+      if (e.key === 'm')      { e.preventDefault(); setSelMode(p => { if (p) setSelectedKeys([]); return !p }); return }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault(); setSelMode(true); setSelectedKeys(filtered.map(i => i.key)); return
+      }
+      if (e.key === 'r' && selectedKeys.length > 0) { e.preventDefault(); void restore(selectedKeys) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   /* Surface tokens — calibrated for archival tone */
   const isDark = theme === 'dark'
@@ -401,9 +410,9 @@ export default function LogbookView({ colors: C, theme }: { colors: LogbookColor
       <div className="lb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 32px 48px' }}>
 
         {!hydrated ? (
-          <SkeletonRows isDark={isDark} cr={cr} />
+          <SkeletonRows isDark={isDark} />
         ) : items.length === 0 ? (
-          <EmptyState tx1={tx1} tx2={tx2} tx3={tx3} cr={cr} sf={sf} isDark={isDark} />
+          <EmptyState tx1={tx1} tx2={tx2} tx3={tx3} cr={cr} sf={sf} />
         ) : filtered.length === 0 ? (
           <div style={{ padding: '60px 0', textAlign: 'center' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: tx1 }}>No matches</div>
@@ -517,7 +526,7 @@ interface RowShared {
 }
 
 /* ─── ItemRow (task + habit) ─────────────────────────────────────── */
-function ItemRow({ item, isDark, tx1, tx2, tx3, ln, sf, sfHov, cr, activeItemBg, activeItemTx, blue, pending, selected, selMode, isLast, onRestore, onToggle }: RowShared) {
+function ItemRow({ item, isDark, tx1, tx3, ln, sfHov, cr, activeItemBg, activeItemTx, blue, pending, selected, selMode, isLast, onRestore, onToggle }: RowShared) {
   const [hov, setHov] = useState(false)
 
   /* Habit gets a subtle purple tint on the indicator */
@@ -629,7 +638,7 @@ function ItemRow({ item, isDark, tx1, tx2, tx3, ln, sf, sfHov, cr, activeItemBg,
 }
 
 /* ─── ProjectRow ─────────────────────────────────────────────────── */
-function ProjectRow({ item, isDark, tx1, tx2, tx3, ln, sf, sfHov, cr, activeItemBg, activeItemTx, blue, pending, selected, selMode, isLast, onRestore, onToggle }: RowShared) {
+function ProjectRow({ item, isDark, tx1, tx2, tx3, cr, activeItemBg, activeItemTx, blue, pending, selected, selMode, isLast, onRestore, onToggle }: RowShared) {
   const [hov, setHov] = useState(false)
 
   /* Projects break the row rhythm — they get a subtle full-width callout */
@@ -724,7 +733,7 @@ function ProjectRow({ item, isDark, tx1, tx2, tx3, ln, sf, sfHov, cr, activeItem
 }
 
 /* ─── Skeleton ───────────────────────────────────────────────────── */
-function SkeletonRows({ isDark, cr }: { isDark: boolean; cr: string }) {
+function SkeletonRows({ isDark }: { isDark: boolean }) {
   const bg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
   return (
     <div style={{ marginTop: '24px' }}>
@@ -744,7 +753,7 @@ function SkeletonRows({ isDark, cr }: { isDark: boolean; cr: string }) {
 }
 
 /* ─── Empty state ────────────────────────────────────────────────── */
-function EmptyState({ tx1, tx2, tx3, cr, sf, isDark }: { tx1: string; tx2: string; tx3: string; cr: string; sf: string; isDark: boolean }) {
+function EmptyState({ tx1, tx2, tx3, cr, sf }: { tx1: string; tx2: string; tx3: string; cr: string; sf: string }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

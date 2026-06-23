@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -89,7 +90,9 @@ export default function Sidebar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [theme, setTheme]             = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
-    return localStorage.getItem('tf-theme') === 'light' ? 'light' : 'dark'
+    const stored = localStorage.getItem('tf-theme')
+    if (stored === 'light' || stored === 'dark') return stored
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
   })
   const [collapsed, setCollapsed]     = useState(() => {
     if (typeof window === 'undefined') return false
@@ -98,17 +101,30 @@ export default function Sidebar() {
   const [sidebarHovered, setSidebarHovered] = useState(false)
 
   useEffect(() => {
+    const readTheme = () => {
+      const stored = localStorage.getItem('tf-theme')
+      if (stored === 'light' || stored === 'dark') return stored
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    const media = window.matchMedia('(prefers-color-scheme: light)')
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'tf-theme' && (e.newValue === 'dark' || e.newValue === 'light')) {
-        setTheme(e.newValue)
+      if (e.key === 'tf-theme') {
+        setTheme(readTheme())
       }
       if (e.key === SIDEBAR_COLLAPSED_KEY && e.newValue !== null) {
         setCollapsed(e.newValue === 'true')
         if (e.newValue === 'true') setProfileOpen(false)
       }
     }
+    const onSystemChange = () => {
+      if (localStorage.getItem('tf-theme') === 'system') setTheme(readTheme())
+    }
     window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+    media.addEventListener('change', onSystemChange)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      media.removeEventListener('change', onSystemChange)
+    }
   }, [])
 
   const collapse = () => {
@@ -228,7 +244,7 @@ export default function Sidebar() {
                 boxShadow:      '0 0 0 1px rgba(255,255,255,0.06) inset',
               }}>
                 {user?.profile_image
-                  ? <img src={user.profile_image.startsWith('data:') ? user.profile_image : apiUrl(user.profile_image)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                  ? <Image src={user.profile_image.startsWith('data:') ? user.profile_image : apiUrl(user.profile_image)} alt="Profile" width={26} height={26} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                   : initials}
               </div>
               <div style={{ minWidth: 0, textAlign: 'left' }}>

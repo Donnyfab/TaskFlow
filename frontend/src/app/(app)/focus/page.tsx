@@ -146,7 +146,8 @@ const THEMES = {
   },
 }
 
-interface Task { id: number; title: string }
+interface Task { id: number; title: string; completed?: boolean }
+interface TasksDataResponse { tasks?: Task[] }
 
 type Screen = 'setup' | 'focus' | 'complete'
 
@@ -179,15 +180,17 @@ export default function FocusPage() {
   const timeLeftRef = useRef(timeLeft)
   const runningRef  = useRef(running)
   const totalRef    = useRef(totalSec)
-  timeLeftRef.current = timeLeft
-  runningRef.current  = running
-  totalRef.current    = totalSec
+  const tipIndexRef  = useRef(0)
+
+  useEffect(() => { timeLeftRef.current = timeLeft }, [timeLeft])
+  useEffect(() => { runningRef.current = running }, [running])
+  useEffect(() => { totalRef.current = totalSec }, [totalSec])
 
   useEffect(() => {
     fetch(apiUrl('/api/tasks/data'), { credentials: 'include' })
       .then(r => r.json())
-      .then(d => {
-        const incomplete = (d.tasks || []).filter((t: any) => !t.completed)
+      .then((d: TasksDataResponse) => {
+        const incomplete = (d.tasks || []).filter(t => !t.completed)
         setTasks(incomplete)
         if (incomplete.length > 0) { setSelTaskId(incomplete[0].id); setSelTaskTitle(incomplete[0].title) }
       }).catch(() => {})
@@ -207,9 +210,13 @@ export default function FocusPage() {
     if (!selTaskId) { alert('Please select a task first.'); return }
     const dur = (customDur || selDur) * 60
     setTotalSec(dur); setTimeLeft(dur); setPaused(false)
-    setNudge(TIPS[Math.floor(Math.random() * TIPS.length)])
+    timeLeftRef.current = dur
+    totalRef.current = dur
+    tipIndexRef.current = (tipIndexRef.current + 1) % TIPS.length
+    setNudge(TIPS[tipIndexRef.current])
     setScreen('focus')
     setRunning(true)
+    runningRef.current = true
     if (intervalRef.current) clearInterval(intervalRef.current)
     intervalRef.current = setInterval(() => {
       if (!runningRef.current) return
@@ -226,6 +233,7 @@ export default function FocusPage() {
   function togglePause() {
     const next = !runningRef.current
     setRunning(next); setPaused(!next)
+    runningRef.current = next
   }
 
   function tryExit() {
@@ -237,6 +245,7 @@ export default function FocusPage() {
     setShowQuit(false)
     clearInterval(intervalRef.current!)
     setRunning(false)
+    runningRef.current = false
     showComplete(totalSec, totalSec - timeLeft)
   }
 
@@ -290,7 +299,7 @@ export default function FocusPage() {
               <div style={{ width: '26px', height: '26px', background: th.logoIconBg, borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8L6.5 11.5L13 4.5" stroke={th.logoIconColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: th.logoText }}>TaskFlow</span>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: th.logoText }}>Forge</span>
             </div>
 
             <div style={{ fontSize: '10px', fontWeight: 600, color: th.sectionLabel, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '8px' }}>Focus Mode</div>
@@ -378,7 +387,7 @@ export default function FocusPage() {
             {/* AI nudge */}
             <div style={{ background: th.nudgeBg, border: `1px solid ${th.nudgeBorder}`, borderRadius: '12px', padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '420px', margin: '0 auto' }}>
               <div style={{ fontSize: '10px', color: th.nudgeTagColor, background: th.nudgeTagBg, borderRadius: '6px', padding: '3px 7px', flexShrink: 0, marginTop: '1px' }}>✦</div>
-              <div style={{ fontSize: '12px', color: th.nudgeText, lineHeight: 1.6, fontStyle: 'italic' }}>"{nudge}"</div>
+              <div style={{ fontSize: '12px', color: th.nudgeText, lineHeight: 1.6, fontStyle: 'italic' }}>“{nudge}”</div>
             </div>
           </div>
         </div>
@@ -391,7 +400,7 @@ export default function FocusPage() {
             <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: th.completeIconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', margin: '0 auto 18px' }}>✦</div>
             <div style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.8px', marginBottom: '8px', color: th.completeTitle }}>Session complete.</div>
             <div style={{ fontSize: '13px', color: th.completeBody, marginBottom: '28px', lineHeight: 1.65 }}>
-              You spent {Math.floor(spent/60) > 0 ? `${Math.floor(spent/60)}m ` : ''}{spent % 60}s on "{selTaskTitle}". Every session compounds.
+              You spent {Math.floor(spent/60) > 0 ? `${Math.floor(spent/60)}m ` : ''}{spent % 60}s on “{selTaskTitle}”. Every session compounds.
             </div>
 
             <div style={{ fontSize: '14px', fontWeight: 600, color: th.completeSub, marginBottom: '14px' }}>Did you complete this task?</div>

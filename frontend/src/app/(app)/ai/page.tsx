@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { apiUrl } from '@/lib/api-base'
 import { readCoachEventStream } from '@/lib/coach-stream'
+import { recordForgeCoachSession } from '@/components/PwaLifecycle'
 import { useTheme } from '@/hooks/useTheme'
 import styles from './coach.module.css'
 
@@ -350,6 +351,7 @@ export default function CoachPage() {
         }
         return next
       })
+      recordForgeCoachSession()
     } catch (sendError) {
       setError(
         sendError instanceof Error

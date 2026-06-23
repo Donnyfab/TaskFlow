@@ -1,0 +1,26 @@
+{
+  "name": "Forge",
+  "short_name": "Forge",
+  "description": "A direct AI execution coach for turning goals into commitments and real output.",
+  "start_url": "/ai",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "orientation": "portrait-primary",
+  "categories": ["productivity"],
+  "icons": [
+    {
+      "src": "/icons/forge-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/forge-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

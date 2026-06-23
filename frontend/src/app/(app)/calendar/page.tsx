@@ -225,6 +225,7 @@ export default function CalendarPage() {
   const theme = useTheme()
   const th = THEMES[theme]
   const now = new Date()
+  const currentYear = now.getFullYear()
   const holidayColor = theme === 'light' ? 'rgba(160, 100, 0, 0.9)' : 'rgba(255, 200, 80, 0.85)'
 
   const { data, isLoading: loading } = useQuery({
@@ -255,10 +256,9 @@ export default function CalendarPage() {
   const [showHolidays, setShowHolidays] = useState(true)
 
   const holidayEvents = useMemo(() => {
-    const thisYear = now.getFullYear()
-    return [...buildHolidayEvents(thisYear), ...buildHolidayEvents(thisYear + 1)]
+    return [...buildHolidayEvents(currentYear), ...buildHolidayEvents(currentYear + 1)]
       .map(ev => ({ ...ev, color: holidayColor }))
-  }, [now.getFullYear(), theme])
+  }, [currentYear, holidayColor])
 
   // eventsMap merges DB events with client-side holiday events
   const eventsMap = useMemo(() => {

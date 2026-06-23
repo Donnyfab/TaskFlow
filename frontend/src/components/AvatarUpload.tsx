@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import Cropper from 'react-easy-crop'
 import type { Area, Point } from 'react-easy-crop'
 import { apiUrl } from '@/lib/api-base'
@@ -183,6 +184,14 @@ export default function AvatarUpload({ profileImage, name, email, initials, them
 
   const p = PALETTE[themeProp ?? detectedTheme]
 
+  const closeCrop = useCallback(() => {
+    if (saving) return
+    setCropOpen(false)
+    setImgSrc('')
+    setModalErr('')
+    setProgress(0)
+  }, [saving])
+
   /* Keyboard: Escape closes modal */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -190,7 +199,7 @@ export default function AvatarUpload({ profileImage, name, email, initials, them
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [cropOpen, saving])
+  }, [closeCrop, cropOpen, saving])
 
   function processFile(file: File) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -209,14 +218,6 @@ export default function AvatarUpload({ profileImage, name, email, initials, them
       setCropOpen(true)
     }
     reader.readAsDataURL(file)
-  }
-
-  function closeCrop() {
-    if (saving) return
-    setCropOpen(false)
-    setImgSrc('')
-    setModalErr('')
-    setProgress(0)
   }
 
   async function handleSave() {
@@ -368,7 +369,7 @@ export default function AvatarUpload({ profileImage, name, email, initials, them
               transition: 'transform 0.2s',
             }}>
               {profileImage
-                ? <img src={profileImage.startsWith('data:') ? profileImage : apiUrl(profileImage)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+                ? <Image src={profileImage.startsWith('data:') ? profileImage : apiUrl(profileImage)} alt="Profile" width={72} height={72} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
                 : initials}
             </div>
 

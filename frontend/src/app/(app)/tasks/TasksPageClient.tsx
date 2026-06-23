@@ -21,6 +21,33 @@ interface Data {
 interface BdTask {
   id: number; title: string; priority: 'high' | 'medium' | 'low'; dueDate?: string
 }
+interface SpeechRecognitionAlternativeLike { transcript: string }
+interface SpeechRecognitionResultLike {
+  isFinal: boolean
+  0: SpeechRecognitionAlternativeLike
+}
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+interface SpeechRecognitionErrorLike { error: string }
+interface SpeechRecognitionLike {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: SpeechRecognitionErrorLike) => void) | null
+  onend: (() => void) | null
+  start: () => void
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
 
 /* ─── SVG Icons for sidebar ─────────────────────────────────────── */
 const IcInbox = () => (
@@ -241,7 +268,7 @@ export default function TasksPageClient() {
   const [bdProcessing, setBdProcessing] = useState(false)
   const [bdWave,       setBdWave]       = useState<number[]>(Array(32).fill(3))
   const [bdError,      setBdError]      = useState('')
-  const bdRecogRef      = useRef<any>(null)
+  const bdRecogRef      = useRef<SpeechRecognitionLike | null>(null)
   const bdAnalyserRef   = useRef<AnalyserNode | null>(null)
   const bdStreamRef     = useRef<MediaStream | null>(null)
   const bdAudioCtxRef   = useRef<AudioContext | null>(null)
@@ -318,13 +345,13 @@ export default function TasksPageClient() {
 
   async function bdStartListening() {
     setBdError('')
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { setBdError('Speech recognition not supported. Try Chrome or Edge.'); return }
     bdTxtRef.current = bdTranscript; bdListenRef.current = true; setBdListening(true)
     const recog = new SR()
     recog.continuous = true; recog.interimResults = true; recog.lang = 'en-US'
     bdRecogRef.current = recog
-    recog.onresult = (e: any) => {
+    recog.onresult = (e: SpeechRecognitionEventLike) => {
       let interim = ''; let newFinal = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
@@ -337,7 +364,7 @@ export default function TasksPageClient() {
       }
       setBdInterim(interim)
     }
-    recog.onerror = (e: any) => { if (e.error !== 'aborted') setBdError(`Mic error: ${e.error}`) }
+    recog.onerror = (e: SpeechRecognitionErrorLike) => { if (e.error !== 'aborted') setBdError(`Mic error: ${e.error}`) }
     recog.onend   = () => { if (bdListenRef.current) { try { recog.start() } catch {} } }
     try { recog.start() } catch { setBdListening(false); bdListenRef.current = false; return }
     try {
@@ -974,7 +1001,7 @@ export default function TasksPageClient() {
                               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                                 <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'22px', height:'22px', borderRadius:'6px', fontSize:'12px', fontWeight:isToday?600:400, color:isToday?'#fff':cell.cur?C.text:C.muted, background:isToday?C.blue:'transparent', flexShrink:0 }}>{cell.day}</span>
                                 {cell.cur && isSelected && (
-                                  <button onClick={e => { e.stopPropagation(); dateStr && openTaskModalForDate(dateStr) }} style={{ background:theme==='dark'?'rgba(26,127,232,0.18)':'rgba(26,127,232,0.12)', border:'none', borderRadius:'4px', color:C.blue, cursor:'pointer', padding:'2px 5px', display:'flex', alignItems:'center', fontFamily:'inherit' }}>
+                                  <button onClick={e => { e.stopPropagation(); if (dateStr) openTaskModalForDate(dateStr) }} style={{ background:theme==='dark'?'rgba(26,127,232,0.18)':'rgba(26,127,232,0.12)', border:'none', borderRadius:'4px', color:C.blue, cursor:'pointer', padding:'2px 5px', display:'flex', alignItems:'center', fontFamily:'inherit' }}>
                                     <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
                                   </button>
                                 )}
@@ -1437,7 +1464,7 @@ export default function TasksPageClient() {
                 {bdListening?<div style={{ width:'20px', height:'20px', borderRadius:'5px', background:'white' }}/>:<svg viewBox="0 0 16 16" width="24" height="24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"><rect x="4.5" y="1" width="7" height="9" rx="3.5"/><path d="M2 8 A6 6 0 0 0 14 8"/><line x1="8" y1="14" x2="8" y2="16"/><line x1="5" y1="16" x2="11" y2="16"/></svg>}
               </button>
               <div style={{ fontSize:'11px', color:C.muted, textAlign:'center', lineHeight:1.6 }}>
-                {bdListening?<span style={{ color:theme==='light'?'#6366f1':'rgba(148,145,255,0.85)', fontWeight:500 }}>Say "Scratch that" · "High priority" · "Due tomorrow"</span>:<span>Voice commands are supported while speaking</span>}
+                {bdListening?<span style={{ color:theme==='light'?'#6366f1':'rgba(148,145,255,0.85)', fontWeight:500 }}>Say “Scratch that” · “High priority” · “Due tomorrow”</span>:<span>Voice commands are supported while speaking</span>}
               </div>
             </div>
             <div style={{ flex:1, overflowY:'auto', padding:'0 24px 8px' }}>
@@ -1637,7 +1664,9 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
   onDone: () => void
 }) {
   const todayStr    = new Date().toISOString().slice(0, 10)
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrowStr = tomorrowDate.toISOString().slice(0, 10)
 
   const [input,     setInput]     = useState('')
   const [calDate,   setCalDate]   = useState(() => {
@@ -1859,6 +1888,27 @@ function WhenPicker({ C, isLight, menuBg, border, shadow, task, onSchedule, onDo
 /* ─── Task Context Menu ──────────────────────────────────────────── */
 interface CtxMenuState { task: Task; x: number; y: number }
 
+function clampContextMenuPosition(ctx: CtxMenuState) {
+  const width = 222
+  const height = 340
+  if (typeof window === 'undefined') return { x: ctx.x, y: ctx.y }
+  let x = ctx.x
+  let y = ctx.y
+  if (x + width > window.innerWidth - 8) x = window.innerWidth - width - 8
+  if (y + height > window.innerHeight - 8) y = window.innerHeight - height - 8
+  if (x < 8) x = 8
+  if (y < 8) y = 8
+  return { x, y }
+}
+
+function ChevRight() {
+  return (
+    <svg viewBox="0 0 6 10" width="6" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.45 }}>
+      <path d="M1 1l4 4-4 4"/>
+    </svg>
+  )
+}
+
 function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, onOpen, onDuplicate, onSchedule, onMove }: {
   ctx: CtxMenuState; C: Colors; theme: string; lists: TaskList[]
   onClose: () => void
@@ -1871,19 +1921,7 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
 }) {
   const [subMenu, setSubMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  const [pos,    setPos]    = useState({ x: ctx.x, y: ctx.y })
-
-  useEffect(() => {
-    const el = menuRef.current
-    if (!el) return
-    const { width, height } = el.getBoundingClientRect()
-    let x = ctx.x, y = ctx.y
-    if (x + width  > window.innerWidth  - 8) x = window.innerWidth  - width  - 8
-    if (y + height > window.innerHeight - 8) y = window.innerHeight - height - 8
-    if (x < 8) x = 8
-    if (y < 8) y = 8
-    setPos({ x, y })
-  }, [ctx.x, ctx.y])
+  const pos = clampContextMenuPosition(ctx)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -1899,7 +1937,9 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
     : '0 8px 48px rgba(0,0,0,0.72), 0 2px 12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.07)'
   const sep = <div style={{ height: '1px', background: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)', margin: '3px 0' }}/>
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = tomorrowDate.toISOString().slice(0, 10)
   const hasLists = lists.filter(l => !l.is_inbox).length > 0
 
   const itemBase: React.CSSProperties = {
@@ -1918,12 +1958,6 @@ function TaskContextMenu({ ctx, C, theme, lists, onClose, onToggle, onDelete, on
     padding: '5px', boxShadow: shadow, minWidth: '186px', zIndex: 1002,
     animation: 'ctxIn 0.10s ease-out',
   }
-
-  const ChevRight = () => (
-    <svg viewBox="0 0 6 10" width="6" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.45 }}>
-      <path d="M1 1l4 4-4 4"/>
-    </svg>
-  )
 
   return (
     <>
@@ -2141,15 +2175,14 @@ function TaskRow({ task, onToggle, onDelete, onContextMenu, onInlineSave, C }: {
   const editTitleRef = useRef(task.title)
   const editNotesRef = useRef(task.description || '')
 
-  useEffect(() => {
-    if (isExpanded) {
-      setEditTitle(task.title)
-      setEditNotes(task.description || '')
-      editTitleRef.current = task.title
-      editNotesRef.current = task.description || ''
-      setTimeout(() => titleRef.current?.focus(), 20)
-    }
-  }, [isExpanded])
+  function openInlineEdit() {
+    setEditTitle(task.title)
+    setEditNotes(task.description || '')
+    editTitleRef.current = task.title
+    editNotesRef.current = task.description || ''
+    setIsExpanded(true)
+    setTimeout(() => titleRef.current?.focus(), 20)
+  }
 
   useEffect(() => {
     if (notesRef.current) {
@@ -2168,7 +2201,7 @@ function TaskRow({ task, onToggle, onDelete, onContextMenu, onInlineSave, C }: {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [isExpanded])
+  }, [isExpanded, onInlineSave, task.id])
 
   const checkBorderColor = task.priority === 'high'
     ? C.tagHighTx
@@ -2182,7 +2215,7 @@ function TaskRow({ task, onToggle, onDelete, onContextMenu, onInlineSave, C }: {
     <div
       ref={rowRef}
       onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      onDoubleClick={()=>{ if (!isExpanded) setIsExpanded(true) }}
+      onDoubleClick={()=>{ if (!isExpanded) openInlineEdit() }}
       onContextMenu={e=>onContextMenu(task,e)}
       style={{
         display:'grid', gridTemplateColumns:'18px 1fr auto', alignItems: isExpanded ? 'flex-start' : 'center',

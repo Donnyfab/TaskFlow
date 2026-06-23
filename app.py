@@ -102,6 +102,19 @@ db_pool = None
 db_pool_initialized = False
 MARKETING_PUBLIC_URL = env_url("MARKETING_PUBLIC_URL", "https://tflow.live")
 APP_PUBLIC_URL = env_url("APP_PUBLIC_URL", "https://app.tflow.live")
+VAPID_PUBLIC_KEY = (os.environ.get("VAPID_PUBLIC_KEY") or "").strip()
+VAPID_PRIVATE_KEY = (
+    os.environ.get("VAPID_PRIVATE_KEY") or ""
+).replace("\\n", "\n").strip()
+VAPID_CLAIMS_SUB = (
+    os.environ.get("VAPID_CLAIMS_SUB")
+    or f"mailto:{os.environ.get('MAIL_USERNAME') or 'support@tflow.live'}"
+).strip()
+CRON_SECRET = (
+    os.environ.get("CRON_SECRET")
+    or os.environ.get("RENDER_CRON_SECRET")
+    or ""
+).strip()
 
 print("[STARTUP] ANTHROPIC_API_KEY loaded:", bool(os.environ.get("ANTHROPIC_API_KEY")))
 
@@ -151,7 +164,7 @@ app.config.update(
     MAIL_USE_TLS=True,
     MAIL_USERNAME=os.environ.get("MAIL_USERNAME"),
     MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD"),
-    MAIL_DEFAULT_SENDER=("TaskFlow", os.environ.get("MAIL_USERNAME")),
+    MAIL_DEFAULT_SENDER=("Forge", os.environ.get("MAIL_USERNAME")),
 )
 
 
@@ -288,7 +301,7 @@ AUTH_MAIL_ERROR_MESSAGE = (
     "Your account was created, but we couldn't send the verification email right now."
 )
 
-CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@taskflow.io")
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@tflow.live")
 CONTACT_INQUIRY_OPTIONS = [
     "Support",
     "Account help",
@@ -942,9 +955,9 @@ def safe_send_message(message: Message, label: str) -> bool:
 def send_verification_email(email: str, token: str):
     verify_url = url_for("verify_email", token=token, _external=True)
     msg = Message(
-        subject="Verify your TaskFlow email",
+        subject="Verify your Forge email",
         recipients=[email],
-        body=f"Welcome to TaskFlow!\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours."
+        body=f"Welcome to Forge.\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours."
     )
     return safe_send_message(msg, "verification")
 
@@ -952,13 +965,13 @@ def send_verification_email(email: str, token: str):
 def send_welcome_email(email: str, first_name: str):
     login_url = url_for("login_page", _external=True)
     msg = Message(
-        subject=f"Welcome to TaskFlow, {first_name}!",
+        subject=f"Welcome to Forge, {first_name}!",
         recipients=[email],
     )
     msg.body = f"""
 Hi {first_name},
 
-Welcome to TaskFlow!
+Welcome to Forge.
 
 Your account has been successfully created — we are glad to have you.
 
@@ -970,7 +983,7 @@ Here is what you can do next:
 Need help? Reply to this email anytime — we are here for you.
 
 Happy planning,
-The TaskFlow Team
+The Forge Team
 """.strip()
     return safe_send_message(msg, "welcome")
 
@@ -981,13 +994,13 @@ def _send_registration_emails_bg(email: str, first_name: str, login_url: str, ve
         with app.app_context():
             try:
                 msg_welcome = Message(
-                    subject=f"Welcome to TaskFlow, {first_name}!",
+                    subject=f"Welcome to Forge, {first_name}!",
                     recipients=[email],
                 )
                 msg_welcome.body = f"""
 Hi {first_name},
 
-Welcome to TaskFlow!
+Welcome to Forge.
 
 Your account has been successfully created — we are glad to have you.
 
@@ -999,14 +1012,14 @@ Here is what you can do next:
 Need help? Reply to this email anytime — we are here for you.
 
 Happy planning,
-The TaskFlow Team
+The Forge Team
 """.strip()
                 safe_send_message(msg_welcome, "welcome")
 
                 msg_verify = Message(
-                    subject="Verify your TaskFlow email",
+                    subject="Verify your Forge email",
                     recipients=[email],
-                    body=f"Welcome to TaskFlow!\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours.",
+                    body=f"Welcome to Forge.\n\nVerify your email: {verify_url}\n\nThis link expires in 24 hours.",
                 )
                 safe_send_message(msg_verify, "verification")
             except Exception:
@@ -1017,7 +1030,7 @@ The TaskFlow Team
 
 def send_contact_form_email(name: str, email: str, inquiry_type: str, message_text: str) -> bool:
     msg = Message(
-        subject=f"[TaskFlow Contact] {inquiry_type} from {name}",
+        subject=f"[Forge Contact] {inquiry_type} from {name}",
         recipients=[CONTACT_EMAIL],
         reply_to=email,
     )
@@ -3133,7 +3146,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
     prompt = (
         "Today is "
         f"{datetime.now().date().isoformat()}.\n"
-        f"Current TaskFlow page: {active_page}.\n"
+        f"Current Forge page: {active_page}.\n"
         f"User message: {message_text}\n\n"
         "Return strict JSON only with this shape:\n"
         "{\n"
@@ -3169,7 +3182,7 @@ def analyze_message_for_memories_and_actions(client, user, message_text: str, ac
             client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=600,
-            system="You extract durable user memory and safe confirmation-gated TaskFlow actions.",
+            system="You extract durable user memory and safe confirmation-gated Forge actions.",
             messages=[{"role": "user", "content": prompt}],
         )
         data = extract_json_object(extract_anthropic_text(response)) or {}
@@ -3223,13 +3236,13 @@ def infer_ai_action_from_recent_messages(client, user, messages, active_page: st
     prompt = (
         "Today is "
         f"{datetime.now().date().isoformat()}.\n"
-        f"Current TaskFlow page: {active_page}.\n"
+        f"Current Forge page: {active_page}.\n"
         "Conversation transcript:\n"
         + "\n".join(transcript_lines)
         + "\n\nReturn strict JSON only with this shape:\n"
         + '{ "actions": [{"type":"","title":"","confirmation_text":"","payload":{}}] }\n\n'
         + "Rules:\n"
-        + "- Infer actions only if the assistant just proposed TaskFlow changes and the user approved them.\n"
+        + "- Infer actions only if the assistant just proposed Forge changes and the user approved them.\n"
         + "- Supported actions: create_task, create_habit, create_calendar_event.\n"
         + "- If multiple separate items were approved, return one action per item.\n"
         + '- If no explicit actionable approval exists, return { "actions": [] }.\n'
@@ -3242,7 +3255,7 @@ def infer_ai_action_from_recent_messages(client, user, messages, active_page: st
             client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=180,
-            system="You infer confirmation-gated TaskFlow actions from recent conversation context.",
+            system="You infer confirmation-gated Forge actions from recent conversation context.",
             messages=[{"role": "user", "content": prompt}],
         )
         data = extract_json_object(extract_anthropic_text(response)) or {}
@@ -3480,7 +3493,7 @@ def execute_ai_action_request(action_row):
                 "action_type": action_type,
             }
 
-        raise ValueError("That TaskFlow action is not supported yet.")
+        raise ValueError("That Forge action is not supported yet.")
     finally:
         cursor.close()
 
@@ -4500,7 +4513,7 @@ def calculate_dashboard_streak(user_id: int, now: datetime):
 
 def build_dashboard_ai_insight(tasks, tasks_done, tasks_total, journaled_today, streak):
     if tasks_total == 0:
-        return "Add your first task so TaskFlow can start organizing your day."
+        return "Add your first task so Forge can start organizing your day."
 
     remaining = max(tasks_total - tasks_done, 0)
     next_task = next((task for task in tasks if not task["completed"]), None)
@@ -4524,7 +4537,7 @@ def _build_home_dashboard_context_uncached(user_id: int):
 
     user = fetch_user_by_id(user_id) or {
         "username": "there",
-        "name": "TaskFlow User",
+        "name": "Forge User",
         "profile_image": "default.png",
     }
 
@@ -4555,7 +4568,7 @@ def _build_home_dashboard_context_uncached(user_id: int):
         ),
         "user": user,
         "username": user.get("username") or "there",
-        "name": (user.get("name") or "TaskFlow User").split()[0],
+        "name": (user.get("name") or "Forge User").split()[0],
         "greeting": greeting,
         "today_date": now.strftime("%A, %B %d"),
         "current_month": now.strftime("%B %Y"),
@@ -4702,13 +4715,13 @@ def humanize_anthropic_error(exc, fallback: str):
     message = str(exc).lower()
 
     if status_code == 529 or "overloaded" in message:
-        return "Taskflow AI is busy right now. Try again in a few seconds."
+        return "Forge Coach is busy right now. Try again in a few seconds."
     if status_code == 429 or "rate limit" in message:
-        return "Taskflow AI hit a temporary rate limit. Wait a moment and try again."
+        return "Forge Coach hit a temporary rate limit. Wait a moment and try again."
     if "timeout" in message:
-        return "Taskflow AI took too long to respond. Try again."
+        return "Forge Coach took too long to respond. Try again."
     if "connection" in message or "connect" in message:
-        return "Taskflow AI couldn't reach Anthropic right now. Try again shortly."
+        return "Forge Coach couldn't reach Anthropic right now. Try again shortly."
     return fallback
 
 
@@ -4826,6 +4839,255 @@ def api_forge_coach_context():
     except Exception:
         app.logger.exception("Forge Coach context failed for user %s", user_id)
         return jsonify({"ok": False, "error": "Could not load Coach context."}), 500
+
+
+def _normalize_push_subscription(data):
+    if not isinstance(data, dict):
+        raise ValueError("Request body must be JSON.")
+
+    subscription = data.get("subscription")
+    if not isinstance(subscription, dict):
+        raise ValueError("Subscription is required.")
+
+    endpoint = str(subscription.get("endpoint") or "").strip()
+    keys = subscription.get("keys")
+    if not endpoint or not isinstance(keys, dict):
+        raise ValueError("Subscription endpoint and keys are required.")
+
+    p256dh = str(keys.get("p256dh") or "").strip()
+    auth = str(keys.get("auth") or "").strip()
+    if not p256dh or not auth:
+        raise ValueError("Subscription keys are incomplete.")
+
+    timezone_name = str(data.get("timezone") or "UTC").strip() or "UTC"
+    try:
+        ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        timezone_name = "UTC"
+
+    return endpoint, subscription, timezone_name
+
+
+def _cron_request_is_authorized():
+    if not CRON_SECRET:
+        return False
+    auth_header = str(request.headers.get("Authorization") or "").strip()
+    bearer = auth_header.removeprefix("Bearer ").strip()
+    provided = bearer or str(request.headers.get("X-Cron-Secret") or "").strip()
+    return provided == CRON_SECRET
+
+
+def _send_web_push(subscription, payload):
+    if not VAPID_PRIVATE_KEY:
+        return {"sent": False, "reason": "missing_vapid_private_key"}
+
+    try:
+        from pywebpush import WebPushException, webpush
+    except Exception:
+        return {"sent": False, "reason": "pywebpush_unavailable"}
+
+    try:
+        webpush(
+            subscription_info=subscription,
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_CLAIMS_SUB},
+        )
+        return {"sent": True}
+    except WebPushException as exc:
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        return {
+            "sent": False,
+            "reason": "webpush_failed",
+            "status_code": status_code,
+        }
+    except Exception:
+        app.logger.exception("Unexpected web push send failure.")
+        return {"sent": False, "reason": "webpush_failed"}
+
+
+@app.route("/api/push/vapid-public-key", methods=["GET"])
+def api_push_vapid_public_key():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if not VAPID_PUBLIC_KEY:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Forge push notifications are not configured yet.",
+            }
+        ), 503
+    return jsonify({"ok": True, "public_key": VAPID_PUBLIC_KEY})
+
+
+@app.route("/api/push/subscriptions", methods=["POST"])
+def api_save_push_subscription():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    try:
+        endpoint, subscription, timezone_name = _normalize_push_subscription(data)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    user_id = session["user_id"]
+    cursor = get_db().cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            INSERT INTO push_subscriptions
+                (user_id, endpoint, subscription, timezone, enabled, updated_at)
+            VALUES (%s, %s, %s::jsonb, %s, TRUE, NOW())
+            ON CONFLICT (endpoint)
+            DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                subscription = EXCLUDED.subscription,
+                timezone = EXCLUDED.timezone,
+                enabled = TRUE,
+                updated_at = NOW()
+            RETURNING id, endpoint, timezone, enabled
+            """,
+            (user_id, endpoint, json.dumps(subscription), timezone_name),
+        )
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    return jsonify({"ok": True, "subscription": dict(row)})
+
+
+@app.route("/api/push/subscriptions", methods=["DELETE"])
+def api_delete_push_subscription():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    endpoint = str(data.get("endpoint") or "").strip()
+    if not endpoint:
+        return jsonify({"ok": False, "error": "Endpoint is required."}), 400
+
+    cursor = get_db().cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE push_subscriptions
+            SET enabled = FALSE, updated_at = NOW()
+            WHERE user_id = %s AND endpoint = %s
+            """,
+            (session["user_id"], endpoint),
+        )
+    finally:
+        cursor.close()
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cron/daily-commitment-reminders", methods=["POST"])
+def api_daily_commitment_reminders():
+    if not _cron_request_is_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 403
+
+    force = str(request.args.get("force") or "").lower() in {"1", "true", "yes"}
+    cursor = get_db().cursor(dictionary=True)
+    sent = 0
+    skipped = 0
+    disabled = 0
+    failed = 0
+
+    try:
+        cursor.execute(
+            """
+            SELECT DISTINCT ON (ps.id)
+                ps.id,
+                ps.user_id,
+                ps.subscription,
+                ps.timezone,
+                ps.last_sent_on,
+                c.text AS commitment_text,
+                c.deadline
+            FROM push_subscriptions ps
+            JOIN commitments c
+              ON c.user_id = ps.user_id
+             AND c.status = 'pending'
+            WHERE ps.enabled = TRUE
+            ORDER BY ps.id, c.deadline NULLS LAST, c.updated_at DESC, c.id DESC
+            """
+        )
+        rows = cursor.fetchall()
+
+        for row in rows:
+            timezone_name = row.get("timezone") or "UTC"
+            try:
+                tz = ZoneInfo(timezone_name)
+            except (ZoneInfoNotFoundError, ValueError):
+                tz = timezone.utc
+
+            local_now = datetime.now(tz)
+            local_date = local_now.date()
+            last_sent_on = row.get("last_sent_on")
+            if hasattr(last_sent_on, "date"):
+                last_sent_on = last_sent_on.date()
+
+            if not force and local_now.hour != 8:
+                skipped += 1
+                continue
+            if last_sent_on == local_date:
+                skipped += 1
+                continue
+
+            commitment = str(row.get("commitment_text") or "").strip()
+            if not commitment:
+                skipped += 1
+                continue
+
+            result = _send_web_push(
+                row["subscription"],
+                {
+                    "title": "Forge",
+                    "body": f"Today: {commitment}",
+                    "url": "/ai",
+                    "tag": f"forge-commitment-{row['user_id']}-{local_date.isoformat()}",
+                },
+            )
+            if result.get("sent"):
+                cursor.execute(
+                    """
+                    UPDATE push_subscriptions
+                    SET last_sent_on = %s, updated_at = NOW()
+                    WHERE id = %s
+                    """,
+                    (local_date, row["id"]),
+                )
+                sent += 1
+                continue
+
+            status_code = result.get("status_code")
+            if status_code in {404, 410}:
+                cursor.execute(
+                    """
+                    UPDATE push_subscriptions
+                    SET enabled = FALSE, updated_at = NOW()
+                    WHERE id = %s
+                    """,
+                    (row["id"],),
+                )
+                disabled += 1
+            else:
+                failed += 1
+    finally:
+        cursor.close()
+
+    return jsonify(
+        {
+            "ok": True,
+            "sent": sent,
+            "skipped": skipped,
+            "failed": failed,
+            "disabled": disabled,
+            "force": force,
+        }
+    )
 
 
 @app.route("/api/forge/mission", methods=["PATCH"])
@@ -5410,7 +5672,7 @@ def settings_page():
     cursor.close()
 
     google_calendar_connected = bool(row and row.get("google_refresh_token"))
-    display_name = (user.get("name") or user.get("username") or "TaskFlow").strip()
+    display_name = (user.get("name") or user.get("username") or "Forge").strip()
     return render_template(
         "auth/settings.html",
         name=display_name.split()[0],
@@ -5670,7 +5932,7 @@ def ai_chat():
     data = request.get_json(silent=True) or {}
     messages = data.get("messages", [])
     active_page = str(data.get("active_page") or request.path or "app").strip().lower()
-    system = data.get("system", "You are Taskflow AI, a personal life coach.")
+    system = data.get("system", "You are Forge Coach, a direct execution coach.")
     local_datetime = data.get("local_datetime", "")
     if not local_datetime:
         client_timezone = data.get("timezone", "UTC")
@@ -5805,7 +6067,7 @@ def ai_chat():
 
         system_parts = [
             local_datetime,
-            "You are Taskflow AI - a personal life coach and accountability partner built into the Taskflow productivity app.",
+            "You are Forge Coach - a direct execution coach and accountability partner built into Forge.",
             live_context,
             str(system).strip(),
             "When the user asks to add, create, schedule, or track something, you can do it — a confirmation card will appear for the user to approve before anything is saved. Never say you can't add or create things. Instead, respond briefly and positively (e.g. 'Sure! I've queued that up for you — confirm below to add it.') and let the confirmation card handle the approval.",
@@ -5831,9 +6093,9 @@ def ai_chat():
         )
         if created_actions and not all_passive_detections and "confirm" not in reply.lower():
             confirm_line = (
-                "Confirm below and I'll make those changes in TaskFlow."
+                "Confirm below and I'll make those changes in Forge."
                 if len(created_actions) > 1
-                else "Confirm below and I'll make the change in TaskFlow."
+                else "Confirm below and I'll make the change in Forge."
             )
             reply = (reply or "Noted.") + f"\n\n{confirm_line}"
         if persist_chat and thread_id:
@@ -5855,7 +6117,7 @@ def ai_chat():
         return jsonify(payload)
     except Exception as e:
         app.logger.exception("AI chat failed: %s", e)
-        error_reply = humanize_anthropic_error(e, "Taskflow AI couldn't respond right now. Try again in a moment.")
+        error_reply = humanize_anthropic_error(e, "Forge Coach couldn't respond right now. Try again in a moment.")
         if persist_chat and thread_id:
             save_ai_chat_message(session["user_id"], thread_id, "user", latest_user_message)
             save_ai_chat_message(session["user_id"], thread_id, "assistant", error_reply)
@@ -6243,14 +6505,14 @@ def ai_plan_for_day():
             client,
             model=ANTHROPIC_DEFAULT_MODEL,
             max_tokens=ANTHROPIC_PLAN_MAX_TOKENS,
-            system="You are Taskflow AI, a personal life coach. Create a concise day plan using the user's real dashboard data.",
+            system="You are Forge Coach, a direct execution coach. Create a concise day plan using the user's real dashboard data.",
             messages=[{"role": "user", "content": prompt}],
         )
         plan = extract_anthropic_text(response)
         return jsonify({"plan": plan or fallback_plan})
     except Exception as e:
         app.logger.exception("AI day plan failed: %s", e)
-        return jsonify({"plan": fallback_plan, "error": humanize_anthropic_error(e, "Taskflow AI couldn't generate a plan right now.")}), 200
+        return jsonify({"plan": fallback_plan, "error": humanize_anthropic_error(e, "Forge Coach couldn't generate a plan right now.")}), 200
 
 
 
@@ -8476,7 +8738,7 @@ def google_callback():
             return redirect(pending_google_redirect or f"{APP_PUBLIC_URL}/settings")
 
         email = user_info.get("email")
-        name = user_info.get("name") or "TaskFlow User"
+        name = user_info.get("name") or "Forge User"
         google_id = user_info.get("sub")
 
         if not email or not google_id:

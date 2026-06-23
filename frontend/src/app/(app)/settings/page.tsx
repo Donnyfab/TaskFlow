@@ -1,7 +1,12 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from '@/lib/api-base'
+import {
+  getForgePushSubscription,
+  subscribeToForgePush,
+  unsubscribeFromForgePush,
+} from '@/lib/push-notifications'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import AvatarUpload from '@/components/AvatarUpload'
 
@@ -187,12 +192,13 @@ interface UserData {
 }
 
 type Section = 'account' | 'notifications' | 'ai' | 'appearance' | 'integrations' | 'privacy'
+type ThemeSetting = 'dark' | 'light' | 'system'
 
 const NAV = [
   { id: 'account' as Section,       icon: '◉', label: 'Account',        sub: 'Profile and password' },
   { id: 'notifications' as Section, icon: '◎', label: 'Notifications',   sub: 'Reminders and alerts' },
   { id: 'ai' as Section,            icon: '✦', label: 'AI Preferences',  sub: 'Coaching and data access' },
-  { id: 'appearance' as Section,    icon: '◐', label: 'Appearance',      sub: 'Theme and accent color' },
+  { id: 'appearance' as Section,    icon: '◐', label: 'Appearance',      sub: 'Theme and system preference' },
   { id: 'integrations' as Section,  icon: '⟳', label: 'Integrations',    sub: 'Connected apps and sync' },
   { id: 'privacy' as Section,       icon: '⊘', label: 'Privacy & Data',  sub: 'Export and deletion tools' },
 ]
@@ -209,6 +215,25 @@ const ACCENT_COLORS = [
 
 const API = apiUrl('')
 
+function readThemeSetting(): ThemeSetting {
+  if (typeof window === 'undefined') return 'system'
+  const saved = localStorage.getItem('tf-theme')
+  return saved === 'dark' || saved === 'light' || saved === 'system' ? saved : 'system'
+}
+
+function readSystemTheme(): 'dark' | 'light' {
+  if (typeof window === 'undefined') return 'dark'
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+function readInitialPushStatus(): 'checking' | 'unsupported' {
+  if (typeof window === 'undefined') return 'checking'
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return 'unsupported'
+  }
+  return 'checking'
+}
+
 export default function SettingsPage() {
   const queryClient = useQueryClient()
   const [section, setSection]     = useState<Section>('account')
@@ -216,12 +241,14 @@ export default function SettingsPage() {
   const [fullName, setFullName]   = useState('')
   const [toast, setToast]         = useState('')
   const [showToast, setShowToast] = useState(false)
-  const [theme, setTheme]         = useState('dark')
+  const [theme, setTheme]         = useState<ThemeSetting>(() => readThemeSetting())
+  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>(() => readSystemTheme())
   const [accent, setAccent]       = useState('white')
   const [modal, setModal]         = useState<'none'|'data'|'account'|'memory'>('none')
   const [modalInput, setModalInput] = useState('')
   const [modalError, setModalError] = useState(false)
   const [saving, setSaving]         = useState(false)
+  const [pushStatus, setPushStatus] = useState<'checking'|'unsupported'|'off'|'on'|'busy'>(() => readInitialPushStatus())
 
   // Notification toggles
   const [notifs, setNotifs] = useState({
@@ -241,13 +268,19 @@ export default function SettingsPage() {
   // ── Sync theme from localStorage on mount ──────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem('tf-theme')
-    if (saved === 'dark' || saved === 'light') setTheme(saved)
+    if (saved !== 'dark' && saved !== 'light' && saved !== 'system') {
+      localStorage.setItem('tf-theme', 'system')
+    }
+    const media = window.matchMedia('(prefers-color-scheme: light)')
+    const updateSystemTheme = () => setSystemTheme(media.matches ? 'light' : 'dark')
+    media.addEventListener('change', updateSystemTheme)
+    return () => media.removeEventListener('change', updateSystemTheme)
   }, [])
 
   // ── Listen for theme changes from Sidebar (same tab via custom event) ──
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'tf-theme' && (e.newValue === 'dark' || e.newValue === 'light')) {
+      if (e.key === 'tf-theme' && (e.newValue === 'dark' || e.newValue === 'light' || e.newValue === 'system')) {
         setTheme(e.newValue)
       }
     }
@@ -256,23 +289,25 @@ export default function SettingsPage() {
   }, [])
 
   // ── Apply theme + broadcast to Sidebar ────────────────────────────
-  const applyTheme = (next: string) => {
+  const applyTheme = (next: ThemeSetting) => {
     setTheme(next)
     localStorage.setItem('tf-theme', next)
-    // Update body immediately so the background transitions without flash
-    if (next === 'light') {
-      document.body.style.background = '#F5F5F5'
-      document.body.style.color = '#1a1a1a'
-    } else {
-      document.body.style.background = '#0A0A0A'
-      document.body.style.color = '#fff'
-    }
     // StorageEvent doesn't fire for same-tab changes, so dispatch manually
     window.dispatchEvent(
       new StorageEvent('storage', { key: 'tf-theme', newValue: next })
     )
     fireToast('Theme saved')
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return
+    }
+    getForgePushSubscription()
+      .then(subscription => setPushStatus(subscription ? 'on' : 'off'))
+      .catch(() => setPushStatus('off'))
+  }, [])
 
   useEffect(() => {
     fetch(apiUrl('/api/settings/data'), { credentials: 'include' })
@@ -291,6 +326,32 @@ export default function SettingsPage() {
     })
     setSaving(false)
     fireToast('Name updated')
+  }
+
+  async function enablePushNotifications() {
+    if (pushStatus === 'busy') return
+    setPushStatus('busy')
+    try {
+      await subscribeToForgePush()
+      setPushStatus('on')
+      fireToast('Daily commitment reminders enabled')
+    } catch (error) {
+      setPushStatus('off')
+      fireToast(error instanceof Error ? error.message : 'Could not enable notifications')
+    }
+  }
+
+  async function disablePushNotifications() {
+    if (pushStatus === 'busy') return
+    setPushStatus('busy')
+    try {
+      await unsubscribeFromForgePush()
+      setPushStatus('off')
+      fireToast('Daily commitment reminders disabled')
+    } catch {
+      setPushStatus('off')
+      fireToast('Could not disable notifications')
+    }
   }
 
   async function clearMemory() {
@@ -327,7 +388,8 @@ export default function SettingsPage() {
     fireToast('Profile photo removed.')
   }
 
-  const t = THEMES[theme as 'dark' | 'light'] ?? THEMES.dark
+  const resolvedTheme = theme === 'system' ? systemTheme : theme
+  const t = THEMES[resolvedTheme] ?? THEMES.dark
   const inp = { width:'100%', background: t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:'9px', padding:'10px 14px', fontSize:'13px', color: t.inputColor, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const }
   const togStyle = (on: boolean) => ({ width:'38px', height:'21px', borderRadius:'100px', background: on ? t.toggleOn : t.toggleOff, border: on ? 'none' : `1px solid ${t.toggleBorder}`, cursor:'pointer', position:'relative' as const, flexShrink:0, transition:'all 0.2s' })
 
@@ -419,13 +481,60 @@ export default function SettingsPage() {
           {section === 'notifications' && (
             <div>
               <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color: t.titleColor, marginBottom:'4px' }}>Notifications</div>
-              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'32px', lineHeight:1.6 }}>Control when and how TaskFlow reaches out to keep you on track.</div>
+              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'28px', lineHeight:1.6 }}>Control when and how Forge follows up on your commitments.</div>
+
+              <div style={{
+                border:`1px solid ${t.cardBorder}`,
+                background: t.cardBg,
+                borderRadius:'16px',
+                padding:'18px',
+                marginBottom:'22px',
+              }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'20px' }}>
+                  <div>
+                    <div style={{ fontSize:'14px', fontWeight:650, color: t.notifName, letterSpacing:'-0.2px', marginBottom:'5px' }}>Daily commitment reminder</div>
+                    <div style={{ fontSize:'12px', color: t.notifDesc, lineHeight:1.6, maxWidth:'520px' }}>
+                      One browser notification per day at 8 AM with your active Forge commitment. This only works after browser permission is granted.
+                    </div>
+                    <div style={{ fontSize:'10px', color: t.tinyText, textTransform:'uppercase', letterSpacing:'0.08em', marginTop:'12px' }}>
+                      {pushStatus === 'checking' ? 'Checking browser support'
+                      : pushStatus === 'unsupported' ? 'Not supported by this browser'
+                      : pushStatus === 'on' ? 'Enabled'
+                      : pushStatus === 'busy' ? 'Updating'
+                      : 'Disabled'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pushStatus === 'checking' || pushStatus === 'unsupported' || pushStatus === 'busy'}
+                    onClick={() => pushStatus === 'on' ? void disablePushNotifications() : void enablePushNotifications()}
+                    style={{
+                      border:`1px solid ${pushStatus === 'on' ? t.inputBorder : 'transparent'}`,
+                      borderRadius:'999px',
+                      background: pushStatus === 'on' ? 'transparent' : t.saveBg,
+                      color: pushStatus === 'on' ? t.bodyText : t.saveColor,
+                      padding:'9px 14px',
+                      fontSize:'12px',
+                      fontWeight:650,
+                      fontFamily:'inherit',
+                      cursor: pushStatus === 'checking' || pushStatus === 'unsupported' || pushStatus === 'busy' ? 'default' : 'pointer',
+                      opacity: pushStatus === 'checking' || pushStatus === 'unsupported' ? 0.45 : 1,
+                      whiteSpace:'nowrap',
+                    }}
+                  >
+                    {pushStatus === 'on' ? 'Turn off'
+                    : pushStatus === 'busy' ? 'Saving…'
+                    : 'Turn on'}
+                  </button>
+                </div>
+              </div>
+
               {([
-                { key:'daily_briefing',   name:'Daily AI briefing',        desc:'A personalized morning summary of your tasks, habits, and focus area.' },
-                { key:'habit_reminders',  name:'Habit reminders',          desc:'Nudges when habits are due or when your streak is at risk.' },
-                { key:'streak_alerts',    name:'Streak alerts',            desc:"Get notified before midnight if you haven't checked in today." },
-                { key:'journal_nudges',   name:'Journal check-in nudges',  desc:'A gentle evening reminder to write your daily journal entry.' },
-                { key:'weekly_summary',   name:'Weekly AI summary',        desc:'Every Sunday, a full breakdown of your week and what to focus on.' },
+                { key:'daily_briefing',   name:'Daily coach briefing',      desc:'A short morning commitment check-in when there is something concrete to do.' },
+                { key:'habit_reminders',  name:'Commitment reminders',      desc:'Follow-ups when a deadline is near or a commitment keeps getting carried.' },
+                { key:'streak_alerts',    name:'Avoidance alerts',          desc:"Direct reminders when your behavior starts drifting from the mission." },
+                { key:'journal_nudges',   name:'Reflection prompts',        desc:'A quiet prompt to explain what happened instead of ignoring the pattern.' },
+                { key:'weekly_summary',   name:'Weekly pattern summary',    desc:'A concise review of commitments made, kept, missed, and what changed.' },
               ] as { key: keyof typeof notifs; name: string; desc: string }[]).map(n => (
                 <div key={n.key} style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'20px', padding:'14px 0', borderBottom:`1px solid ${t.notifSep}` }}>
                   <div>
@@ -473,14 +582,14 @@ export default function SettingsPage() {
           {section === 'appearance' && (
             <div>
               <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color: t.titleColor, marginBottom:'4px' }}>Appearance</div>
-              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'32px', lineHeight:1.6 }}>Choose how TaskFlow looks and feels for you.</div>
+              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'32px', lineHeight:1.6 }}>Choose how Forge follows your browser and system preference.</div>
               <div style={{ fontSize:'10px', fontWeight:600, color: t.accentLabel, textTransform:'uppercase', letterSpacing:'0.7px', marginBottom:'12px' }}>Theme</div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px', marginBottom:'28px' }}>
-                {[
+                {([
                   { key:'light',  name:'Light',  desc:'Clean white interface',        previewBg:'#f4f4f4', bars:['#ddd','#eee'] },
                   { key:'dark',   name:'Dark',   desc:'Pure black, easy on the eyes', previewBg:'#111',   bars:['#333','#222'] },
                   { key:'system', name:'System', desc:'Follows your OS setting',      previewBg:'linear-gradient(135deg,#111 50%,#f0f0f0 50%)', bars:[] },
-                ].map(opt => (
+                ] as { key: ThemeSetting; name: string; desc: string; previewBg: string; bars: string[] }[]).map(opt => (
                   <div
                     key={opt.key}
                     onClick={() => applyTheme(opt.key)}
@@ -536,7 +645,7 @@ export default function SettingsPage() {
           {section === 'integrations' && (
             <div style={{ width:'min(100%, 720px)' }}>
               <div style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.6px', color: t.titleColor, marginBottom:'4px' }}>Integrations</div>
-              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'32px', lineHeight:1.6 }}>Connect external services to supercharge TaskFlow. More coming soon.</div>
+              <div style={{ fontSize:'13px', color: t.subColor, marginBottom:'32px', lineHeight:1.6 }}>Connect external services to extend Forge. More coming soon.</div>
               <div style={{ fontSize:'10px', fontWeight:600, color: t.accentLabel, textTransform:'uppercase', letterSpacing:'0.7px', marginBottom:'10px' }}>Available now</div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background: t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:'13px', padding:'14px 18px', marginBottom:'8px', gap:'16px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'14px', flex:1, minWidth:0 }}>
@@ -544,7 +653,7 @@ export default function SettingsPage() {
                   <div>
                     <div style={{ fontSize:'13px', fontWeight:600, color: t.intTitle, marginBottom:'3px' }}>Google Calendar</div>
                     <div style={{ fontSize:'11px', color: t.intDesc, lineHeight:1.5 }}>
-                      {data?.google_calendar_connected ? `Syncing with ${data.current_user_email}` : 'Sync TaskFlow events with your Google Calendar'}
+                      {data?.google_calendar_connected ? `Syncing with ${data.current_user_email}` : 'Sync Forge events with your Google Calendar'}
                     </div>
                   </div>
                 </div>
@@ -585,7 +694,7 @@ export default function SettingsPage() {
               {[
                 {
                   title:'Export my data', titleColor: t.privTitleGray,
-                  desc:'Download everything TaskFlow has stored — tasks, habits, journal entries, and AI insights — as a JSON file.',
+                  desc:'Download everything Forge has stored — missions, commitments, outputs, patterns, and retained legacy data — as a JSON file.',
                   borderColor: t.cardBorder, bg: t.cardBg,
                   action: <a href={`${API}/settings/export`} style={{ background: t.privExportBg, color: t.privExportColor, border:`1px solid ${t.privExportBorder}`, borderRadius:'9px', padding:'10px 22px', fontSize:'13px', textDecoration:'none', display:'inline-block' }}>Export data (JSON)</a>
                 },
@@ -597,7 +706,7 @@ export default function SettingsPage() {
                 },
                 {
                   title:'Delete account', titleColor: t.redDeepTitle,
-                  desc:'Permanently deletes your TaskFlow account and all associated data. You will be immediately logged out and cannot recover your account.',
+                  desc:'Permanently deletes your Forge account and all associated data. You will be immediately logged out and cannot recover your account.',
                   borderColor: t.redBorder, bg: t.redBg,
                   action: <button onClick={() => { setModal('account'); setModalInput(''); setModalError(false) }} style={{ background: t.redBtnBg, color: t.redBtnColor, border:`1px solid ${t.redBtnBorder}`, borderRadius:'9px', padding:'10px 22px', fontSize:'13px', cursor:'pointer' }}>Delete account</button>
                 },

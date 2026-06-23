@@ -1,6 +1,7 @@
 'use client'
 import { QueryClient, useIsRestoring } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import type { Persister } from '@tanstack/query-persist-client-core'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { useState } from 'react'
 
@@ -41,8 +42,14 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
     }
   }))
 
-  const [persister] = useState(() => {
-    if (typeof window === 'undefined') return undefined as any
+  const [persister] = useState<Persister>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        persistClient: async () => undefined,
+        restoreClient: async () => undefined,
+        removeClient: async () => undefined,
+      }
+    }
     return createSyncStoragePersister({
       storage: window.localStorage,
       key: 'taskflow-cache',
