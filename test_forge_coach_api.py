@@ -110,6 +110,74 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("UPDATE missions", query)
         self.assertEqual(params[-1], 7)
 
+    def test_mission_update_writes_coach_memory_summary(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 3,
+                "title": "Launch Forge",
+                "description": "Ship the first release with a sharper market",
+                "outcome": "Five active users",
+                "status": "active",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data"),
+        ):
+            response = self.client.patch(
+                "/api/forge/mission",
+                json={"description": "Ship the first release with a sharper market"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(database.cursor_instance.queries), 2)
+        query, params = database.cursor_instance.queries[1]
+        self.assertIn("INSERT INTO coach_memory", query)
+        self.assertEqual(params[0], 7)
+        self.assertIn("Mission updated: Launch Forge", params[1])
+
+    def test_closing_mission_requires_reason(self):
+        self.login(7)
+        response = self.client.patch(
+            "/api/forge/mission",
+            json={"status": "completed"},
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("reason", response.get_json()["error"])
+
+    def test_closing_mission_writes_reason_to_coach_memory(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 3,
+                "title": "Launch Forge",
+                "description": "Ship the first release",
+                "outcome": "Five active users",
+                "status": "completed",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data"),
+        ):
+            response = self.client.patch(
+                "/api/forge/mission",
+                json={
+                    "status": "completed",
+                    "reason": "The first version is live and ready for users.",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(database.cursor_instance.queries), 2)
+        query, params = database.cursor_instance.queries[1]
+        self.assertIn("INSERT INTO coach_memory", query)
+        self.assertEqual(params[0], 7)
+        self.assertIn("Mission completed: Launch Forge", params[1])
+        self.assertIn("The first version is live", params[1])
+
     def test_commitment_status_updates_coach_checkin(self):
         self.login(7)
         database = StubDatabase([
@@ -133,7 +201,54 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["commitment"]["status"], "kept")
         self.assertEqual(len(database.cursor_instance.queries), 2)
+        self.assertIn("times_carried = CASE", database.cursor_instance.queries[0][0])
         self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[1][0])
+        invalidate.assert_called_once_with(7)
+
+    def test_killing_commitment_requires_reason(self):
+        self.login(7)
+        response = self.client.patch(
+            "/api/forge/commitments/4",
+            json={"status": "missed", "kill": True},
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("reason", response.get_json()["error"])
+
+    def test_missed_commitment_increments_carry_and_writes_reason(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 4,
+                "mission_id": 3,
+                "text": "Publish the landing page",
+                "status": "missed",
+                "times_carried": 3,
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.patch(
+                "/api/forge/commitments/4",
+                json={
+                    "status": "missed",
+                    "kill": True,
+                    "reason": "This commitment is no longer the right next move.",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["commitment"]["times_carried"], 3)
+        self.assertEqual(len(database.cursor_instance.queries), 2)
+        update_query, update_params = database.cursor_instance.queries[0]
+        self.assertIn("times_carried = CASE", update_query)
+        self.assertEqual(update_params, ("missed", "missed", 4, 7))
+        memory_query, memory_params = database.cursor_instance.queries[1]
+        self.assertIn("INSERT INTO coach_memory", memory_query)
+        self.assertIn("Commitment killed or missed", memory_params[1])
+        self.assertIn("no longer the right next move", memory_params[1])
         invalidate.assert_called_once_with(7)
 
     def test_output_is_logged_against_active_mission(self):

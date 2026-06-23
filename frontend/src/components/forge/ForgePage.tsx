@@ -100,6 +100,23 @@ function recentDate(value?: string | null) {
   return Date.now() - date.getTime() <= 7 * 24 * 60 * 60 * 1000
 }
 
+function daysSince(value?: string | null) {
+  if (!value) return 'No output yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No output yet'
+  const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000)))
+  if (days === 0) return 'Today'
+  if (days === 1) return '1 day'
+  return `${days} days`
+}
+
+function isWithinDays(value: string | null | undefined, days: number) {
+  if (!value) return false
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  return Date.now() - date.getTime() <= days * 24 * 60 * 60 * 1000
+}
+
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrl(url), {
     credentials: 'include',
@@ -165,8 +182,10 @@ function LoadingPage({ view, theme }: { view: ForgeView; theme: 'light' | 'dark'
 function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () => Promise<unknown> }) {
   const mission = context.mission
   const commitments = context.commitments || []
-  const kept = commitments.filter(item => item.status === 'kept').length
-  const missed = commitments.filter(item => item.status === 'missed').length
+  const weeklyCommitments = commitments.filter(item => isWithinDays(item.updated_at || item.created_at, 7))
+  const kept = weeklyCommitments.filter(item => item.status === 'kept').length
+  const missed = weeklyCommitments.filter(item => item.status === 'missed').length
+  const lastOutput = context.recent_outputs?.[0]
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState('')
   const [outcome, setOutcome] = useState('')
@@ -208,18 +227,20 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
     }
   }
 
-  async function completeMission() {
-    if (!window.confirm('Mark this mission complete?')) return
+  async function closeMission(status: 'completed' | 'archived') {
+    const label = status === 'completed' ? 'complete' : 'abandon'
+    const reason = window.prompt(`Why are you marking this mission as ${label}? One honest sentence.`)?.trim()
+    if (!reason) return
     setSaving(true)
     setError('')
     try {
       await jsonRequest('/api/forge/mission', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'completed' }),
+        body: JSON.stringify({ status, reason }),
       })
       await refresh()
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Mission could not be completed.')
+      setError(requestError instanceof Error ? requestError.message : 'Mission could not be updated.')
     } finally {
       setSaving(false)
     }
@@ -270,14 +291,16 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
           <div className={styles.statGrid}>
             <Stat label="Days active" value={context.days_active || 0} />
             <Stat label="Outputs logged" value={context.recent_outputs?.length || 0} detail={`${context.outputs_this_week || 0} this week`} />
-            <Stat label="Commitments kept" value={kept} detail={`${commitments.length} recent`} />
-            <Stat label="Commitments missed" value={missed} />
+            <Stat label="Last output" value={daysSince(lastOutput?.logged_at)} detail="since shipped work" />
+            <Stat label="Commitments kept" value={kept} detail={`${weeklyCommitments.length} this week`} />
+            <Stat label="Commitments missed" value={missed} detail="this week" />
           </div>
 
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.actions}>
             <button className={styles.secondaryButton} onClick={() => setEditing(true)}>Update mission</button>
-            <button className={styles.dangerButton} onClick={completeMission} disabled={saving}>Mark complete</button>
+            <button className={styles.secondaryButton} onClick={() => closeMission('completed')} disabled={saving}>Mark complete</button>
+            <button className={styles.dangerButton} onClick={() => closeMission('archived')} disabled={saving}>Abandon</button>
           </div>
           <p className={styles.quietNote}>A completed mission remains part of your history and will be acknowledged by Coach.</p>
         </>
@@ -288,9 +311,12 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
 
 function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh: () => Promise<unknown> }) {
   const commitments = context.commitments || []
+  const history = commitments.filter(item => isWithinDays(item.updated_at || item.created_at, 14))
   const active = context.active_commitment
   const avoided = commitments.find(item => item.text === context.avoided_task)
   const [savingId, setSavingId] = useState<number | null>(null)
+  const [outputText, setOutputText] = useState('')
+  const [loggingOutput, setLoggingOutput] = useState(false)
   const [error, setError] = useState('')
 
   async function setStatus(id: number, status: 'kept' | 'missed') {
@@ -309,6 +335,43 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
     }
   }
 
+  async function killCommitment(id: number) {
+    const reason = window.prompt('Why are you killing this commitment? One honest sentence.')?.trim()
+    if (!reason) return
+    setSavingId(id)
+    setError('')
+    try {
+      await jsonRequest(`/api/forge/commitments/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'missed', kill: true, reason }),
+      })
+      await refresh()
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Commitment could not be killed.')
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  async function logOutput(event: FormEvent) {
+    event.preventDefault()
+    if (!outputText.trim()) return
+    setLoggingOutput(true)
+    setError('')
+    try {
+      await jsonRequest('/api/forge/outputs', {
+        method: 'POST',
+        body: JSON.stringify({ description: outputText.trim() }),
+      })
+      setOutputText('')
+      await refresh()
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Output could not be logged.')
+    } finally {
+      setLoggingOutput(false)
+    }
+  }
+
   return (
     <>
       <section className={styles.sectionFirst}>
@@ -320,6 +383,7 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
             <div className={styles.splitActions}>
               <button className={styles.primaryButton} onClick={() => setStatus(active.id, 'kept')} disabled={savingId === active.id}>I did it</button>
               <button className={styles.secondaryButton} onClick={() => setStatus(active.id, 'missed')} disabled={savingId === active.id}>I didn&apos;t do it</button>
+              <button className={styles.dangerButton} onClick={() => killCommitment(active.id)} disabled={savingId === active.id}>Kill it</button>
             </div>
           </div>
         ) : (
@@ -341,10 +405,27 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
       <div className={styles.rule} />
 
       <section className={styles.section}>
-        <Label>Recent history</Label>
-        {commitments.length ? (
+        <Label>Output log</Label>
+        <form className={styles.outputForm} onSubmit={logOutput}>
+          <textarea
+            value={outputText}
+            onChange={event => setOutputText(event.target.value)}
+            rows={3}
+            placeholder="What did you actually finish today?"
+          />
+          <button className={styles.primaryButton} type="submit" disabled={loggingOutput || !outputText.trim()}>
+            {loggingOutput ? 'Logging…' : 'Log output'}
+          </button>
+        </form>
+      </section>
+
+      <div className={styles.rule} />
+
+      <section className={styles.section}>
+        <Label>Last 14 days</Label>
+        {history.length ? (
           <div className={styles.list}>
-            {commitments.map(item => (
+            {history.map(item => (
               <div className={styles.historyRow} key={item.id}>
                 <div>
                   <span className={styles.rowDate}>{dateValue(item.updated_at || item.created_at)}</span>
@@ -354,7 +435,7 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
               </div>
             ))}
           </div>
-        ) : <p className={styles.bodyCopy}>No commitments have been recorded yet.</p>}
+        ) : <p className={styles.bodyCopy}>No commitments have been recorded in the last 14 days.</p>}
       </section>
     </>
   )

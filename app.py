@@ -4785,6 +4785,8 @@ def api_update_forge_mission():
     if not isinstance(data, dict):
         return jsonify({"ok": False, "error": "Request body must be JSON."}), 400
 
+    reason = " ".join(str(data.get("reason") or "").split()).strip()
+
     updates = []
     values = []
     for field in ("description", "outcome"):
@@ -4809,8 +4811,17 @@ def api_update_forge_mission():
 
     if "status" in data:
         status = str(data.get("status") or "").strip().lower()
+        if status == "abandoned":
+            status = "archived"
         if status not in {"active", "paused", "completed", "archived"}:
             return jsonify({"ok": False, "error": "Invalid mission status."}), 422
+        if status in {"completed", "archived"} and len(reason) < 12:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "Give a one-sentence reason before closing the mission.",
+                }
+            ), 422
         updates.append("status = %s")
         values.append(status)
 
@@ -4838,6 +4849,41 @@ def api_update_forge_mission():
             tuple(values),
         )
         mission = cursor.fetchone()
+        if mission is not None and "status" in data:
+            summary = (
+                f"Mission {mission['status']}: {mission['title']}. "
+                f"Reason: {reason}"
+            )
+            cursor.execute(
+                """
+                INSERT INTO coach_memory (user_id, summary, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (user_id)
+                DO UPDATE SET summary = EXCLUDED.summary, updated_at = NOW()
+                """,
+                (user_id, summary),
+            )
+        elif mission is not None:
+            summary_parts = []
+            if "description" in data:
+                summary_parts.append("description")
+            if "outcome" in data:
+                summary_parts.append("outcome")
+            if "deadline" in data:
+                summary_parts.append("deadline")
+            if summary_parts:
+                cursor.execute(
+                    """
+                    INSERT INTO coach_memory (user_id, summary, updated_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET summary = EXCLUDED.summary, updated_at = NOW()
+                    """,
+                    (
+                        user_id,
+                        f"Mission updated: {mission['title']} ({', '.join(summary_parts)} changed). Coach should acknowledge the change next session.",
+                    ),
+                )
     finally:
         cursor.close()
 
@@ -4857,8 +4903,13 @@ def api_update_forge_commitment(commitment_id):
 
     data = request.get_json(silent=True)
     status = str((data or {}).get("status") or "").strip().lower()
+    reason = " ".join(str((data or {}).get("reason") or "").split()).strip()
     if status not in {"kept", "missed", "pending"}:
         return jsonify({"ok": False, "error": "Invalid commitment status."}), 422
+    if status == "missed" and (data or {}).get("kill") and len(reason) < 12:
+        return jsonify(
+            {"ok": False, "error": "Give a one-sentence reason before killing it."}
+        ), 422
 
     user_id = session["user_id"]
     cursor = get_db().cursor(dictionary=True)
@@ -4866,23 +4917,42 @@ def api_update_forge_commitment(commitment_id):
         cursor.execute(
             """
             UPDATE commitments
-            SET status = %s, updated_at = NOW()
+            SET
+                status = %s,
+                times_carried = CASE
+                    WHEN %s = 'missed' THEN times_carried + 1
+                    ELSE times_carried
+                END,
+                updated_at = NOW()
             WHERE id = %s AND user_id = %s
             RETURNING id, mission_id, text, deadline, status, times_carried,
                       created_at, updated_at
             """,
-            (status, commitment_id, user_id),
+            (status, status, commitment_id, user_id),
         )
         commitment = cursor.fetchone()
         if commitment is not None and status in {"kept", "missed"}:
+            if status == "kept":
+                summary = f"Commitment kept: {commitment['text']}."
+            elif reason:
+                summary = (
+                    f"Commitment killed or missed: {commitment['text']}. "
+                    f"Reason: {reason}"
+                )
+            else:
+                summary = f"Commitment missed: {commitment['text']}."
+
             cursor.execute(
                 """
-                INSERT INTO coach_memory (user_id, last_checkin_at, updated_at)
-                VALUES (%s, NOW(), NOW())
+                INSERT INTO coach_memory (user_id, last_checkin_at, summary, updated_at)
+                VALUES (%s, NOW(), %s, NOW())
                 ON CONFLICT (user_id)
-                DO UPDATE SET last_checkin_at = NOW(), updated_at = NOW()
+                DO UPDATE SET
+                    last_checkin_at = NOW(),
+                    summary = EXCLUDED.summary,
+                    updated_at = NOW()
                 """,
-                (user_id,),
+                (user_id, summary),
             )
     finally:
         cursor.close()
