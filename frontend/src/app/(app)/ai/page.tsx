@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { apiUrl } from '@/lib/api-base'
+import { readCoachEventStream } from '@/lib/coach-stream'
 import { useTheme } from '@/hooks/useTheme'
 import styles from './coach.module.css'
 
@@ -56,6 +57,13 @@ type ContextResponse = {
   context?: CoachContext
   messages?: StoredMessage[]
   error?: string
+}
+
+type CoachReplyPayload = {
+  reply?: string
+  error?: string
+  commitment?: Commitment | null
+  checkin?: (Commitment & { checkin_outcome?: string }) | null
 }
 
 function localDateKey(date = new Date()) {
@@ -247,22 +255,50 @@ export default function CoachPage() {
 
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      const assistantId = `coach-${Date.now()}`
       const response = await fetch(apiUrl('/api/coach'), {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
         body: JSON.stringify({
           message: content,
           mode: 'coach',
           timezone,
+          stream: true,
         }),
       })
-      const payload = await response.json() as {
-        reply?: string
-        error?: string
-        commitment?: Commitment | null
-        checkin?: (Commitment & { checkin_outcome?: string }) | null
-      }
+
+      let streamedText = ''
+      const contentType = response.headers.get('content-type') || ''
+      const payload = contentType.includes('text/event-stream')
+        ? await readCoachEventStream(response, text => {
+            streamedText += text
+            setMessages(current => {
+              const existingIndex = current.findIndex(message => message.localId === assistantId)
+              if (existingIndex === -1) {
+                return [
+                  ...current,
+                  {
+                    localId: assistantId,
+                    role: 'assistant',
+                    content: text,
+                  },
+                ]
+              }
+
+              const next = [...current]
+              next[existingIndex] = {
+                ...next[existingIndex],
+                content: `${next[existingIndex].content}${text}`,
+              }
+              return next
+            })
+          }) as CoachReplyPayload
+        : await response.json() as CoachReplyPayload
+
       if (!response.ok || !payload.reply) {
         throw new Error(payload.error || 'Forge could not respond.')
       }
@@ -293,14 +329,27 @@ export default function CoachPage() {
         })
       }
 
-      setMessages(current => [
-        ...current,
-        {
-          localId: `coach-${Date.now()}`,
-          role: 'assistant',
+      setMessages(current => {
+        const existingIndex = current.findIndex(message => message.localId === assistantId)
+        if (existingIndex === -1) {
+          return [
+            ...current,
+            {
+              localId: assistantId,
+              role: 'assistant',
+              content: payload.reply as string,
+            },
+          ]
+        }
+
+        if (streamedText === payload.reply) return current
+        const next = [...current]
+        next[existingIndex] = {
+          ...next[existingIndex],
           content: payload.reply as string,
-        },
-      ])
+        }
+        return next
+      })
     } catch (sendError) {
       setError(
         sendError instanceof Error

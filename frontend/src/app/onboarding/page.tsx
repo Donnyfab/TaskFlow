@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiUrl } from '@/lib/api-base'
+import { readCoachEventStream } from '@/lib/coach-stream'
 import styles from './onboarding.module.css'
 
 const COMPLETION_PREFIX = 'FORGE_COMPLETE||'
@@ -35,6 +36,11 @@ type CompletionResult = {
   mission: string
   commitment: string
   commitmentDeadline: string
+}
+
+type CoachReplyPayload = {
+  reply?: string
+  error?: string
 }
 
 function parseCompletionReply(reply: string): CompletionPayload | null {
@@ -254,14 +260,42 @@ export default function OnboardingPage() {
       const response = await fetch(apiUrl('/api/coach'), {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
         body: JSON.stringify({
           message: normalizedContent,
           mode: 'onboarding',
           timezone,
+          stream: true,
         }),
       })
-      const result = await response.json()
+
+      let streamedText = ''
+      const contentType = response.headers.get('content-type') || ''
+      const result = contentType.includes('text/event-stream')
+        ? await readCoachEventStream(response, text => {
+            streamedText += text
+            setMessages(current => {
+              const last = current[current.length - 1]
+              if (last?.role !== 'assistant') {
+                return [
+                  ...current,
+                  { role: 'assistant', content: text },
+                ]
+              }
+
+              const next = [...current]
+              next[next.length - 1] = {
+                ...last,
+                content: `${last.content}${text}`,
+              }
+              return next
+            })
+          }) as CoachReplyPayload
+        : await response.json() as CoachReplyPayload
+
       if (!response.ok) throw new Error(result.error || 'Forge could not respond.')
 
       const reply = String(result.reply || '')
@@ -278,10 +312,20 @@ export default function OnboardingPage() {
       if (completionPayload) {
         await saveCompletion(completionPayload)
       } else {
-        setMessages(current => [
-          ...current,
-          { role: 'assistant', content: reply },
-        ])
+        setMessages(current => {
+          const last = current[current.length - 1]
+          if (last?.role === 'assistant') {
+            if (streamedText === reply) return current
+            const next = [...current]
+            next[next.length - 1] = { ...last, content: reply }
+            return next
+          }
+
+          return [
+            ...current,
+            { role: 'assistant', content: reply },
+          ]
+        })
       }
     } catch (error) {
       setSaveState('error')

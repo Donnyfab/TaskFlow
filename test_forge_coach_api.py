@@ -543,6 +543,69 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("required", response.get_json()["error"])
 
+    def test_post_streams_visible_tokens_and_hides_commitment_marker(self):
+        self.login(7)
+        database = object()
+
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(
+                app_module,
+                "get_user_context",
+                return_value={"user": {"id": 7, "onboarding_complete": True}},
+            ),
+            patch.object(app_module, "build_system_prompt", return_value="Forge system prompt"),
+            patch.object(app_module, "get_coach_messages", return_value=[]),
+            patch.object(app_module, "create_anthropic_client", return_value=object()),
+            patch.object(
+                app_module,
+                "call_anthropic_messages_stream",
+                return_value=iter(
+                    [
+                        "Locked.\nFORGE_COM",
+                        'MITMENT||{"commitment_text":"Publish one demo clip",',
+                        '"commitment_deadline":"2026-06-24T18:00:00-05:00"}',
+                    ]
+                ),
+            ),
+            patch.object(
+                app_module,
+                "persist_commitment_capture",
+                return_value={
+                    "id": 12,
+                    "text": "Publish one demo clip",
+                    "deadline": "2026-06-24T18:00:00-05:00",
+                    "status": "pending",
+                },
+            ),
+            patch.object(
+                app_module,
+                "save_coach_message",
+                side_effect=[
+                    {"id": 1, "role": "user", "content": "I will post one demo clip."},
+                    {"id": 2, "role": "assistant", "content": "Locked."},
+                ],
+            ),
+            patch.object(app_module, "invalidate_user_cached_data"),
+        ):
+            response = self.client.post(
+                "/api/coach",
+                json={
+                    "message": "I will post one demo clip.",
+                    "stream": True,
+                },
+                headers={"Accept": "text/event-stream"},
+            )
+            body = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "text/event-stream")
+        self.assertIn("event: token", body)
+        self.assertIn("Locked.", body)
+        self.assertIn("event: done", body)
+        self.assertNotIn("FORGE_COMMITMENT||", body)
+
     def test_onboarding_status_uses_authenticated_session_user(self):
         self.login(7)
         database = object()

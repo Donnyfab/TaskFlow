@@ -13,7 +13,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, g, abort, flash, jsonify
+    url_for, session, g, abort, flash, jsonify, Response, stream_with_context
 )
 from flask_caching import Cache
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -4688,6 +4688,15 @@ def call_anthropic_messages_api(client, **kwargs):
     raise last_error
 
 
+def call_anthropic_messages_stream(client, **kwargs):
+    """Yield text deltas from Anthropic's Messages streaming API."""
+
+    with client.messages.stream(**kwargs) as stream:
+        for text in stream.text_stream:
+            if text:
+                yield text
+
+
 def humanize_anthropic_error(exc, fallback: str):
     status_code = getattr(exc, "status_code", None)
     message = str(exc).lower()
@@ -4722,6 +4731,50 @@ def extract_anthropic_text(response) -> str:
         if text:
             parts.append(text)
     return "\n".join(parts).strip()
+
+
+STREAM_HIDDEN_PREFIXES = ("FORGE_COMMITMENT||", "FORGE_COMPLETE||")
+
+
+def _sse_event(event: str, payload: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, default=str)}\n\n"
+
+
+def _stream_visible_text_chunks(chunks):
+    """Yield visible text while withholding hidden machine-readable protocol lines."""
+
+    lookbehind = max(len(prefix) for prefix in STREAM_HIDDEN_PREFIXES)
+    buffer = ""
+    hidden_mode = False
+
+    for chunk in chunks:
+        if not chunk:
+            continue
+        if hidden_mode:
+            continue
+
+        buffer += str(chunk)
+        marker_indexes = [
+            index
+            for prefix in STREAM_HIDDEN_PREFIXES
+            if (index := buffer.find(prefix)) >= 0
+        ]
+        if marker_indexes:
+            marker_index = min(marker_indexes)
+            visible = buffer[:marker_index]
+            if visible:
+                yield visible
+            buffer = ""
+            hidden_mode = True
+            continue
+
+        safe_length = max(0, len(buffer) - lookbehind)
+        if safe_length:
+            yield buffer[:safe_length]
+            buffer = buffer[safe_length:]
+
+    if buffer and not hidden_mode:
+        yield buffer
 
 
 def normalize_ai_chat_messages(messages):
@@ -5177,36 +5230,32 @@ def api_forge_coach():
         )
 
         client = create_anthropic_client(anthropic_key)
-        response = call_anthropic_messages_api(
-            client,
-            model=ANTHROPIC_DEFAULT_MODEL,
-            max_tokens=FORGE_COACH_MAX_TOKENS,
-            system=system_prompt,
-            messages=model_messages,
+        stream_requested = bool((data or {}).get("stream")) or (
+            "text/event-stream" in str(request.headers.get("Accept", ""))
         )
-        reply = extract_anthropic_text(response)
-        if not reply:
-            raise RuntimeError("Anthropic returned an empty Forge Coach response")
 
-        visible_reply, commitment_payload = split_commitment_capture(reply)
-        if not visible_reply:
-            visible_reply = "Commitment locked."
-        captured_commitment = persist_commitment_capture(
-            user_id,
-            commitment_payload,
-            db=db,
-        )
-        if captured_commitment is not None:
-            invalidate_user_cached_data(user_id)
+        def finalize_reply(raw_reply: str):
+            if not raw_reply:
+                raise RuntimeError("Anthropic returned an empty Forge Coach response")
 
-        saved_coach_message = save_coach_message(
-            user_id,
-            "assistant",
-            visible_reply,
-            db=db,
-        )
-        return jsonify(
-            {
+            visible_reply, commitment_payload = split_commitment_capture(raw_reply)
+            if not visible_reply:
+                visible_reply = "Commitment locked."
+            captured_commitment = persist_commitment_capture(
+                user_id,
+                commitment_payload,
+                db=db,
+            )
+            if captured_commitment is not None:
+                invalidate_user_cached_data(user_id)
+
+            saved_coach_message = save_coach_message(
+                user_id,
+                "assistant",
+                visible_reply,
+                db=db,
+            )
+            return {
                 "ok": True,
                 "reply": visible_reply,
                 "mode": mode,
@@ -5215,7 +5264,58 @@ def api_forge_coach():
                 "pattern": detected_pattern,
                 "messages": [saved_user_message, saved_coach_message],
             }
+
+        if stream_requested:
+            def generate_stream():
+                raw_parts = []
+
+                try:
+                    def raw_chunks():
+                        for chunk in call_anthropic_messages_stream(
+                            client,
+                            model=ANTHROPIC_DEFAULT_MODEL,
+                            max_tokens=FORGE_COACH_MAX_TOKENS,
+                            system=system_prompt,
+                            messages=model_messages,
+                        ):
+                            raw_parts.append(chunk)
+                            yield chunk
+
+                    for token in _stream_visible_text_chunks(raw_chunks()):
+                        yield _sse_event("token", {"text": token})
+
+                    payload = finalize_reply("".join(raw_parts).strip())
+                    yield _sse_event("done", payload)
+                except Exception as exc:
+                    app.logger.exception("Forge Coach stream failed for user %s", user_id)
+                    yield _sse_event(
+                        "error",
+                        {
+                            "ok": False,
+                            "error": humanize_anthropic_error(
+                                exc,
+                                "Forge could not respond right now. Try again in a moment.",
+                            ),
+                        },
+                    )
+
+            return Response(
+                stream_with_context(generate_stream()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        response = call_anthropic_messages_api(
+            client,
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=FORGE_COACH_MAX_TOKENS,
+            system=system_prompt,
+            messages=model_messages,
         )
+        return jsonify(finalize_reply(extract_anthropic_text(response)))
     except LookupError:
         return jsonify({"ok": False, "error": "User not found."}), 404
     except Exception as exc:
