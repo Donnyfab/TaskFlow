@@ -740,10 +740,16 @@ export default function CoachPage() {
             <article className={`${styles.coachMessage} ${styles.onboardingIntro}`}>
               <div className={styles.coachLabel}>Forge</div>
               <p className={styles.coachReply}>
-                Forge works by building a private execution record: your mission, commitments, missed deadlines, outputs, and patterns.
+                I&apos;m Forge — your execution coach. I&apos;m here to help you turn the thing you keep thinking about into a mission you can actually prove with action.
               </p>
               <p className={styles.coachReply}>
-                Answer honestly. The Coach uses this to hold you accountable, not motivate you.
+                This is not a task app and I&apos;m not here to hype you up. Forge builds a private execution record: your mission, commitments, missed deadlines, outputs, and patterns.
+              </p>
+              <p className={styles.coachReply}>
+                If you&apos;re unclear, stuck, embarrassed, or tired of starting over, say that. Honest answers help me coach the real situation, not the version that sounds good.
+              </p>
+              <p className={styles.coachReply}>
+                I&apos;ll use what you tell me to hold you accountable, not motivate you.
               </p>
               <ol className={styles.stageList} aria-label="Forge onboarding stages">
                 {ONBOARDING_STAGES.map((stage, index) => (
