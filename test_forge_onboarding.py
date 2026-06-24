@@ -2,6 +2,7 @@ import unittest
 from datetime import date, datetime, timezone
 
 from forge_onboarding import (
+    FORGE_ONBOARDING_COMPLETION_PROTOCOL,
     OnboardingValidationError,
     complete_onboarding,
     get_onboarding_status,
@@ -10,6 +11,12 @@ from forge_onboarding import (
 
 
 VALID_PAYLOAD = {
+    "name": "Donald",
+    "desired_identity": "A consistent builder who ships in public",
+    "current_struggle": "I start strong and then disappear when the work feels unclear",
+    "avoided_task": "Asking real users to test the product",
+    "what_matters": "Getting Forge in front of real users",
+    "fall_off_trigger": "I overthink the next step and wait for the plan to feel perfect",
     "mission": "Launch Forge",
     "outcome": "Five people complete a daily check-in",
     "obstacle": "I keep polishing instead of testing",
@@ -68,6 +75,12 @@ class FakeDatabase:
 
 
 class ForgeOnboardingTests(unittest.TestCase):
+    def test_onboarding_protocol_includes_psychological_awareness_rules(self):
+        self.assertIn("Psychological awareness", FORGE_ONBOARDING_COMPLETION_PROTOCOL)
+        self.assertIn("exactly one natural sentence", FORGE_ONBOARDING_COMPLETION_PROTOCOL)
+        self.assertIn("analysis paralysis", FORGE_ONBOARDING_COMPLETION_PROTOCOL)
+        self.assertIn("People do not open an execution coach", FORGE_ONBOARDING_COMPLETION_PROTOCOL)
+
     def test_validation_normalizes_and_accepts_timezone_aware_deadline(self):
         payload = dict(VALID_PAYLOAD)
         payload["mission"] = "  Launch   Forge  "
@@ -129,7 +142,10 @@ class ForgeOnboardingTests(unittest.TestCase):
         self.assertIn("UPDATE users", queries[4])
         memory_params = db.cursor_instance.executions[3][1]
         self.assertEqual(memory_params[1], "polishing instead of testing")
-        self.assertIn("Identity gap:", memory_params[2])
+        self.assertEqual(memory_params[2], "Asking real users to test the product")
+        self.assertIn("Identity gap:", memory_params[3])
+        update_params = db.cursor_instance.executions[4][1]
+        self.assertEqual(update_params[0], "Donald")
 
     def test_completion_rolls_back_everything_when_a_write_fails(self):
         db = FakeDatabase(

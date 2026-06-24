@@ -68,6 +68,12 @@ type CoachReplyPayload = {
 }
 
 type CompletionPayload = {
+  name: string
+  desired_identity: string
+  current_struggle: string
+  avoided_task: string
+  what_matters: string
+  fall_off_trigger: string
   mission: string
   outcome: string
   obstacle: string
@@ -85,14 +91,6 @@ type CompletionResult = {
   commitment: string
   commitmentDeadline: string
 }
-
-const ONBOARDING_STAGES = [
-  'Contract',
-  'Honest intake',
-  'Pattern',
-  'Identity gap',
-  'Commitment',
-] as const
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear()
@@ -189,6 +187,7 @@ export default function CoachPage() {
   const [opening, setOpening] = useState(false)
   const [openingStage, setOpeningStage] = useState(0)
   const [openingTyping, setOpeningTyping] = useState(false)
+  const [showOnboardingOpening, setShowOnboardingOpening] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error' | 'complete'>('idle')
@@ -305,10 +304,12 @@ export default function CoachPage() {
           openingStartedRef.current = true
           setOpeningStage(2)
           setOpeningTyping(false)
+          setShowOnboardingOpening(false)
         } else {
           openingStartedRef.current = false
           setOpeningStage(0)
           setOpeningTyping(true)
+          setShowOnboardingOpening(true)
         }
 
         if (interruptedPayload) void saveCompletion(interruptedPayload)
@@ -318,6 +319,7 @@ export default function CoachPage() {
       setOnboardingMessages([])
       setOpeningStage(0)
       setOpeningTyping(false)
+      setShowOnboardingOpening(false)
       setSaveState('idle')
       setCompletion(null)
       setSavedPayload(null)
@@ -736,29 +738,18 @@ export default function CoachPage() {
             <TypingIndicator />
           )}
 
-          {(isOnboarding || showOnboardingCompletion) && openingStage >= 1 && (
+          {isOnboarding && showOnboardingOpening && openingStage >= 1 && (
             <article className={`${styles.coachMessage} ${styles.onboardingIntro}`}>
               <div className={styles.coachLabel}>Forge</div>
               <p className={styles.coachReply}>
-                I&apos;m Forge — your execution coach. I&apos;m here to help you turn the thing you keep thinking about into a mission you can actually prove with action.
+                I&apos;m Forge — your execution coach.
               </p>
               <p className={styles.coachReply}>
-                This is not a task app and I&apos;m not here to hype you up. Forge builds a private execution record: your mission, commitments, missed deadlines, outputs, and patterns.
+                Before we talk goals, I need to understand you a little.
               </p>
               <p className={styles.coachReply}>
-                If you&apos;re unclear, stuck, embarrassed, or tired of starting over, say that. Honest answers help me coach the real situation, not the version that sounds good.
+                No perfect answer needed. Start simple.
               </p>
-              <p className={styles.coachReply}>
-                I&apos;ll use what you tell me to hold you accountable, not motivate you.
-              </p>
-              <ol className={styles.stageList} aria-label="Forge onboarding stages">
-                {ONBOARDING_STAGES.map((stage, index) => (
-                  <li className={styles.stageItem} key={stage}>
-                    <span className={styles.stageNumber}>{String(index + 1).padStart(2, '0')}</span>
-                    <span>{stage}</span>
-                  </li>
-                ))}
-              </ol>
             </article>
           )}
 
@@ -766,10 +757,10 @@ export default function CoachPage() {
             <TypingIndicator />
           )}
 
-          {(isOnboarding || showOnboardingCompletion) && openingStage >= 2 && (
+          {isOnboarding && showOnboardingOpening && openingStage >= 2 && (
             <article className={styles.coachMessage}>
               <h1 className={styles.coachOpening}>
-                What are you trying to make real right now?
+                What&apos;s your name?
               </h1>
             </article>
           )}

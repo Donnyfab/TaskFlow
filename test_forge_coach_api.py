@@ -861,6 +861,12 @@ class ForgeCoachApiTests(unittest.TestCase):
         database = object()
         payload = {
             "user_id": 999,
+            "name": "Donald",
+            "desired_identity": "A consistent builder",
+            "current_struggle": "I overthink before shipping",
+            "avoided_task": "Asking testers for feedback",
+            "what_matters": "Getting Forge in front of real users",
+            "fall_off_trigger": "Waiting for the plan to feel perfect",
             "mission": "Launch Forge",
             "outcome": "Five active testers",
             "obstacle": "Over-polishing",
@@ -949,9 +955,17 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("ONBOARDING COMPLETION PROTOCOL", system_prompt)
         self.assertIn("User timezone: America/Chicago", system_prompt)
         self.assertIn("FORGE_COMPLETE||", system_prompt)
+        self.assertIn("What's your name?", system_prompt)
+        self.assertIn("one to three sentences maximum", system_prompt)
+        self.assertIn("Psychological awareness", system_prompt)
+        self.assertIn("exactly one natural sentence", system_prompt)
+        self.assertIn("analysis paralysis", system_prompt)
+        self.assertIn("People do not open an execution coach", system_prompt)
         self.assertIn("last 30 days", system_prompt)
         self.assertIn("Stage 3", system_prompt)
         self.assertIn("Stage 4", system_prompt)
+        self.assertIn("desired_identity", system_prompt)
+        self.assertIn("fall_off_trigger", system_prompt)
         self.assertIn("pattern_label", system_prompt)
         self.assertIn("identity_gap", system_prompt)
 
