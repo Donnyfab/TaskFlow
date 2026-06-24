@@ -172,7 +172,46 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["sent"], 1)
         send.assert_called_once()
+        payload = send.call_args.args[1]
+        self.assertEqual(payload["title"], "Forge")
+        self.assertEqual(payload["body"], "Today: Publish one product photo")
+        self.assertTrue(payload["tag"].startswith("forge-commitment-7-"))
         self.assertIn("UPDATE push_subscriptions", database.cursor_instance.queries[1][0])
+
+    def test_daily_commitment_cron_asks_for_checkin_after_deadline(self):
+        database = StubDatabase([
+            {
+                "id": 9,
+                "user_id": 7,
+                "subscription": {
+                    "endpoint": "https://push.example/sub",
+                    "keys": {"p256dh": "abc", "auth": "def"},
+                },
+                "timezone": "America/Chicago",
+                "last_sent_on": None,
+                "commitment_text": "Publish one product photo",
+                "deadline": "2000-01-01T18:00:00-06:00",
+            }
+        ])
+
+        with (
+            patch.object(app_module, "CRON_SECRET", "secret"),
+            patch.object(app_module, "VAPID_PRIVATE_KEY", "private"),
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "_send_web_push", return_value={"sent": True}) as send,
+        ):
+            response = self.client.post(
+                "/api/cron/daily-commitment-reminders?force=1",
+                headers={"Authorization": "Bearer secret"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["sent"], 1)
+        send.assert_called_once()
+        payload = send.call_args.args[1]
+        self.assertEqual(payload["title"], "Forge")
+        self.assertEqual(payload["body"], "Did you do it? “Publish one product photo”")
+        self.assertTrue(payload["tag"].startswith("forge-checkin-7-"))
 
     def test_active_mission_can_be_updated(self):
         self.login(7)

@@ -2,7 +2,7 @@
 <html lang="en" class="scrollbar-hide">
 <head>
   <meta charset="UTF-8">
-  <title>AI Coach | TaskFlow</title>
+  <title>AI Coach | Forge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -177,7 +177,7 @@
           <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      TaskFlow
+      Forge
     </a>
     <div class="nav-label">Main</div>
     <a href="/home" class="sb-item"><div class="sb-icon">⌂</div>Home</a>
@@ -205,7 +205,7 @@
       <div class="ai-identity">
         <div class="ai-avatar">✦<div class="ai-online"></div></div>
         <div>
-          <div class="ai-name">Taskflow AI</div>
+          <div class="ai-name">Forge AI</div>
           <div class="ai-desc">Your personal growth coach · Always online</div>
         </div>
       </div>
@@ -277,7 +277,7 @@
         <div class="es-sub">I know your tasks, habits, streaks, and journal. I'm not a generic AI — I'm your personal growth coach. Tell me what you need.</div>
         <div class="es-btns">
           <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
-          <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
+          <button class="es-btn" onclick="sendQuick('Help me set my first goals in Forge. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
           <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
         </div>
       </div>
@@ -328,7 +328,7 @@
 
     <div class="project-form" id="project-form">
       <div class="project-form-title">Create new project</div>
-      <input id="project-name-input" class="project-input" type="text" maxlength="120" placeholder="TaskFlow launch, Fitness reset, Q2 goals...">
+      <input id="project-name-input" class="project-input" type="text" maxlength="120" placeholder="Forge launch, Fitness reset, Q2 goals...">
       <textarea id="project-description-input" class="project-textarea" maxlength="255" placeholder="Optional description"></textarea>
       <div class="project-form-actions">
         <button type="button" class="panel-btn primary" onclick="submitProject()">Create project</button>
@@ -386,7 +386,7 @@
   </div>
 
   <script>
-    const SYSTEM_PROMPT = `You are Taskflow AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`;
+    const SYSTEM_PROMPT = `You are Forge AI, a personal life coach. Be direct, warm, and specific. Keep responses under 3 sentences unless a plan is needed. The user is on the ai page right now.`;
     const INITIAL_CHAT_HISTORY = {{ active_ai_chat_messages | tojson }};
     let chatHistory = Array.isArray(INITIAL_CHAT_HISTORY) ? [...INITIAL_CHAT_HISTORY] : [];
     let currentThread = {{ active_ai_chat | tojson }};
@@ -447,7 +447,7 @@
           <div class="es-sub">I know your tasks, habits, streaks, and journal. I'm not a generic AI — I'm your personal growth coach. Tell me what you need.</div>
           <div class="es-btns">
             <button class="es-btn" onclick="sendQuick('Plan my day — tell me exactly what I should focus on right now.')"><span class="es-btn-icon">☀️</span>Plan My Day</button>
-            <button class="es-btn" onclick="sendQuick('Help me set my first goals in Taskflow. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
+            <button class="es-btn" onclick="sendQuick('Help me set my first goals in Forge. Where should I start?')"><span class="es-btn-icon">🎯</span>Set My First Goals</button>
             <button class="es-btn" onclick="sendQuick('Help me build better habits. What should I track and how do I stay consistent?')"><span class="es-btn-icon">🔁</span>Build Better Habits</button>
           </div>
         </div>`;
@@ -900,8 +900,8 @@
         <div class="msg-col">
           <div class="action-card">
             <div class="action-label">Needs confirmation</div>
-            <div class="action-title">${escapeHtml(action.title || 'TaskFlow change')}</div>
-            <div class="action-copy">${escapeHtml(action.confirmation_text || 'Do you want me to make this change in TaskFlow?')}</div>
+            <div class="action-title">${escapeHtml(action.title || 'Forge change')}</div>
+            <div class="action-copy">${escapeHtml(action.confirmation_text || 'Do you want me to make this change in Forge?')}</div>
             <div class="action-controls">
               <button type="button" class="action-btn confirm" data-action-choice="confirm">Confirm</button>
               <button type="button" class="action-btn" data-action-choice="cancel">Not now</button>

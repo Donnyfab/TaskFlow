@@ -6,7 +6,7 @@ BLOG_POSTS = [
         "description": "The biggest mistake in self-improvement is building a plan you can only follow on your best day.",
         "published_at": "March 29, 2026",
         "read_time": "6 min read",
-        "author": "TaskFlow Team",
+        "author": "Forge Team",
         "summary_points": [
             "Build for ordinary days, not perfect ones.",
             "Track repeatable proof across tasks, habits, and reflection.",
@@ -39,7 +39,7 @@ BLOG_POSTS = [
                     "When your tasks, habits, journal entries, and daily review live in one place, you can see whether your actions match the story you are telling yourself. That is why tracking matters. It gives you something more solid than mood.",
                 ],
                 "note": {
-                    "title": "TaskFlow lens",
+                    "title": "Forge lens",
                     "body": "A strong growth system connects planning, habit tracking, reflection, and your daily score. The point is not perfection. The point is seeing the pattern clearly enough to adjust it.",
                 },
             },
@@ -59,7 +59,7 @@ BLOG_POSTS = [
         "description": "When your tasks, habits, notes, and reflection live in different places, friction usually wins.",
         "published_at": "March 24, 2026",
         "read_time": "5 min read",
-        "author": "TaskFlow Team",
+        "author": "Forge Team",
         "summary_points": [
             "Put planning, tracking, and reflection in one loop.",
             "Reduce switching cost so momentum survives busy days.",
@@ -112,7 +112,7 @@ BLOG_POSTS = [
         "description": "AI is useful when it helps you decide, reflect, and stay honest. It is a problem when it becomes another feed to scroll.",
         "published_at": "March 18, 2026",
         "read_time": "7 min read",
-        "author": "TaskFlow Team",
+        "author": "Forge Team",
         "summary_points": [
             "Good AI reduces hesitation instead of stealing attention.",
             "Use AI for reflection, planning, and pattern detection.",
@@ -165,7 +165,7 @@ BLOG_POSTS = [
         "description": "Most people do not need a perfect morning routine. They need a reliable reset before the next day starts.",
         "published_at": "March 12, 2026",
         "read_time": "4 min read",
-        "author": "TaskFlow Team",
+        "author": "Forge Team",
         "summary_points": [
             "Close the loop every evening in 10 to 15 minutes.",
             "Review what moved, what slipped, and what matters tomorrow.",

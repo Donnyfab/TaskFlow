@@ -2,7 +2,7 @@
 <html lang="en" class="scrollbar-hide">
 <head>
   <meta charset="UTF-8">
-  <title>Settings | TaskFlow</title>
+  <title>Settings | Forge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -417,7 +417,7 @@
           <path d="M3 8L6.5 11.5L13 4.5" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      TaskFlow
+      Forge
     </a>
     <div class="nav-label">Main</div>
     <a href="/home" class="sb-item"><div class="sb-icon">⌂</div>Home</a>
@@ -616,7 +616,7 @@
       <!-- NOTIFICATIONS -->
       <div class="section" id="section-notifications">
         <div class="s-title">Notifications</div>
-        <div class="s-sub">Control when and how TaskFlow reaches out to keep you on track.</div>
+        <div class="s-sub">Control when and how Forge reaches out to keep you on track.</div>
         <div class="toggle-row">
           <div class="toggle-info"><div class="toggle-name">Daily AI briefing</div><div class="toggle-desc">A personalized morning summary of your tasks, habits, and today's focus area.</div></div>
           <div class="toggle-switch on" onclick="toggleSwitch(this,'daily_briefing')"></div>
@@ -675,7 +675,7 @@
       <!-- APPEARANCE -->
       <div class="section" id="section-appearance">
         <div class="s-title">Appearance</div>
-        <div class="s-sub">Choose how TaskFlow looks and feels for you.</div>
+        <div class="s-sub">Choose how Forge looks and feels for you.</div>
         <div class="field-label" style="margin-bottom:12px;">Theme</div>
         <div class="theme-grid">
           <div class="theme-card" onclick="selectTheme(this,'light')">
@@ -709,7 +709,7 @@
         <div class="s-sub">Your data belongs to you. Export it, manage it, or delete it whenever you want.</div>
         <div class="danger-card" style="border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);">
           <div class="danger-card-title" style="color:rgba(255,255,255,0.7);">Export my data</div>
-          <div class="danger-card-desc">Download everything TaskFlow has stored — tasks, habits, journal entries, and AI insights — as a JSON file.</div>
+          <div class="danger-card-desc">Download everything Forge has stored — tasks, habits, journal entries, and AI insights — as a JSON file.</div>
           <a href="/settings/export" class="btn-ghost">Export data (JSON)</a>
         </div>
         <div class="danger-card">
@@ -719,14 +719,14 @@
         </div>
         <div class="danger-card">
           <div class="danger-card-title" style="color:rgba(255,100,100,0.85);">Delete account</div>
-          <div class="danger-card-desc">Permanently deletes your TaskFlow account and all associated data. You will be immediately logged out and cannot recover your account.</div>
+          <div class="danger-card-desc">Permanently deletes your Forge account and all associated data. You will be immediately logged out and cannot recover your account.</div>
           <button class="btn-danger" onclick="openModal('account')">Delete account</button>
         </div>
       </div>
 
       <div class="section section-integrations" id="section-integrations">
         <div class="s-title">Integrations</div>
-        <div class="s-sub">Connect external services to supercharge TaskFlow. More coming soon.</div>
+        <div class="s-sub">Connect external services to supercharge Forge. More coming soon.</div>
 
         <div class="int-group-label">Available now</div>
 
@@ -747,7 +747,7 @@
                 {% if google_calendar_connected %}
                   Syncing with {{ current_user_email or 'your Google account' }}
                 {% else %}
-                  Sync TaskFlow events with your Google Calendar automatically
+                  Sync Forge events with your Google Calendar automatically
                 {% endif %}
               </div>
             </div>

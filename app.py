@@ -1,5 +1,5 @@
 # ============================================================
-# TASKFLOW APP (Flask)
+# FORGE APP (Flask)
 # - This file controls what pages exist (routes)
 # - It connects to the database (PostgreSQL)
 # - It handles login/register + user sessions
@@ -4934,6 +4934,27 @@ def _send_web_push(subscription, payload):
         return {"sent": False, "reason": "webpush_failed"}
 
 
+def _commitment_deadline_is_due(deadline, tz, local_now):
+    """Return true when a commitment deadline has passed in the subscriber's timezone."""
+
+    if not deadline:
+        return False
+
+    if isinstance(deadline, datetime):
+        deadline_at = deadline
+    elif hasattr(deadline, "year") and hasattr(deadline, "month") and hasattr(deadline, "day"):
+        return deadline <= local_now.date()
+    else:
+        try:
+            deadline_at = datetime.fromisoformat(str(deadline).replace("Z", "+00:00"))
+        except ValueError:
+            return False
+
+    if deadline_at.tzinfo is None or deadline_at.utcoffset() is None:
+        deadline_at = deadline_at.replace(tzinfo=timezone.utc)
+    return deadline_at.astimezone(tz) <= local_now
+
+
 @app.route("/api/push/vapid-public-key", methods=["GET"])
 def api_push_vapid_public_key():
     if "user_id" not in session:
@@ -5068,14 +5089,25 @@ def api_daily_commitment_reminders():
             if not commitment:
                 skipped += 1
                 continue
+            deadline = row.get("deadline")
+            due_for_checkin = _commitment_deadline_is_due(deadline, tz, local_now)
+            notification_body = (
+                f"Did you do it? “{commitment}”"
+                if due_for_checkin
+                else f"Today: {commitment}"
+            )
 
             result = _send_web_push(
                 row["subscription"],
                 {
                     "title": "Forge",
-                    "body": f"Today: {commitment}",
+                    "body": notification_body,
                     "url": "/ai",
-                    "tag": f"forge-commitment-{row['user_id']}-{local_date.isoformat()}",
+                    "tag": (
+                        f"forge-checkin-{row['user_id']}-{local_date.isoformat()}"
+                        if due_for_checkin
+                        else f"forge-commitment-{row['user_id']}-{local_date.isoformat()}"
+                    ),
                 },
             )
             if result.get("sent"):
