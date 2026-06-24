@@ -48,12 +48,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {
-              if (window.location.pathname === '/onboarding') {
-                var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                document.body.style.background = dark ? '#0E0E0E' : '#F7F7F5';
-                document.body.style.color = dark ? '#EDEDED' : '#111111';
-                return;
-              }
               var t = localStorage.getItem('tf-theme');
               var resolved = t === 'light' || t === 'dark'
                 ? t

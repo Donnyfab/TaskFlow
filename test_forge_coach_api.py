@@ -955,7 +955,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("pattern_label", system_prompt)
         self.assertIn("identity_gap", system_prompt)
 
-    def test_registration_routes_new_user_to_onboarding(self):
+    def test_registration_routes_new_user_to_coach(self):
         with (
             patch.object(app_module, "fetch_user_by_username", return_value=None),
             patch.object(app_module, "fetch_user_by_email", return_value=None),
@@ -983,7 +983,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.headers["Location"],
-            f"{app_module.APP_PUBLIC_URL}/onboarding",
+            f"{app_module.APP_PUBLIC_URL}/ai",
         )
         with self.client.session_transaction() as session:
             self.assertEqual(session["user_id"], 42)

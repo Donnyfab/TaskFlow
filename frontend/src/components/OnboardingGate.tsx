@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { apiUrl } from '@/lib/api-base'
 
 type GateState = 'checking' | 'allowed' | 'redirecting'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [state, setState] = useState<GateState>('checking')
 
   useEffect(() => {
@@ -26,8 +27,12 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
           setState('allowed')
           return
         }
+        if (pathname === '/ai') {
+          setState('allowed')
+          return
+        }
         setState('redirecting')
-        router.replace('/onboarding')
+        router.replace('/ai')
       })
       .catch(error => {
         if (error instanceof DOMException && error.name === 'AbortError') return
@@ -36,7 +41,7 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
       })
 
     return () => controller.abort()
-  }, [router])
+  }, [pathname, router])
 
   if (state !== 'allowed') return null
   return children

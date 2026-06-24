@@ -195,6 +195,176 @@
   cursor: pointer;
 }
 
+.onboardingIntro {
+  max-width: 620px;
+}
+
+.stageList {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  width: min(100%, 610px);
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.stageItem {
+  display: flex;
+  min-height: 74px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  color: var(--text);
+  background: var(--canvas);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.stageNumber {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.confirmBox,
+.completeCard {
+  width: min(100%, 610px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.confirmBox {
+  margin: 16px 0 28px;
+  padding: 20px 24px;
+}
+
+.confirmLabel {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.confirmButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.confirmPrimary,
+.confirmSecondary,
+.enterButton {
+  min-height: 44px;
+  border-radius: 11px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+}
+
+.confirmPrimary,
+.confirmSecondary {
+  flex: 1;
+  padding: 10px;
+}
+
+.confirmPrimary,
+.enterButton {
+  border: 1px solid var(--button);
+  color: var(--button-text);
+  background: var(--button);
+  font-weight: 560;
+}
+
+.confirmSecondary {
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: transparent;
+  font-weight: 430;
+}
+
+.saving {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 28px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.savingSpinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 760ms linear infinite;
+}
+
+.completeCard {
+  margin: 8px 0 30px;
+  padding: 26px;
+}
+
+.completeLabel {
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.completeRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.36fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.completeKey,
+.completeValue,
+.completeHint {
+  margin: 0;
+}
+
+.completeKey {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 540;
+}
+
+.completeValue {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.divider {
+  height: 1px;
+  margin: 16px 0;
+  background: var(--border);
+}
+
+.enterButton {
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px 16px;
+}
+
+.completeHint {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .composerDock {
   position: absolute;
   z-index: 3;
@@ -380,6 +550,12 @@
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 768px) {
   .header {
     min-height: 54px;
@@ -402,6 +578,14 @@
   .userMessage {
     max-width: 86%;
     font-size: 14px;
+  }
+
+  .stageList {
+    grid-template-columns: 1fr;
+  }
+
+  .stageItem {
+    min-height: 0;
   }
 
   .composerDock {
@@ -431,6 +615,19 @@
   .deadline {
     display: block;
     margin-top: 5px;
+  }
+
+  .confirmButtons,
+  .completeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmButtons {
+    flex-direction: column;
+  }
+
+  .completeRow {
+    gap: 7px;
   }
 
   .composer {
@@ -482,6 +679,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .typing span,
+  .savingSpinner,
   .sendButton,
   .composer {
     animation: none;

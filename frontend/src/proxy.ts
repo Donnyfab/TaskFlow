@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
 
   // Root: smart redirect based on session presence
   if (pathname === '/') {
-    const dest = hasSession ? new URL('/home', request.url) : new URL(`${FLASK_URL}/login`)
+    const dest = hasSession ? new URL('/ai', request.url) : new URL(`${FLASK_URL}/login`)
     return NextResponse.redirect(dest)
   }
 

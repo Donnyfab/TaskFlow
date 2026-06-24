@@ -3643,7 +3643,7 @@ def ping():
 @app.route("/")
 def landing_page():
     if logged_in():
-        return redirect(APP_PUBLIC_URL + "/home")
+        return redirect(APP_PUBLIC_URL + "/ai")
     return render_template("landing_page.html")
 
 
@@ -3811,7 +3811,7 @@ def learn_page():
 @app.route("/register", methods=["GET", "POST"])
 def register_page():
     if logged_in():
-        return redirect(APP_PUBLIC_URL + "/home")
+        return redirect(APP_PUBLIC_URL + "/ai")
     if request.method == "POST":
         first = request.form.get("first_name", "").strip().capitalize()
         last = request.form.get("last_name", "").strip().capitalize()
@@ -3874,7 +3874,7 @@ def register_page():
         except Exception:
             app.logger.exception("Post-registration email/token step failed for %s.", email)
 
-        return redirect(APP_PUBLIC_URL + "/onboarding")
+        return redirect(APP_PUBLIC_URL + "/ai")
 
     return render_template("auth/register.html")
 
@@ -3887,7 +3887,7 @@ def register_page_alias():
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if logged_in():
-        return redirect(APP_PUBLIC_URL + "/home")
+        return redirect(APP_PUBLIC_URL + "/ai")
     error_identifier = None
     error_password = None
     info_message = None
@@ -3940,7 +3940,7 @@ def login_page():
                 error_password = "Invalid username/email or password."
             else:
                 begin_user_session(user[0], user[1], user[2])
-                return redirect(APP_PUBLIC_URL + "/home")
+                return redirect(APP_PUBLIC_URL + "/ai")
 
     return render_template("auth/login.html",
                            error_identifier=error_identifier,
@@ -3984,7 +3984,7 @@ def verify_email():
     if not user["is_verified"]:
         mark_user_verified(user["id"])
 
-    return redirect(APP_PUBLIC_URL + "/home")
+    return redirect(APP_PUBLIC_URL + "/ai")
 
 @app.route("/username_suggestions", methods=["POST"])
 def username_suggestions():
@@ -8951,8 +8951,7 @@ def google_callback():
 
     begin_user_session(user_id, name, username)
 
-    destination = "/home" if onboarding_complete else "/onboarding"
-    return redirect(f"{APP_PUBLIC_URL}{destination}")
+    return redirect(f"{APP_PUBLIC_URL}/ai")
 
 # Sidebar links pages
 @app.route("/tasks")
