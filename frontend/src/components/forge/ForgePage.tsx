@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { FormEvent, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useOnboardingStatus } from '@/components/OnboardingGate'
 import SidebarReopenButton from '@/components/SidebarReopenButton'
 import { useTheme } from '@/hooks/useTheme'
 import { apiUrl } from '@/lib/api-base'
@@ -154,6 +155,25 @@ const TITLES: Record<ForgeView, string> = {
   patterns: 'Patterns',
 }
 
+const LOCKED_PREVIEWS: Record<ForgeView, { title: string; body: string }> = {
+  mission: {
+    title: 'Mission is built from your first Coach conversation.',
+    body: 'Forge needs your real goal before it can show an active mission. The Coach turns what you say into one clear outcome, the obstacle in the way, and the first commitment worth tracking.',
+  },
+  commitments: {
+    title: 'Commitments are created from what you agree to with Coach.',
+    body: 'This page tracks the exact promises you make, their deadlines, and whether you kept, missed, or partially completed them. Forge needs one honest setup conversation before this becomes useful.',
+  },
+  output: {
+    title: 'Output Log becomes proof of real work shipped.',
+    body: 'After setup, this page records what you actually finished. It is not a motivation feed. It becomes evidence the Coach can reference when your actions and goals do not match.',
+  },
+  patterns: {
+    title: 'Patterns appear after Forge has behavior to judge.',
+    body: 'Forge needs commitments, deadlines, misses, kept promises, and outputs before it can reflect a pattern back to you. The Coach starts that record.',
+  },
+}
+
 const FLASK_LOGIN = `${(process.env.NEXT_PUBLIC_FLASK_URL || 'http://localhost:8001').replace(/\/$/, '')}/login`
 
 function dateValue(value?: string | null) {
@@ -265,6 +285,24 @@ function LoadingPage({ view, theme }: { view: ForgeView; theme: 'light' | 'dark'
         <div className={styles.loadingBlock} />
       </div>
     </div>
+  )
+}
+
+function LockedPreview({ view }: { view: ForgeView }) {
+  const preview = LOCKED_PREVIEWS[view]
+
+  return (
+    <section className={styles.lockedPreview} aria-labelledby="locked-preview-title">
+      <div className={styles.lockedEyebrow}>Setup required</div>
+      <h1 id="locked-preview-title">{preview.title}</h1>
+      <p>{preview.body}</p>
+      <Link className={styles.lockedCta} href="/ai">
+        Start with Coach <span aria-hidden="true">→</span>
+      </Link>
+      <p className={styles.lockedReassurance}>
+        This takes about 2 minutes. Forge uses it to create your mission, first commitment, and accountability history.
+      </p>
+    </section>
   )
 }
 
@@ -1027,10 +1065,13 @@ function PatternsPage({ context, refresh }: { context: ForgeContext; refresh: ()
 
 export default function ForgePage({ view }: { view: ForgeView }) {
   const theme = useTheme()
+  const { onboardingComplete } = useOnboardingStatus()
+  const lockedForSetup = onboardingComplete === false
   const queryClient = useQueryClient()
   const { data, isLoading, error } = useQuery({
     queryKey: ['forge-context'],
     queryFn: () => jsonRequest<ContextResponse>('/api/coach/context'),
+    enabled: !lockedForSetup,
     staleTime: 15_000,
   })
 
@@ -1041,7 +1082,7 @@ export default function ForgePage({ view }: { view: ForgeView }) {
   const context = data?.context
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['forge-context'] })
 
-  if (isLoading) return <LoadingPage view={view} theme={theme} />
+  if (!lockedForSetup && isLoading) return <LoadingPage view={view} theme={theme} />
 
   return (
     <div className={styles.page} data-theme={theme}>
@@ -1050,17 +1091,18 @@ export default function ForgePage({ view }: { view: ForgeView }) {
         meta={view === 'output' && context ? `${context.recent_outputs?.length || 0} things shipped` : undefined}
       />
       <main className={styles.content}>
+        {lockedForSetup ? <LockedPreview view={view} /> : null}
         {error || !context ? (
-          <EmptyState>
+          !lockedForSetup ? <EmptyState>
             <strong>Forge could not load this page.</strong>
             <p>{error instanceof Error ? error.message : 'Try again in a moment.'}</p>
             <button className={styles.secondaryButton} onClick={() => void refresh()}>Try again</button>
-          </EmptyState>
+          </EmptyState> : null
         ) : null}
-        {context && view === 'mission' ? <MissionPage context={context} refresh={refresh} /> : null}
-        {context && view === 'commitments' ? <CommitmentsPage context={context} refresh={refresh} /> : null}
-        {context && view === 'output' ? <OutputLogPage context={context} refresh={refresh} /> : null}
-        {context && view === 'patterns' ? <PatternsPage context={context} refresh={refresh} /> : null}
+        {!lockedForSetup && context && view === 'mission' ? <MissionPage context={context} refresh={refresh} /> : null}
+        {!lockedForSetup && context && view === 'commitments' ? <CommitmentsPage context={context} refresh={refresh} /> : null}
+        {!lockedForSetup && context && view === 'output' ? <OutputLogPage context={context} refresh={refresh} /> : null}
+        {!lockedForSetup && context && view === 'patterns' ? <PatternsPage context={context} refresh={refresh} /> : null}
       </main>
     </div>
   )

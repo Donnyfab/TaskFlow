@@ -740,7 +740,10 @@ export default function CoachPage() {
             <article className={`${styles.coachMessage} ${styles.onboardingIntro}`}>
               <div className={styles.coachLabel}>Forge</div>
               <p className={styles.coachReply}>
-                Before we begin, I need to understand what you&apos;re building. This is not motivation or task storage. I&apos;ll look at what you say you want, what your actions show, and the first commitment you can prove.
+                Forge works by building a private execution record: your mission, commitments, missed deadlines, outputs, and patterns.
+              </p>
+              <p className={styles.coachReply}>
+                Answer honestly. The Coach uses this to hold you accountable, not motivate you.
               </p>
               <ol className={styles.stageList} aria-label="Forge onboarding stages">
                 {ONBOARDING_STAGES.map((stage, index) => (

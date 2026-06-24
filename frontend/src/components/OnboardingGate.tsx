@@ -1,15 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { apiUrl } from '@/lib/api-base'
 
-type GateState = 'checking' | 'allowed' | 'redirecting'
+type GateState = 'checking' | 'allowed'
+
+type OnboardingStatus = {
+  checking: boolean
+  onboardingComplete: boolean | null
+}
+
+const OnboardingStatusContext = createContext<OnboardingStatus>({
+  checking: true,
+  onboardingComplete: null,
+})
+
+export function useOnboardingStatus() {
+  return useContext(OnboardingStatusContext)
+}
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
   const [state, setState] = useState<GateState>('checking')
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -23,26 +35,28 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
         return response.json() as Promise<{ onboarding_complete?: boolean }>
       })
       .then(data => {
-        if (data.onboarding_complete) {
-          setState('allowed')
-          return
-        }
-        if (pathname === '/ai') {
-          setState('allowed')
-          return
-        }
-        setState('redirecting')
-        router.replace('/ai')
+        setOnboardingComplete(Boolean(data.onboarding_complete))
+        setState('allowed')
       })
       .catch(error => {
         if (error instanceof DOMException && error.name === 'AbortError') return
         // Do not lock an authenticated user out of the app during a status outage.
+        setOnboardingComplete(null)
         setState('allowed')
       })
 
     return () => controller.abort()
-  }, [pathname, router])
+  }, [])
+
+  const value = useMemo(() => ({
+    checking: state === 'checking',
+    onboardingComplete,
+  }), [onboardingComplete, state])
 
   if (state !== 'allowed') return null
-  return children
+  return (
+    <OnboardingStatusContext.Provider value={value}>
+      {children}
+    </OnboardingStatusContext.Provider>
+  )
 }
