@@ -13,6 +13,8 @@ VALID_PAYLOAD = {
     "mission": "Launch Forge",
     "outcome": "Five people complete a daily check-in",
     "obstacle": "I keep polishing instead of testing",
+    "pattern_label": "polishing instead of testing",
+    "identity_gap": "You say you want real users, but your current behavior keeps the product away from them.",
     "deadline": "2026-08-01",
     "commitment_text": "Invite the first tester",
     "commitment_deadline": "2026-06-22T18:00:00-05:00",
@@ -125,6 +127,9 @@ class ForgeOnboardingTests(unittest.TestCase):
         self.assertIn("INSERT INTO commitments", queries[2])
         self.assertIn("INSERT INTO coach_memory", queries[3])
         self.assertIn("UPDATE users", queries[4])
+        memory_params = db.cursor_instance.executions[3][1]
+        self.assertEqual(memory_params[1], "polishing instead of testing")
+        self.assertIn("Identity gap:", memory_params[2])
 
     def test_completion_rolls_back_everything_when_a_write_fails(self):
         db = FakeDatabase(
@@ -159,6 +164,10 @@ class ForgeOnboardingTests(unittest.TestCase):
                     "text": "Invite a tester",
                     "deadline": datetime(2026, 6, 22, 23, 0, tzinfo=timezone.utc),
                 },
+                {
+                    "pattern_label": "polishing instead of testing",
+                    "summary": "Identity gap: You say you want users but keep polishing.",
+                },
             ]
         )
 
@@ -167,7 +176,8 @@ class ForgeOnboardingTests(unittest.TestCase):
         self.assertTrue(result["already_complete"])
         self.assertEqual(result["mission_id"], 11)
         self.assertEqual(result["commitment_id"], 21)
-        self.assertEqual(len(db.cursor_instance.executions), 3)
+        self.assertEqual(result["pattern_label"], "polishing instead of testing")
+        self.assertEqual(len(db.cursor_instance.executions), 4)
         self.assertEqual(db.raw_connection.commits, 1)
 
 

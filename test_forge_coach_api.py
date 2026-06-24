@@ -79,12 +79,14 @@ class ForgeCoachApiTests(unittest.TestCase):
             "/api/forge/outputs",
             json={"description": "Published the launch page"},
         )
+        tone = self.client.patch("/api/forge/tone", json={"tone": "balanced"})
         push_key = self.client.get("/api/push/vapid-public-key")
         push_save = self.client.post("/api/push/subscriptions", json={})
 
         self.assertEqual(mission.status_code, 401)
         self.assertEqual(commitment.status_code, 401)
         self.assertEqual(output.status_code, 401)
+        self.assertEqual(tone.status_code, 401)
         self.assertEqual(push_key.status_code, 401)
         self.assertEqual(push_save.status_code, 401)
 
@@ -271,7 +273,46 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("Mission completed: Launch Forge", params[1])
         self.assertIn("The first version is live", params[1])
 
-    def test_commitment_status_updates_coach_checkin(self):
+    def test_tone_update_persists_coach_memory(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "user_id": 7,
+                "coach_tone": "balanced",
+                "updated_at": "2026-06-23T12:00:00",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.patch("/api/forge/tone", json={"tone": "balanced"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["tone"]["coach_tone"], "balanced")
+        query, params = database.cursor_instance.queries[0]
+        self.assertIn("INSERT INTO coach_memory", query)
+        self.assertEqual(params, (7, "balanced"))
+        invalidate.assert_called_once_with(7)
+
+    def test_tone_update_rejects_invalid_tone(self):
+        self.login(7)
+        response = self.client.patch("/api/forge/tone", json={"tone": "soft"})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("Invalid", response.get_json()["error"])
+
+    def test_kept_commitment_requires_proof(self):
+        self.login(7)
+        response = self.client.patch(
+            "/api/forge/commitments/4",
+            json={"status": "kept"},
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("proof", response.get_json()["error"].lower())
+
+    def test_commitment_status_updates_coach_checkin_and_logs_proof(self):
         self.login(7)
         database = StubDatabase([
             {
@@ -279,7 +320,15 @@ class ForgeCoachApiTests(unittest.TestCase):
                 "mission_id": 3,
                 "text": "Publish the landing page",
                 "status": "kept",
+                "checkin_outcome": "kept",
                 "times_carried": 0,
+            },
+            {
+                "id": 8,
+                "mission_id": 3,
+                "commitment_id": 4,
+                "description": "Published the landing page and sent it to three people.",
+                "logged_at": "2026-06-23T12:00:00",
             }
         ])
         with (
@@ -289,14 +338,64 @@ class ForgeCoachApiTests(unittest.TestCase):
         ):
             response = self.client.patch(
                 "/api/forge/commitments/4",
-                json={"status": "kept"},
+                json={
+                    "status": "kept",
+                    "proof": "Published the landing page and sent it to three people.",
+                },
             )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["commitment"]["status"], "kept")
-        self.assertEqual(len(database.cursor_instance.queries), 2)
+        self.assertEqual(response.get_json()["proof"]["commitment_id"], 4)
+        self.assertEqual(len(database.cursor_instance.queries), 3)
         self.assertIn("times_carried = CASE", database.cursor_instance.queries[0][0])
-        self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[1][0])
+        self.assertIn("checkin_outcome", database.cursor_instance.queries[0][0])
+        self.assertIn("INSERT INTO outputs", database.cursor_instance.queries[1][0])
+        self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[2][0])
+        recalculate.assert_called_once_with(7, db=database)
+        invalidate.assert_called_once_with(7)
+
+    def test_partial_commitment_is_logged_as_missed_with_partial_outcome(self):
+        self.login(7)
+        database = StubDatabase([
+            {
+                "id": 4,
+                "mission_id": 3,
+                "text": "Publish the landing page",
+                "status": "missed",
+                "checkin_outcome": "partial",
+                "times_carried": 1,
+            },
+            {
+                "id": 8,
+                "mission_id": 3,
+                "commitment_id": 4,
+                "description": "Drafted the page but did not publish it.",
+                "logged_at": "2026-06-23T12:00:00",
+            }
+        ])
+        with (
+            patch.object(app_module, "get_db", return_value=database),
+            patch.object(app_module, "recalculate_pattern") as recalculate,
+            patch.object(app_module, "invalidate_user_cached_data") as invalidate,
+        ):
+            response = self.client.patch(
+                "/api/forge/commitments/4",
+                json={
+                    "status": "partial",
+                    "proof": "Drafted the page but did not publish it.",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["commitment"]["status"], "missed")
+        self.assertEqual(body["commitment"]["checkin_outcome"], "partial")
+        update_query, update_params = database.cursor_instance.queries[0]
+        self.assertIn("checkin_outcome", update_query)
+        self.assertEqual(update_params, ("missed", "partial", "missed", 4, 7))
+        self.assertIn("INSERT INTO outputs", database.cursor_instance.queries[1][0])
+        self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[2][0])
         recalculate.assert_called_once_with(7, db=database)
         invalidate.assert_called_once_with(7)
 
@@ -340,7 +439,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(len(database.cursor_instance.queries), 2)
         update_query, update_params = database.cursor_instance.queries[0]
         self.assertIn("times_carried = CASE", update_query)
-        self.assertEqual(update_params, ("missed", "missed", 4, 7))
+        self.assertEqual(update_params, ("missed", "missed", "missed", 4, 7))
         memory_query, memory_params = database.cursor_instance.queries[1]
         self.assertIn("INSERT INTO coach_memory", memory_query)
         self.assertIn("Commitment killed or missed", memory_params[1])
@@ -617,6 +716,8 @@ class ForgeCoachApiTests(unittest.TestCase):
         update_pattern.assert_called_once_with(
             7,
             "fear disguised as research",
+            reason="The user is delaying exposure by asking for more learning, research, or preparation.",
+            evidence=["Matched phrase: “research”"],
             db=get_db.return_value,
         )
         record_outcome.assert_called_once_with(
@@ -724,6 +825,8 @@ class ForgeCoachApiTests(unittest.TestCase):
             "mission": "Launch Forge",
             "outcome": "Five active testers",
             "obstacle": "Over-polishing",
+            "pattern_label": "polishing instead of testing",
+            "identity_gap": "You say you want testers, but your current behavior keeps polishing before feedback.",
             "deadline": "2026-08-01",
             "commitment_text": "Invite one tester",
             "commitment_deadline": "2026-06-22T18:00:00-05:00",
@@ -808,7 +911,10 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("User timezone: America/Chicago", system_prompt)
         self.assertIn("FORGE_COMPLETE||", system_prompt)
         self.assertIn("last 30 days", system_prompt)
-        self.assertIn("gap between their stated", system_prompt)
+        self.assertIn("Stage 3", system_prompt)
+        self.assertIn("Stage 4", system_prompt)
+        self.assertIn("pattern_label", system_prompt)
+        self.assertIn("identity_gap", system_prompt)
 
     def test_registration_routes_new_user_to_onboarding(self):
         with (

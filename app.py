@@ -49,7 +49,7 @@ from forge_memory import (
 from forge_coach import (
     FORGE_COMMITMENT_CAPTURE_PROTOCOL,
     classify_checkin_reply,
-    detect_avoidance_pattern,
+    detect_avoidance_profile,
     extract_latest_user_message,
     get_coach_messages,
     persist_commitment_capture,
@@ -82,6 +82,30 @@ def env_csv(name: str, default: list[str]) -> list[str]:
     if not value.strip():
         return default
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def checkin_reply_has_proof(message: str) -> bool:
+    """Return true when a kept-check-in answer includes concrete proof."""
+
+    normalized = " ".join(str(message or "").lower().split())
+    if not normalized:
+        return False
+
+    bare_kept_answers = {
+        "yes",
+        "yeah",
+        "yep",
+        "done",
+        "finished",
+        "completed",
+        "i did",
+        "i did it",
+        "it's done",
+        "its done",
+    }
+    if normalized in bare_kept_answers:
+        return False
+    return len(normalized) >= 16
 
 
 def env_url(name: str, default: str) -> str:
@@ -1744,6 +1768,10 @@ def ensure_base_schema_columns():
         ("focus_sessions", "completed",         "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("focus_sessions", "reflection",        "TEXT NULL"),
         ("focus_sessions", "created_at",        "TIMESTAMP NULL DEFAULT NOW()"),
+        # Forge accountability spine
+        ("commitments", "checkin_outcome", "VARCHAR(32) NULL"),
+        ("outputs", "commitment_id", "BIGINT NULL"),
+        ("coach_memory", "coach_tone", "VARCHAR(32) NOT NULL DEFAULT 'direct'"),
         # users — auth columns that may be absent in older schemas
         ("users", "is_verified",          "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("users", "email_verify_token",   "VARCHAR(512) NULL"),
@@ -5210,6 +5238,41 @@ def api_update_forge_mission():
     return jsonify({"ok": True, "mission": dict(mission)})
 
 
+@app.route("/api/forge/tone", methods=["PATCH"])
+def api_update_forge_tone():
+    """Persist the authenticated user's Forge coaching tone calibration."""
+
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    tone = str((data or {}).get("tone") or "").strip().lower().replace("-", "_")
+    if tone not in {"direct", "balanced", "firm_support"}:
+        return jsonify({"ok": False, "error": "Invalid coaching tone."}), 422
+
+    user_id = session["user_id"]
+    cursor = get_db().cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            INSERT INTO coach_memory (user_id, coach_tone, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                coach_tone = EXCLUDED.coach_tone,
+                updated_at = NOW()
+            RETURNING user_id, coach_tone, updated_at
+            """,
+            (user_id, tone),
+        )
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    invalidate_user_cached_data(user_id)
+    return jsonify({"ok": True, "tone": dict(row) if row is not None else {"coach_tone": tone}})
+
+
 @app.route("/api/forge/commitments/<int:commitment_id>", methods=["PATCH"])
 def api_update_forge_commitment(commitment_id):
     """Resolve one Forge commitment owned by the authenticated user."""
@@ -5218,16 +5281,24 @@ def api_update_forge_commitment(commitment_id):
         return jsonify({"error": "unauthorized"}), 401
 
     data = request.get_json(silent=True)
-    status = str((data or {}).get("status") or "").strip().lower()
+    requested_status = str((data or {}).get("status") or "").strip().lower()
     reason = " ".join(str((data or {}).get("reason") or "").split()).strip()
-    if status not in {"kept", "missed", "pending"}:
+    proof = " ".join(str((data or {}).get("proof") or "").split()).strip()
+    if requested_status not in {"kept", "missed", "pending", "partial"}:
         return jsonify({"ok": False, "error": "Invalid commitment status."}), 422
-    if status == "missed" and (data or {}).get("kill") and len(reason) < 12:
+    if requested_status in {"kept", "partial"} and not proof:
+        return jsonify({"ok": False, "error": "Log proof before resolving this commitment."}), 422
+    if len(proof) > 2_000:
+        return jsonify({"ok": False, "error": "Proof cannot exceed 2,000 characters."}), 422
+    if requested_status == "missed" and (data or {}).get("kill") and len(reason) < 12:
         return jsonify(
             {"ok": False, "error": "Give a one-sentence reason before killing it."}
         ), 422
 
     user_id = session["user_id"]
+    status = "missed" if requested_status == "partial" else requested_status
+    checkin_outcome = requested_status if requested_status in {"kept", "missed", "partial"} else None
+    proof_output = None
     cursor = get_db().cursor(dictionary=True)
     try:
         cursor.execute(
@@ -5235,6 +5306,7 @@ def api_update_forge_commitment(commitment_id):
             UPDATE commitments
             SET
                 status = %s,
+                checkin_outcome = %s,
                 times_carried = CASE
                     WHEN %s = 'missed' THEN times_carried + 1
                     ELSE times_carried
@@ -5242,14 +5314,29 @@ def api_update_forge_commitment(commitment_id):
                 updated_at = NOW()
             WHERE id = %s AND user_id = %s
             RETURNING id, mission_id, text, deadline, status, times_carried,
-                      created_at, updated_at
+                      checkin_outcome, created_at, updated_at
             """,
-            (status, status, commitment_id, user_id),
+            (status, checkin_outcome, status, commitment_id, user_id),
         )
         commitment = cursor.fetchone()
+        if commitment is not None and proof:
+            cursor.execute(
+                """
+                INSERT INTO outputs (user_id, mission_id, commitment_id, description)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, mission_id, commitment_id, description, logged_at
+                """,
+                (user_id, commitment["mission_id"], commitment["id"], proof),
+            )
+            proof_output = cursor.fetchone()
         if commitment is not None and status in {"kept", "missed"}:
             if status == "kept":
-                summary = f"Commitment kept: {commitment['text']}."
+                summary = f"Commitment kept: {commitment['text']}. Proof: {proof}"
+            elif checkin_outcome == "partial":
+                summary = (
+                    f"Commitment partially completed: {commitment['text']}. "
+                    f"Proof/context: {proof}"
+                )
             elif reason:
                 summary = (
                     f"Commitment killed or missed: {commitment['text']}. "
@@ -5283,7 +5370,11 @@ def api_update_forge_commitment(commitment_id):
             app.logger.exception("Pattern recalculation failed for user %s", user_id)
 
     invalidate_user_cached_data(user_id)
-    return jsonify({"ok": True, "commitment": dict(commitment)})
+    return jsonify({
+        "ok": True,
+        "commitment": dict(commitment),
+        "proof": dict(proof_output) if proof_output is not None else None,
+    })
 
 
 @app.route("/api/forge/outputs", methods=["POST"])
@@ -5305,13 +5396,13 @@ def api_create_forge_output():
     try:
         cursor.execute(
             """
-            INSERT INTO outputs (user_id, mission_id, description)
-            SELECT %s, id, %s
+            INSERT INTO outputs (user_id, mission_id, commitment_id, description)
+            SELECT %s, id, NULL, %s
             FROM missions
             WHERE user_id = %s AND status = 'active'
             ORDER BY updated_at DESC, id DESC
             LIMIT 1
-            RETURNING id, mission_id, description, logged_at
+            RETURNING id, mission_id, commitment_id, description, logged_at
             """,
             (user_id, description, user_id),
         )
@@ -5419,15 +5510,27 @@ def api_forge_coach():
         db = get_db()
         context = get_user_context(user_id, db=db)
         checkin_result = None
+        checkin_proof_output = None
         detected_pattern = None
+        needs_proof_for_kept_checkin = False
         if mode == "coach":
-            detected_pattern = detect_avoidance_pattern(latest_user_message)
-            if detected_pattern:
-                update_pattern(user_id, detected_pattern, db=db)
+            detected_profile = detect_avoidance_profile(latest_user_message)
+            if detected_profile:
+                detected_pattern = detected_profile["label"]
+                update_pattern(
+                    user_id,
+                    detected_profile["label"],
+                    reason=detected_profile.get("reason"),
+                    evidence=detected_profile.get("evidence") or [],
+                    db=db,
+                )
 
             due_commitment = context.get("due_commitment") or {}
             if due_commitment.get("id"):
                 checkin_outcome = classify_checkin_reply(latest_user_message)
+                if checkin_outcome == "kept" and not checkin_reply_has_proof(latest_user_message):
+                    needs_proof_for_kept_checkin = True
+                    checkin_outcome = None
                 if checkin_outcome:
                     checkin_result = record_checkin_outcome(
                         user_id,
@@ -5437,6 +5540,29 @@ def api_forge_coach():
                     )
                     if checkin_result and checkin_result.get("status") == "missed":
                         flag_avoided_task(user_id, db=db)
+                    if (
+                        checkin_result
+                        and checkin_outcome in {"kept", "partial"}
+                        and checkin_reply_has_proof(latest_user_message)
+                    ):
+                        proof_cursor = db.cursor(dictionary=True)
+                        try:
+                            proof_cursor.execute(
+                                """
+                                INSERT INTO outputs (user_id, mission_id, commitment_id, description)
+                                VALUES (%s, %s, %s, %s)
+                                RETURNING id, mission_id, commitment_id, description, logged_at
+                                """,
+                                (
+                                    user_id,
+                                    checkin_result["mission_id"],
+                                    checkin_result["id"],
+                                    latest_user_message,
+                                ),
+                            )
+                            checkin_proof_output = proof_cursor.fetchone()
+                        finally:
+                            proof_cursor.close()
                     if checkin_result:
                         recalculate_pattern(user_id, db=db)
 
@@ -5454,6 +5580,13 @@ def api_forge_coach():
                 "If kept: acknowledge briefly and lock the next commitment. "
                 "If missed or partial: treat it as incomplete, ask what happened internally, "
                 "name the likely avoidance pattern, and set a smaller concrete next action."
+            )
+        elif needs_proof_for_kept_checkin:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                "CURRENT CHECK-IN NEEDS PROOF\n"
+                "The user answered as if the commitment was kept, but did not provide proof. "
+                "Do not mark it complete yet. Ask one direct question: what exists now that proves it is done?"
             )
         if mode == "onboarding":
             if bool((context.get("user") or {}).get("onboarding_complete")):
@@ -5523,6 +5656,7 @@ def api_forge_coach():
                 "mode": mode,
                 "commitment": captured_commitment,
                 "checkin": checkin_result,
+                "proof": dict(checkin_proof_output) if checkin_proof_output is not None else None,
                 "pattern": detected_pattern,
                 "messages": [saved_user_message, saved_coach_message],
             }

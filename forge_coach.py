@@ -14,6 +14,107 @@ FORGE_COMMITMENT_PREFIX = "FORGE_COMMITMENT||"
 COMMITMENT_CAPTURE_MAX_TEXT_CHARS = 1_000
 CHECKIN_OUTCOMES = {"kept", "missed", "partial"}
 
+AVOIDANCE_PATTERN_RULES: tuple[dict[str, Any], ...] = (
+    {
+        "label": "fear disguised as research",
+        "reason": "The user is delaying exposure by asking for more learning, research, or preparation.",
+        "markers": (
+            "research",
+            "learn more",
+            "look into",
+            "looking into",
+            "watch more",
+            "read more",
+            "study more",
+            "need more information",
+            "need to know more",
+        ),
+    },
+    {
+        "label": "perfectionism as a shield",
+        "reason": "The user is treating polish, readiness, or correctness as a reason not to ship.",
+        "markers": (
+            "not ready",
+            "perfect",
+            "do it right",
+            "get it right",
+            "good enough",
+            "polish",
+            "needs to be better",
+            "not finished enough",
+        ),
+    },
+    {
+        "label": "overwhelm disguised as complexity",
+        "reason": "The user is framing the work as too large or unclear to avoid choosing the next move.",
+        "markers": (
+            "overwhelmed",
+            "too much",
+            "so much",
+            "don't know where to start",
+            "dont know where to start",
+            "no idea where to start",
+            "where do i start",
+            "too many things",
+        ),
+    },
+    {
+        "label": "identity confusion",
+        "reason": "The user is questioning whether this goal belongs to them instead of choosing a testable action.",
+        "markers": (
+            "not for me",
+            "cut out",
+            "keep starting",
+            "maybe this isn't",
+            "maybe this isnt",
+            "don't know if i want",
+            "dont know if i want",
+            "who am i",
+        ),
+    },
+    {
+        "label": "shame from past failure",
+        "reason": "The user is using previous failure as proof that action now is unsafe or pointless.",
+        "markers": (
+            "tried before",
+            "failed before",
+            "always do this",
+            "i always",
+            "never finish",
+            "messed up before",
+            "failed last time",
+        ),
+    },
+    {
+        "label": "social fear",
+        "reason": "The user is avoiding the work because another person might judge, reject, or see the attempt.",
+        "markers": (
+            "people think",
+            "judge",
+            "judged",
+            "embarrassed",
+            "look stupid",
+            "make fun",
+            "what if people",
+            "what will people",
+        ),
+    },
+    {
+        "label": "soft commitment",
+        "reason": "The user is avoiding accountability by using non-specific timing or weak commitment language.",
+        "markers": (
+            "i'll try",
+            "ill try",
+            "maybe",
+            "soon",
+            "eventually",
+            "sometime",
+            "one day",
+            "when i can",
+        ),
+    },
+)
+
 FORGE_COMMITMENT_CAPTURE_PROTOCOL = f"""
 COMMITMENT CAPTURE PROTOCOL
 
@@ -314,93 +415,32 @@ def classify_checkin_reply(message: str) -> str | None:
     return None
 
 
-def detect_avoidance_pattern(message: str) -> str | None:
-    """Detect the first lightweight avoidance pattern in user language."""
+def detect_avoidance_profile(message: str) -> dict[str, Any] | None:
+    """Return the first avoidance profile detected in user language."""
 
     text = f" {_normalize_text(message).lower()} "
-    checks = (
-        (
-            "fear disguised as research",
-            (
-                "research",
-                "learn more",
-                "look into",
-                "looking into",
-                "watch more",
-                "read more",
-                "study more",
-            ),
-        ),
-        (
-            "perfectionism as a shield",
-            (
-                "not ready",
-                "perfect",
-                "do it right",
-                "get it right",
-                "good enough",
-                "polish",
-            ),
-        ),
-        (
-            "overwhelm disguised as complexity",
-            (
-                "overwhelmed",
-                "too much",
-                "so much",
-                "don't know where to start",
-                "dont know where to start",
-                "no idea where to start",
-            ),
-        ),
-        (
-            "identity confusion",
-            (
-                "not for me",
-                "cut out",
-                "keep starting",
-                "maybe this isn't",
-                "maybe this isnt",
-            ),
-        ),
-        (
-            "shame from past failure",
-            (
-                "tried before",
-                "failed before",
-                "always do this",
-                "i always",
-                "never finish",
-            ),
-        ),
-        (
-            "social fear",
-            (
-                "people think",
-                "judge",
-                "judged",
-                "embarrassed",
-                "look stupid",
-                "make fun",
-            ),
-        ),
-        (
-            "soft commitment",
-            (
-                "i'll try",
-                "ill try",
-                "maybe",
-                "soon",
-                "eventually",
-                "sometime",
-            ),
-        ),
-    )
+    if not text.strip():
+        return None
 
-    for label, markers in checks:
-        if any(marker in text for marker in markers):
-            return label
+    for rule in AVOIDANCE_PATTERN_RULES:
+        matched = [marker for marker in rule["markers"] if marker in text]
+        if matched:
+            return {
+                "label": rule["label"],
+                "reason": rule["reason"],
+                "evidence": [
+                    f"Matched phrase: “{marker}”"
+                    for marker in matched[:3]
+                ],
+            }
     return None
+
+
+def detect_avoidance_pattern(message: str) -> str | None:
+    """Detect the first lightweight avoidance pattern label in user language."""
+
+    profile = detect_avoidance_profile(message)
+    return str(profile["label"]) if profile else None
 
 
 def record_checkin_outcome(
@@ -428,6 +468,7 @@ def record_checkin_outcome(
             """
             UPDATE commitments
             SET status = %s,
+                checkin_outcome = %s,
                 times_carried = CASE
                     WHEN %s = 'missed' THEN times_carried + 1
                     ELSE times_carried
@@ -437,7 +478,7 @@ def record_checkin_outcome(
             RETURNING id, mission_id, text, deadline, status, times_carried,
                       created_at, updated_at
             """,
-            (status, status, normalized_commitment_id, user_id),
+            (status, normalized_outcome, status, normalized_commitment_id, user_id),
         )
         commitment = _row_to_dict(cursor.fetchone())
         if commitment is None:

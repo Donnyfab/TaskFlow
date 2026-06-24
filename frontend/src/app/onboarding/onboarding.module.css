@@ -120,6 +120,40 @@
   line-height: 1.45;
 }
 
+.stageList {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  max-width: 610px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.stageItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 74px;
+  padding: 14px 12px;
+  background: var(--canvas);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.stageNumber {
+  color: var(--text-mid);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
 .userBlock {
   display: flex;
   justify-content: flex-end;
@@ -475,6 +509,18 @@
   .coachQuestion {
     font-size: 21px;
     line-height: 1.38;
+  }
+
+  .stageList {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
+
+  .stageItem {
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 14px;
   }
 
   .userBlock {

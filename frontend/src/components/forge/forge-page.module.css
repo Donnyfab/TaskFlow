@@ -253,6 +253,111 @@
   line-height: 1.6;
 }
 
+.roadmapBlock,
+.reviewBlock {
+  display: grid;
+  gap: 14px;
+}
+
+.roadmapMeta,
+.reviewBlock article,
+.reviewList {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.roadmapMeta p,
+.reviewBlock article p,
+.reviewList p {
+  margin: 0;
+  color: var(--mid);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.roadmapMeta strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.45;
+}
+
+.roadmapStages {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--border);
+}
+
+.roadmapStage {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 16px;
+  padding: 15px 18px;
+  background: var(--surface);
+}
+
+.roadmapStage span,
+.reviewBlock article span,
+.reviewList span {
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.roadmapStage p {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.roadmapStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roadmapStats span {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--mid);
+  font-size: 12px;
+}
+
+.reviewBlock {
+  gap: 10px;
+}
+
+.reviewList {
+  display: grid;
+  gap: 8px;
+  background: var(--raised);
+}
+
+.reviewList p {
+  position: relative;
+  padding-left: 20px;
+  color: var(--text);
+}
+
+.reviewList p::before {
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+  content: "—";
+}
+
 .error {
   margin: 14px 0 0;
   color: var(--danger);
@@ -423,7 +528,33 @@
 
 .kept { color: var(--kept); }
 .missed { color: var(--missed); }
+.partial { color: var(--missed); }
 .pending { color: var(--mid); }
+
+.proofBlock {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.proofBlock span {
+  display: block;
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proofBlock p {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  text-decoration: none;
+}
 
 .outputForm > p {
   margin: -8px 0 0;
@@ -466,6 +597,173 @@
   margin: 10px 0 0;
   color: var(--mid);
   font-size: 12px;
+}
+
+.identityMirror {
+  margin: 0;
+}
+
+.identityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.identityCard,
+.identityGap {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.identityCard {
+  padding: 20px;
+}
+
+.identityCard span,
+.identityGap span {
+  display: block;
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.identityCard h2 {
+  margin: 10px 0 14px;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 640;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+}
+
+.identityCard p,
+.identityGap p {
+  margin: 0;
+  color: var(--mid);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.identityGap {
+  margin-top: 12px;
+  padding: 18px 20px;
+  border-left: 2px solid var(--text);
+  background: var(--raised);
+}
+
+.identityGap[data-level="narrowing"] {
+  border-left-color: var(--text);
+}
+
+.identityGap[data-level="wide"],
+.identityGap[data-level="forming"],
+.identityGap[data-level="unknown"] {
+  border-left-color: var(--border-strong);
+}
+
+.identityGap p {
+  margin-top: 8px;
+  color: var(--text);
+}
+
+.identityEvidence {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.identityEvidence p {
+  position: relative;
+  margin: 0;
+  padding: 12px 0 12px 22px;
+  border-bottom: 1px solid var(--border);
+  color: var(--mid);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.identityEvidence p::before {
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+  content: "—";
+}
+
+.identityQuestion {
+  margin: 18px 0 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.45;
+}
+
+.toneGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.toneButton {
+  min-height: 104px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.toneButton span {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.toneButton strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.toneButtonActive {
+  border-color: var(--text);
+  background: var(--raised);
+}
+
+.toneButton:active {
+  transform: scale(0.985);
+}
+
+.toneButton:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.toneRules {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.toneRules p {
+  margin: 0;
+  padding-left: 18px;
+  border-left: 1px solid var(--border-strong);
+  color: var(--mid);
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .evidenceList p {
@@ -599,6 +897,11 @@
     border-color: var(--border-strong);
     background: var(--raised);
   }
+
+  .toneButton:hover {
+    border-color: var(--border-strong);
+    background: var(--raised);
+  }
 }
 
 @media (max-width: 720px) {
@@ -613,6 +916,19 @@
 
   .weekGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .identityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .toneGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .roadmapStage {
+    grid-template-columns: 1fr;
+    gap: 7px;
   }
 
   .headerMeta {

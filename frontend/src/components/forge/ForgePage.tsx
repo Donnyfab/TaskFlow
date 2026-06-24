@@ -28,6 +28,7 @@ type Commitment = {
   text: string
   deadline?: string | null
   status: 'kept' | 'missed' | 'pending'
+  checkin_outcome?: 'kept' | 'missed' | 'partial' | null
   times_carried?: number
   created_at?: string | null
   updated_at?: string | null
@@ -36,6 +37,7 @@ type Commitment = {
 type Output = {
   id: number
   mission_id: number
+  commitment_id?: number | null
   mission_title?: string | null
   description: string
   logged_at?: string | null
@@ -59,6 +61,64 @@ type WeeklySummary = {
   pattern_status: string
 }
 
+type IdentityMirror = {
+  desired_profile: string
+  current_profile: string
+  identity_gap: string
+  weekly_question: string
+  gap_level: 'narrowing' | 'wide' | 'forming' | 'unknown'
+  evidence: string[]
+  pattern_label?: string | null
+  summary?: string | null
+}
+
+type RoadmapStage = {
+  label: string
+  text: string
+}
+
+type GoalRoadmap = {
+  mission: string
+  target: string
+  current_position: string
+  next_milestone: string
+  commitments_kept: number
+  commitments_broken: number
+  outputs_this_week: number
+  last_output?: string | null
+  primary_risk?: string | null
+  stages: RoadmapStage[]
+}
+
+type WeeklyReview = {
+  committed_to: string[]
+  what_happened: string
+  pattern: string
+  identity_gap?: string | null
+  next_action: string
+  review_question: string
+  outputs: string[]
+}
+
+type RetentionNudge = {
+  should_nudge: boolean
+  hours_since_checkin?: number | null
+  inactivity_prompt?: string | null
+  morning_prompt: string
+}
+
+type CoachTone = 'direct' | 'balanced' | 'firm_support'
+
+type ToneCalibration = {
+  tone: CoachTone
+  label: string
+  instruction: string
+  specificity_rule: string
+  emotional_validation_rule: string
+  forbidden_phrases: string[]
+  required_references: string[]
+}
+
 type ForgeContext = {
   mission?: Mission | null
   active_commitment?: Commitment | null
@@ -72,6 +132,12 @@ type ForgeContext = {
   summary?: string | null
   pattern_history?: PatternEvent[]
   weekly_summary?: WeeklySummary
+  identity_mirror?: IdentityMirror
+  goal_roadmap?: GoalRoadmap
+  weekly_review?: WeeklyReview
+  retention_nudge?: RetentionNudge
+  coach_tone?: CoachTone
+  tone_calibration?: ToneCalibration
 }
 
 type MissionCloseStatus = 'completed' | 'archived'
@@ -209,6 +275,8 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
   const kept = weeklyCommitments.filter(item => item.status === 'kept').length
   const missed = weeklyCommitments.filter(item => item.status === 'missed').length
   const lastOutput = context.recent_outputs?.[0]
+  const roadmap = context.goal_roadmap
+  const retention = context.retention_nudge
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState('')
   const [outcome, setOutcome] = useState('')
@@ -323,6 +391,38 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
 
           <div className={styles.rule} />
 
+          <section className={styles.section}>
+            <Label>Goal roadmap</Label>
+            {roadmap ? (
+              <div className={styles.roadmapBlock}>
+                <div className={styles.roadmapMeta}>
+                  <p>{roadmap.current_position}</p>
+                  <strong>{roadmap.next_milestone}</strong>
+                </div>
+                <div className={styles.roadmapStages}>
+                  {roadmap.stages.map(stage => (
+                    <article className={styles.roadmapStage} key={stage.label}>
+                      <span>{stage.label}</span>
+                      <p>{stage.text}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className={styles.roadmapStats}>
+                  <span>{roadmap.commitments_kept} kept</span>
+                  <span>{roadmap.commitments_broken} broken</span>
+                  <span>{roadmap.outputs_this_week} outputs this week</span>
+                </div>
+                {retention?.morning_prompt ? (
+                  <p className={styles.identityQuestion}>{retention.morning_prompt}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className={styles.bodyCopy}>Forge needs an active mission before it can reverse-engineer the path.</p>
+            )}
+          </section>
+
+          <div className={styles.rule} />
+
           <div className={styles.statGrid}>
             <Stat label="Days active" value={context.days_active || 0} />
             <Stat label="Outputs logged" value={context.recent_outputs?.length || 0} detail={`${context.outputs_this_week || 0} this week`} />
@@ -380,6 +480,11 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
 
 function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh: () => Promise<unknown> }) {
   const commitments = context.commitments || []
+  const proofByCommitment = new Map(
+    (context.recent_outputs || [])
+      .filter(output => output.commitment_id)
+      .map(output => [output.commitment_id as number, output]),
+  )
   const history = commitments.filter(item => isWithinDays(item.updated_at || item.created_at, 14))
   const active = context.active_commitment
   const avoided = commitments.find(item => item.text === context.avoided_task)
@@ -389,21 +494,35 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
   const [error, setError] = useState('')
   const [killId, setKillId] = useState<number | null>(null)
   const [killReason, setKillReason] = useState('')
+  const [decision, setDecision] = useState<'kept' | 'partial' | null>(null)
+  const [proofText, setProofText] = useState('')
 
-  async function setStatus(id: number, status: 'kept' | 'missed') {
+  async function setStatus(id: number, status: 'kept' | 'missed' | 'partial', proof?: string) {
     setSavingId(id)
     setError('')
     try {
       await jsonRequest(`/api/forge/commitments/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(proof ? { proof } : {}) }),
       })
+      setDecision(null)
+      setProofText('')
       await refresh()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Commitment could not be updated.')
     } finally {
       setSavingId(null)
     }
+  }
+
+  async function submitProof(event: FormEvent) {
+    event.preventDefault()
+    if (!active || !decision) return
+    if (!proofText.trim()) {
+      setError('Log proof before resolving this commitment.')
+      return
+    }
+    await setStatus(active.id, decision, proofText.trim())
   }
 
   function beginKillCommitment(id: number) {
@@ -465,10 +584,67 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
             <h1 className={styles.commitmentTitle}>{active.text}</h1>
             <p className={styles.deadline}>{dateTimeValue(active.deadline)}</p>
             <div className={styles.splitActions}>
-              <button className={styles.primaryButton} onClick={() => setStatus(active.id, 'kept')} disabled={savingId === active.id}>I did it</button>
+              <button
+                className={styles.primaryButton}
+                onClick={() => {
+                  setDecision('kept')
+                  setProofText('')
+                  setKillId(null)
+                  setError('')
+                }}
+                disabled={savingId === active.id}
+              >
+                Yes
+              </button>
               <button className={styles.secondaryButton} onClick={() => setStatus(active.id, 'missed')} disabled={savingId === active.id}>I didn&apos;t do it</button>
+              <button
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setDecision('partial')
+                  setProofText('')
+                  setKillId(null)
+                  setError('')
+                }}
+                disabled={savingId === active.id}
+              >
+                Partial
+              </button>
               <button className={styles.dangerButton} onClick={() => beginKillCommitment(active.id)} disabled={savingId === active.id}>Kill it</button>
             </div>
+            {decision ? (
+              <form className={styles.decisionPanel} onSubmit={submitProof}>
+                <Label>{decision === 'kept' ? 'Proof' : 'Partial proof'}</Label>
+                <p className={styles.panelTitle}>
+                  {decision === 'kept'
+                    ? 'What exists now that proves this is done?'
+                    : 'What got done, and what is still unfinished?'}
+                </p>
+                <textarea
+                  value={proofText}
+                  onChange={event => setProofText(event.target.value)}
+                  rows={3}
+                  placeholder={decision === 'kept' ? 'Example: Published the landing page and sent it to 3 people.' : 'Example: Drafted the page, but did not publish it.'}
+                  autoFocus
+                />
+                <div className={styles.actions}>
+                  <button className={styles.primaryButton} type="submit" disabled={savingId === active.id || !proofText.trim()}>
+                    {savingId === active.id ? 'Saving…' : decision === 'kept' ? 'Log proof and mark kept' : 'Log partial and mark missed'}
+                  </button>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    onClick={() => {
+                      setDecision(null)
+                      setProofText('')
+                      setError('')
+                    }}
+                    disabled={savingId === active.id}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
             {killId === active.id ? (
               <form className={styles.decisionPanel} onSubmit={killCommitment}>
                 <Label>Kill commitment</Label>
@@ -545,8 +721,16 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
                   <span className={styles.rowDate}>{dateValue(item.updated_at || item.created_at)}</span>
                   <p className={item.status === 'missed' ? styles.missedText : undefined}>{item.text}</p>
                   <small>Deadline {dateTimeValue(item.deadline)}</small>
+                  {proofByCommitment.get(item.id) ? (
+                    <div className={styles.proofBlock}>
+                      <span>Proof</span>
+                      <p>{proofByCommitment.get(item.id)?.description}</p>
+                    </div>
+                  ) : null}
                 </div>
-                <span className={`${styles.status} ${styles[item.status]}`}>{item.status}</span>
+                <span className={`${styles.status} ${styles[item.checkin_outcome || item.status]}`}>
+                  {item.checkin_outcome || item.status}
+                </span>
               </div>
             ))}
           </div>
@@ -631,7 +815,7 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
   )
 }
 
-function PatternsPage({ context }: { context: ForgeContext }) {
+function PatternsPage({ context, refresh }: { context: ForgeContext; refresh: () => Promise<unknown> }) {
   const commitments = context.commitments || []
   const recent = commitments.filter(item => recentDate(item.updated_at || item.created_at))
   const kept = recent.filter(item => item.status === 'kept').length
@@ -642,6 +826,28 @@ function PatternsPage({ context }: { context: ForgeContext }) {
   const history = context.pattern_history || []
   const latestHistory = history[0]
   const rate = weekly?.commitment_rate ?? fallbackRate
+  const identity = context.identity_mirror
+  const review = context.weekly_review
+  const tone = context.tone_calibration
+  const activeTone = context.coach_tone || tone?.tone || 'direct'
+  const [savingTone, setSavingTone] = useState<CoachTone | null>(null)
+  const [toneError, setToneError] = useState('')
+
+  async function updateTone(nextTone: CoachTone) {
+    setToneError('')
+    setSavingTone(nextTone)
+    try {
+      await jsonRequest('/api/forge/tone', {
+        method: 'PATCH',
+        body: JSON.stringify({ tone: nextTone }),
+      })
+      await refresh()
+    } catch (err) {
+      setToneError(err instanceof Error ? err.message : 'Forge could not save the tone setting.')
+    } finally {
+      setSavingTone(null)
+    }
+  }
 
   const evidenceItems: string[] = []
   if (latestHistory?.evidence?.length) evidenceItems.push(...latestHistory.evidence)
@@ -661,6 +867,112 @@ function PatternsPage({ context }: { context: ForgeContext }) {
         {context.pattern_updated_at ? <p>Updated {dateValue(context.pattern_updated_at)}</p> : null}
         <div className={styles.strongRule} />
       </section>
+
+      <section className={styles.identityMirror}>
+        <Label>Identity mirror</Label>
+        {identity ? (
+          <>
+            <div className={styles.identityGrid}>
+              <article className={styles.identityCard}>
+                <span>Profile A</span>
+                <h2>The person you say you want to be</h2>
+                <p>{identity.desired_profile}</p>
+              </article>
+              <article className={styles.identityCard}>
+                <span>Profile B</span>
+                <h2>The person your current habits are building</h2>
+                <p>{identity.current_profile}</p>
+              </article>
+            </div>
+            <div className={styles.identityGap} data-level={identity.gap_level}>
+              <span>{identity.gap_level}</span>
+              <p>{identity.identity_gap}</p>
+            </div>
+            {identity.evidence?.length ? (
+              <div className={styles.identityEvidence}>
+                {identity.evidence.slice(0, 4).map((item, index) => (
+                  <p key={`${item}-${index}`}>{item}</p>
+                ))}
+              </div>
+            ) : null}
+            <p className={styles.identityQuestion}>{identity.weekly_question}</p>
+          </>
+        ) : (
+          <p className={styles.bodyCopy}>
+            Forge needs a mission and a few resolved commitments before it can build the mirror.
+          </p>
+        )}
+      </section>
+
+      <div className={styles.rule} />
+
+      <section className={styles.section}>
+        <Label>Tone calibration</Label>
+        <div className={styles.toneGrid}>
+          {([
+            ['direct', 'Direct', 'Concise. Blunt. Fast to proof.'],
+            ['balanced', 'Balanced', 'Calm. Direct. Emotion-aware.'],
+            ['firm_support', 'Firm Support', 'Support first. No soft excuses.'],
+          ] as const).map(([value, label, description]) => (
+            <button
+              className={`${styles.toneButton} ${activeTone === value ? styles.toneButtonActive : ''}`}
+              disabled={Boolean(savingTone)}
+              key={value}
+              onClick={() => void updateTone(value)}
+              type="button"
+            >
+              <span>{label}</span>
+              <strong>{description}</strong>
+            </button>
+          ))}
+        </div>
+        {tone ? (
+          <div className={styles.toneRules}>
+            <p>{tone.instruction}</p>
+            <p>{tone.emotional_validation_rule}</p>
+            <p>{tone.specificity_rule}</p>
+          </div>
+        ) : (
+          <p className={styles.bodyCopy}>Forge will default to Direct until a tone is saved.</p>
+        )}
+        {savingTone ? <p className={styles.quietNote}>Saving tone…</p> : null}
+        {toneError ? <p className={styles.error}>{toneError}</p> : null}
+      </section>
+
+      <div className={styles.rule} />
+
+      <section className={styles.section}>
+        <Label>Weekly review</Label>
+        {review ? (
+          <div className={styles.reviewBlock}>
+            <article>
+              <span>What happened</span>
+              <p>{review.what_happened}</p>
+            </article>
+            <article>
+              <span>Pattern</span>
+              <p>{review.pattern}</p>
+            </article>
+            <article>
+              <span>Next</span>
+              <p>{review.next_action}</p>
+            </article>
+            {review.committed_to.length ? (
+              <div className={styles.reviewList}>
+                <span>Committed to</span>
+                {review.committed_to.map((item, index) => (
+                  <p key={`${item}-${index}`}>{item}</p>
+                ))}
+              </div>
+            ) : null}
+            <p className={styles.identityQuestion}>{review.review_question}</p>
+          </div>
+        ) : (
+          <p className={styles.bodyCopy}>Forge needs this week&apos;s commitments before it can run a weekly review.</p>
+        )}
+      </section>
+
+      <div className={styles.rule} />
 
       <section className={styles.section}>
         <Label>Evidence</Label>
@@ -748,7 +1060,7 @@ export default function ForgePage({ view }: { view: ForgeView }) {
         {context && view === 'mission' ? <MissionPage context={context} refresh={refresh} /> : null}
         {context && view === 'commitments' ? <CommitmentsPage context={context} refresh={refresh} /> : null}
         {context && view === 'output' ? <OutputLogPage context={context} refresh={refresh} /> : null}
-        {context && view === 'patterns' ? <PatternsPage context={context} /> : null}
+        {context && view === 'patterns' ? <PatternsPage context={context} refresh={refresh} /> : null}
       </main>
     </div>
   )

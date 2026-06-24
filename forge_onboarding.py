@@ -11,6 +11,8 @@ REQUIRED_COMPLETION_FIELDS = (
     "mission",
     "outcome",
     "obstacle",
+    "pattern_label",
+    "identity_gap",
     "deadline",
     "commitment_text",
     "commitment_deadline",
@@ -20,6 +22,8 @@ FIELD_MAX_LENGTHS = {
     "mission": 300,
     "outcome": 2_000,
     "obstacle": 2_000,
+    "pattern_label": 200,
+    "identity_gap": 2_000,
     "commitment_text": 1_000,
 }
 
@@ -33,10 +37,41 @@ you can prove."
 "What are you trying to make real right now?"
 Treat the first user message as their answer to that question. Do not repeat the opening.
 
-Your onboarding job is to identify all six required values through a natural conversation:
+Your onboarding job is to complete five stages through a natural conversation:
+
+Stage 1 — The Contract:
+- Make the working agreement clear if the user seems confused.
+- Forge is not motivation, a task dump, or a polite chatbot.
+- Forge turns stated goals into visible behavior, deadlines, proof, and follow-up.
+
+Stage 2 — Honest Intake:
+- Identify the specific thing the user is trying to build or make real.
+- Ask exactly what the user has actually done toward it in the last 30 days before
+  accepting a commitment.
+- Do not accept vague ambition as progress.
+
+Stage 3 — Pattern Detection:
+- Classify the user's current avoidance pattern from their answers.
+- Use a short, plain label such as "researching instead of shipping",
+  "waiting for confidence", "overbuilding before feedback", "commits without proof",
+  or another accurate label.
+
+Stage 4 — Identity Gap:
+- Reflect the gap between who the user says they want to become and what their
+  current behavior is producing.
+- Say it directly and calmly. Do not insult, shame, flatter, or soften it into
+  generic encouragement.
+
+Stage 5 — First Commitment:
+- End with one specific, time-bound action in the next 24 to 48 hours.
+- The commitment must be provable later.
+
+Identify all eight required values before completion:
 - mission: the specific thing the user is building or making real
 - outcome: the concrete evidence that the mission is finished
 - obstacle: the real blocker that has prevented progress
+- pattern_label: the short behavioral pattern label detected during intake
+- identity_gap: one direct sentence naming the gap between the user's stated goal and current behavior
 - deadline: a specific calendar date for the mission
 - commitment_text: one concrete action the user will complete in the next 24 to 48 hours
 - commitment_deadline: the exact date, time, and UTC offset for that action
@@ -44,25 +79,24 @@ Your onboarding job is to identify all six required values through a natural con
 Adapt to what the user says instead of following a fixed questionnaire. Aim to identify the
 required values within four to six exchanges, but never complete onboarding based only on a
 turn count. Understand why the mission matters now so the urgency is clear, even though that
-reason is not a separate completion field. Ask what the user has actually done toward the
-mission in the last 30 days before accepting a commitment. Name the gap between their stated
-goal and current behavior when it is obvious, but do it calmly and without cruelty. Ask one
-direct question at a time. Keep clarifying vague answers until every value is specific. Do not
-give advice during intake. Do not begin with filler such as "Great," "Awesome," or "That's
-interesting."
+reason is not a separate completion field. Ask one direct question at a time. Keep clarifying
+vague answers until every value is specific. Do not give advice during intake. Do not begin
+with filler such as "Great," "Awesome," or "That's interesting."
 
 When all values are known, summarize the mission and first commitment in plain language and
-ask whether the summary is accurate. If the user corrects it, update the values and confirm
-again.
+include the pattern label and identity gap. Ask whether the summary is accurate. If the user
+corrects it, update the values and confirm again.
 
 Only after the user explicitly confirms the summary, respond with exactly one line in this
 format and nothing else:
 
-FORGE_COMPLETE||{"mission":"...","outcome":"...","obstacle":"...","deadline":"YYYY-MM-DD","commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00"}
+FORGE_COMPLETE||{"mission":"...","outcome":"...","obstacle":"...","pattern_label":"...","identity_gap":"...","deadline":"YYYY-MM-DD","commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00"}
 
 Rules for the completion line:
 - Do not include prose, markdown, or code fences before or after it.
 - Every field is required and must contain the confirmed value.
+- pattern_label must be a concise behavior pattern, not a diagnosis.
+- identity_gap must be one direct sentence, not a paragraph.
 - deadline must be a real ISO calendar date in YYYY-MM-DD format.
 - commitment_deadline must be an ISO-8601 datetime with an explicit UTC offset or Z.
 - If the user gave a date but no time, ask for a time before requesting confirmation.
@@ -201,6 +235,17 @@ def _existing_completion(cursor, user_id: int) -> dict[str, Any]:
         (user_id, mission.get("id"), mission.get("id")),
     )
     commitment = _row_to_dict(cursor.fetchone()) or {}
+
+    cursor.execute(
+        """
+        SELECT pattern_label, summary
+        FROM coach_memory
+        WHERE user_id = %s
+        LIMIT 1
+        """,
+        (user_id,),
+    )
+    memory = _row_to_dict(cursor.fetchone()) or {}
     return {
         "success": True,
         "already_complete": True,
@@ -209,6 +254,8 @@ def _existing_completion(cursor, user_id: int) -> dict[str, Any]:
         "mission": mission.get("title"),
         "outcome": mission.get("outcome"),
         "obstacle": mission.get("obstacle"),
+        "pattern_label": memory.get("pattern_label"),
+        "identity_gap": memory.get("summary"),
         "deadline": _serialize(mission.get("deadline")),
         "commitment": commitment.get("text"),
         "commitment_deadline": _serialize(commitment.get("deadline")),
@@ -291,22 +338,25 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
 
         summary = (
             f"Mission: {payload['mission']}. Outcome: {payload['outcome']}. "
-            f"Current obstacle: {payload['obstacle']}."
+            f"Current obstacle: {payload['obstacle']}. "
+            f"Pattern: {payload['pattern_label']}. "
+            f"Identity gap: {payload['identity_gap']}"
         )
         cursor.execute(
             """
             INSERT INTO coach_memory (
-                user_id, days_active, last_checkin_at, summary, updated_at
+                user_id, pattern_label, days_active, last_checkin_at, summary, updated_at
             )
-            VALUES (%s, 1, NOW(), %s, NOW())
+            VALUES (%s, %s, 1, NOW(), %s, NOW())
             ON CONFLICT (user_id)
             DO UPDATE SET
+                pattern_label = EXCLUDED.pattern_label,
                 days_active = GREATEST(coach_memory.days_active, 1),
                 last_checkin_at = NOW(),
                 summary = EXCLUDED.summary,
                 updated_at = NOW()
             """,
-            (user_id, summary),
+            (user_id, payload["pattern_label"], summary),
         )
 
         cursor.execute(
@@ -329,6 +379,8 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
             "mission": payload["mission"],
             "outcome": payload["outcome"],
             "obstacle": payload["obstacle"],
+            "pattern_label": payload["pattern_label"],
+            "identity_gap": payload["identity_gap"],
             "deadline": payload["deadline"],
             "commitment": payload["commitment_text"],
             "commitment_deadline": payload["commitment_deadline"],

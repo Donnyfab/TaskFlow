@@ -27,6 +27,8 @@ type CompletionPayload = {
   mission: string
   outcome: string
   obstacle: string
+  pattern_label: string
+  identity_gap: string
   deadline: string
   commitment_text: string
   commitment_deadline: string
@@ -34,6 +36,8 @@ type CompletionPayload = {
 
 type CompletionResult = {
   mission: string
+  patternLabel: string
+  identityGap: string
   commitment: string
   commitmentDeadline: string
 }
@@ -42,6 +46,14 @@ type CoachReplyPayload = {
   reply?: string
   error?: string
 }
+
+const ONBOARDING_STAGES = [
+  'Contract',
+  'Honest intake',
+  'Pattern',
+  'Identity gap',
+  'Commitment',
+] as const
 
 function parseCompletionReply(reply: string): CompletionPayload | null {
   const normalizedReply = reply.trim()
@@ -121,6 +133,8 @@ export default function OnboardingPage() {
 
       setCompletion({
         mission: result.mission || payload.mission,
+        patternLabel: result.pattern_label || payload.pattern_label,
+        identityGap: result.identity_gap || payload.identity_gap,
         commitment: result.commitment || payload.commitment_text,
         commitmentDeadline:
           result.commitment_deadline || payload.commitment_deadline,
@@ -383,8 +397,16 @@ export default function OnboardingPage() {
             <div className={styles.coachBlock}>
               <p className={styles.coachLabel}>Forge</p>
               <p className={styles.coachText}>
-                Before we begin, I need to understand what you&apos;re building. I&apos;m going to be direct: I&apos;ll look at what you say you want, what your actions show, and the first commitment you can prove.
+                Before we begin, I need to understand what you&apos;re building. This is not motivation or task storage. I&apos;ll look at what you say you want, what your actions show, and the first commitment you can prove.
               </p>
+              <ol className={styles.stageList} aria-label="Forge onboarding stages">
+                {ONBOARDING_STAGES.map((stage, index) => (
+                  <li className={styles.stageItem} key={stage}>
+                    <span className={styles.stageNumber}>{String(index + 1).padStart(2, '0')}</span>
+                    <span>{stage}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 
@@ -464,6 +486,16 @@ export default function OnboardingPage() {
               <div className={styles.completeRow}>
                 <p className={styles.completeKey}>Mission</p>
                 <p className={styles.completeValue}>{completion.mission}</p>
+              </div>
+              <div className={styles.divider} />
+              <div className={styles.completeRow}>
+                <p className={styles.completeKey}>Pattern</p>
+                <p className={styles.completeValue}>{completion.patternLabel}</p>
+              </div>
+              <div className={styles.divider} />
+              <div className={styles.completeRow}>
+                <p className={styles.completeKey}>Identity gap</p>
+                <p className={styles.completeValue}>{completion.identityGap}</p>
               </div>
               <div className={styles.divider} />
               <div className={styles.completeRow}>

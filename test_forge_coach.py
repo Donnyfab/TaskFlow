@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from forge_coach import (
     COACH_MESSAGE_MAX_CHARS,
     classify_checkin_reply,
+    detect_avoidance_profile,
     detect_avoidance_pattern,
     extract_latest_user_message,
     get_coach_messages,
@@ -260,6 +261,28 @@ class ForgeCoachHelperTests(unittest.TestCase):
             detect_avoidance_pattern("I'll try to do it soon."),
             "soft commitment",
         )
+        self.assertEqual(
+            detect_avoidance_pattern("Maybe this isn't for me."),
+            "identity confusion",
+        )
+        self.assertEqual(
+            detect_avoidance_pattern("I tried before and failed last time."),
+            "shame from past failure",
+        )
+        self.assertEqual(
+            detect_avoidance_pattern("What will people think if I post it?"),
+            "social fear",
+        )
+
+    def test_detect_avoidance_profile_returns_reason_and_evidence(self):
+        profile = detect_avoidance_profile(
+            "Maybe I should research and learn more before I publish."
+        )
+
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile["label"], "fear disguised as research")
+        self.assertIn("delaying exposure", profile["reason"])
+        self.assertTrue(any("research" in item for item in profile["evidence"]))
 
     def test_record_checkin_outcome_marks_partial_as_missed_and_updates_memory(self):
         now = datetime(2026, 6, 20, 12, 0, tzinfo=timezone.utc)

@@ -111,11 +111,6 @@ function buildOpening(context: CoachContext) {
   }
 
   const commitment = context.active_commitment?.text?.trim()
-  const checkedInToday = isToday(context.last_checkin_at)
-
-  if (commitment && !checkedInToday) {
-    return `You committed to “${commitment}.” Did you do it?`
-  }
   if (commitment) {
     return `Your current commitment is “${commitment}.” What could stop you from finishing it?`
   }
