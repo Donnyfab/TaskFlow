@@ -245,6 +245,7 @@ export default function CoachPage() {
         !message.content.trim().startsWith(COMPLETION_PREFIX)
       )))
       setSaveState('complete')
+      window.dispatchEvent(new Event('forge:onboarding-complete'))
     } catch (completionError) {
       setSaveState('error')
       setSaveError(

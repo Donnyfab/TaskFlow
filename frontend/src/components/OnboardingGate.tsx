@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { apiUrl } from '@/lib/api-base'
 
 type GateState = 'checking' | 'allowed'
@@ -23,12 +23,10 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
   const [state, setState] = useState<GateState>('checking')
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null)
 
-  useEffect(() => {
-    const controller = new AbortController()
-
+  const loadStatus = useCallback((signal?: AbortSignal) => {
     fetch(apiUrl('/api/onboarding/status'), {
       credentials: 'include',
-      signal: controller.signal,
+      signal,
     })
       .then(async response => {
         if (!response.ok) throw new Error(`Status request failed: ${response.status}`)
@@ -44,8 +42,23 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
         setOnboardingComplete(null)
         setState('allowed')
       })
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadStatus(controller.signal)
 
     return () => controller.abort()
+  }, [loadStatus])
+
+  useEffect(() => {
+    function handleOnboardingComplete() {
+      setOnboardingComplete(true)
+      setState('allowed')
+    }
+
+    window.addEventListener('forge:onboarding-complete', handleOnboardingComplete)
+    return () => window.removeEventListener('forge:onboarding-complete', handleOnboardingComplete)
   }, [])
 
   const value = useMemo(() => ({
