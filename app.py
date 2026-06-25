@@ -3656,7 +3656,7 @@ def ping():
 def landing_page():
     if logged_in():
         return redirect(APP_PUBLIC_URL + "/ai")
-    return render_template("landing_page.html")
+    return redirect(APP_PUBLIC_URL + "/landing")
 
 
 @app.route("/blog")
