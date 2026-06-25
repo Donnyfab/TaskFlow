@@ -210,7 +210,10 @@ class ForgeCoachApiTests(unittest.TestCase):
         send.assert_called_once()
         payload = send.call_args.args[1]
         self.assertEqual(payload["title"], "Forge")
-        self.assertEqual(payload["body"], "Did you do it? “Publish one product photo”")
+        self.assertEqual(
+            payload["body"],
+            "Did you do it? “Publish one product photo” Proof: what exists now",
+        )
         self.assertTrue(payload["tag"].startswith("forge-checkin-7-"))
 
     def test_active_mission_can_be_updated(self):
@@ -432,7 +435,10 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(body["commitment"]["checkin_outcome"], "partial")
         update_query, update_params = database.cursor_instance.queries[0]
         self.assertIn("checkin_outcome", update_query)
-        self.assertEqual(update_params, ("missed", "partial", "missed", 4, 7))
+        self.assertEqual(
+            update_params,
+            ("missed", "partial", "in_progress", "missed", "missed", 4, 7),
+        )
         self.assertIn("INSERT INTO outputs", database.cursor_instance.queries[1][0])
         self.assertIn("INSERT INTO coach_memory", database.cursor_instance.queries[2][0])
         recalculate.assert_called_once_with(7, db=database)
@@ -478,7 +484,10 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(len(database.cursor_instance.queries), 2)
         update_query, update_params = database.cursor_instance.queries[0]
         self.assertIn("times_carried = CASE", update_query)
-        self.assertEqual(update_params, ("missed", "missed", "missed", 4, 7))
+        self.assertEqual(
+            update_params,
+            ("missed", "missed", "blocked", "missed", "missed", 4, 7),
+        )
         memory_query, memory_params = database.cursor_instance.queries[1]
         self.assertIn("INSERT INTO coach_memory", memory_query)
         self.assertIn("Commitment killed or missed", memory_params[1])
@@ -510,7 +519,7 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertEqual(response.get_json()["output"]["mission_id"], 3)
         query, params = database.cursor_instance.queries[0]
         self.assertIn("INSERT INTO outputs", query)
-        self.assertEqual(params, (7, "Published the launch page", 7))
+        self.assertEqual(params, (7, "Published the launch page", "medium", None, 7))
         recalculate.assert_called_once_with(7, db=database)
         invalidate.assert_called_once_with(7)
 
@@ -672,6 +681,9 @@ class ForgeCoachApiTests(unittest.TestCase):
             {
                 "commitment_text": "Publish one demo clip",
                 "commitment_deadline": "2026-06-24T18:00:00-05:00",
+                "why_it_matters": "It moves the active mission from intention into evidence.",
+                "proof_required": "Written proof of what exists now.",
+                "proof_level": "medium",
             },
             db=get_db.return_value,
         )
@@ -875,6 +887,9 @@ class ForgeCoachApiTests(unittest.TestCase):
             "deadline": "2026-08-01",
             "commitment_text": "Invite one tester",
             "commitment_deadline": "2026-06-22T18:00:00-05:00",
+            "commitment_why_it_matters": "It gets Forge in front of a real tester.",
+            "proof_required": "A sent invite message.",
+            "proof_level": "high",
         }
         with (
             patch.object(app_module, "get_db", return_value=database),
@@ -968,6 +983,70 @@ class ForgeCoachApiTests(unittest.TestCase):
         self.assertIn("fall_off_trigger", system_prompt)
         self.assertIn("pattern_label", system_prompt)
         self.assertIn("identity_gap", system_prompt)
+
+    def test_phone_coach_requires_secret(self):
+        with patch.dict(os.environ, {"PHONE_WEBHOOK_SECRET": "secret"}):
+            response = self.client.post(
+                "/api/phone/coach",
+                json={"user_id": 7, "message": "I did not do it."},
+            )
+
+        self.assertEqual(response.status_code, 403)
+
+    @patch.object(app_module, "extract_anthropic_text", return_value="What actually stopped you?")
+    @patch.object(
+        app_module,
+        "call_anthropic_messages_api",
+        return_value=AnthropicResponse("What actually stopped you?"),
+    )
+    @patch.object(app_module, "create_anthropic_client", return_value=object())
+    @patch.object(app_module, "persist_commitment_capture", return_value=None)
+    @patch.object(
+        app_module,
+        "save_coach_message",
+        side_effect=[
+            {"id": 1, "role": "user", "content": "I kept planning."},
+            {"id": 2, "role": "assistant", "content": "What actually stopped you?"},
+        ],
+    )
+    @patch.object(app_module, "get_coach_messages", return_value=[])
+    @patch.object(app_module, "build_system_prompt", return_value="Forge system prompt")
+    @patch.object(app_module, "detect_avoidance_profile", return_value=None)
+    @patch.object(app_module, "get_user_context", return_value={"user": {"id": 7}})
+    @patch.object(app_module, "get_db", return_value=object())
+    def test_phone_coach_uses_same_memory_and_short_channel_contract(
+        self,
+        get_db,
+        get_user_context,
+        _detect_profile,
+        _build_system_prompt,
+        _get_messages,
+        save_message,
+        _persist_capture,
+        _create_client,
+        call_anthropic,
+        _extract_text,
+    ):
+        with patch.dict(
+            os.environ,
+            {"ANTHROPIC_API_KEY": "test-key", "PHONE_WEBHOOK_SECRET": "secret"},
+        ):
+            response = self.client.post(
+                "/api/phone/coach",
+                json={"user_id": 7, "message": "I kept planning."},
+                headers={"X-Forge-Phone-Secret": "secret"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["reply"], "What actually stopped you?")
+        get_user_context.assert_called_once_with(7, db=get_db.return_value)
+        self.assertIn("PHONE COACH CHANNEL", call_anthropic.call_args.kwargs["system"])
+        self.assertEqual(save_message.call_args_list[0].args[:3], (7, "user", "I kept planning."))
+        self.assertEqual(
+            save_message.call_args_list[1].args[:3],
+            (7, "assistant", "What actually stopped you?"),
+        )
 
     def test_registration_routes_new_user_to_coach(self):
         with (

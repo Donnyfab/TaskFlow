@@ -29,11 +29,13 @@ Operating rules:
   - "I'm researching", "I'm planning", or "I need to learn more": analysis paralysis; challenge it and ask what action they are delaying.
   - "it's not ready", "it needs more work", or "it has to be perfect": perfectionism; call it out and ask what version could be proven this week.
   - "I'm scared it won't work": fear of failure; acknowledge briefly, then redirect to a test that creates evidence.
-  - "I'm too busy": possible excuse or poor prioritization; probe which one it is.
-  - "I'm overwhelmed": overload; narrow the focus, do not expand the plan.
-  - fear disguised as research: reduce exposure risk and demand one public proof step.
-  - perfectionism as a shield: define the smallest shippable version and a deadline.
-  - overwhelm disguised as complexity: choose the next physical action; do not plan the whole system.
+	  - "I'm too busy": possible excuse or poor prioritization; probe which one it is.
+	  - "I'm overwhelmed": overload; narrow the focus, do not expand the plan.
+	  - "I spend all my time on X and neglect Y": hyperfocus or poor attention distribution; confirm that diagnosis before naming perfectionism.
+	  - fear disguised as research: reduce exposure risk and demand one public proof step.
+	  - perfectionism as a shield: define the smallest shippable version and a deadline.
+	  - overwhelm disguised as complexity: choose the next physical action; do not plan the whole system.
+	  - hyperfocus starving other priorities: build a small weekly attention rule before accepting a bigger commitment.
   - identity confusion: run a small identity test through action, not abstract reflection.
   - shame from past failure: separate past evidence from today's commitment; shrink the proof.
   - social fear: name the audience/rejection fear and require one controlled exposure.
@@ -43,6 +45,7 @@ Operating rules:
 - Treat partial completion as incomplete and identify the remaining gap.
 - Ask "Did you do it?" only when Commitment needs check-in now is true.
 - A commitment must name one concrete action and a deadline.
+- For build goals, help choose the immediate MVP slice, the next dependency, and what can wait. Do not create a full roadmap or research plan unless that product feature is explicitly enabled.
 - If an avoided task has been carried three or more times, address it before accepting new work.
 - Ask one strong question at a time. Do not overwhelm the user with a checklist.
 - Do not use badges, streak language, generic encouragement, or phrases such as "you've got this."
@@ -164,7 +167,8 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         cursor.execute(
             """
             SELECT id, mission_id, text, deadline, status, checkin_outcome,
-                   times_carried, created_at, updated_at
+                   times_carried, why_it_matters, proof_required, proof_level,
+                   progress, last_followup_at, created_at, updated_at
             FROM commitments
             WHERE user_id = %s
             ORDER BY
@@ -185,7 +189,8 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         cursor.execute(
             """
             SELECT outputs.id, outputs.mission_id, outputs.commitment_id,
-                   outputs.description, outputs.logged_at,
+                   outputs.description, outputs.logged_at, outputs.proof_level,
+                   outputs.proof_url, outputs.review_status, outputs.coach_feedback,
                    missions.title AS mission_title
             FROM outputs
             LEFT JOIN missions ON missions.id = outputs.mission_id
@@ -211,7 +216,8 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         cursor.execute(
             """
             SELECT pattern_label, avoided_task, days_active, last_checkin_at,
-                   summary, coach_tone, created_at, updated_at
+                   summary, coach_tone, coach_stage, communication_style,
+                   created_at, updated_at
             FROM coach_memory
             WHERE user_id = %s
             """,
@@ -289,12 +295,23 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         last_checkin_at=last_checkin_at,
         now=now,
     )
+    adaptive_profile = build_adaptive_coaching_profile(
+        commitments=commitments,
+        recent_outputs=recent_outputs,
+        outputs_this_week=int(output_count_row.get("outputs_this_week") or 0),
+        pattern_label=memory.get("pattern_label"),
+        days_active=int(memory.get("days_active") or 0),
+        stored_stage=memory.get("coach_stage"),
+        communication_style=memory.get("communication_style"),
+        now=now,
+    )
     coach_tone = _normalize_coach_tone(memory.get("coach_tone"))
     tone_calibration = build_tone_calibration(
         coach_tone=coach_tone,
         pattern_label=memory.get("pattern_label"),
         identity_mirror=identity_mirror,
         goal_roadmap=goal_roadmap,
+        adaptive_profile=adaptive_profile,
     )
 
     return {
@@ -323,6 +340,7 @@ def get_user_context(user_id: int, db=None) -> dict[str, Any]:
         "goal_roadmap": goal_roadmap,
         "weekly_review": weekly_review,
         "retention_nudge": retention_nudge,
+        "adaptive_profile": adaptive_profile,
         "coach_tone": coach_tone,
         "tone_calibration": tone_calibration,
     }
@@ -697,12 +715,83 @@ def _normalize_coach_tone(value: Any) -> str:
     return tone
 
 
+def build_adaptive_coaching_profile(
+    *,
+    commitments: list[dict[str, Any]],
+    recent_outputs: list[dict[str, Any]],
+    outputs_this_week: int,
+    pattern_label: str | None,
+    days_active: int,
+    stored_stage: str | None = None,
+    communication_style: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Classify how Forge should coach this user today."""
+
+    reference = now or datetime.now(timezone.utc)
+    recent_commitments = [
+        commitment
+        for commitment in commitments
+        if _commitment_is_recent(
+            commitment.get("updated_at") or commitment.get("created_at"),
+            reference,
+            days=14,
+        )
+    ]
+    kept = sum(1 for item in recent_commitments if item.get("status") == "kept")
+    missed = sum(1 for item in recent_commitments if item.get("status") == "missed")
+    pending = sum(1 for item in recent_commitments if item.get("status") == "pending")
+    outputs = int(outputs_this_week or 0)
+    pattern = str(pattern_label or "").lower()
+
+    stored = str(stored_stage or "").strip().lower()
+    if stored in {"beginner", "intermediate", "advanced", "burned_out", "consistent"}:
+        stage = stored
+    elif missed >= 2 and outputs == 0:
+        stage = "burned_out" if "overwhelm" in pattern else "intermediate"
+    elif kept >= 3 and outputs >= 2 and missed <= 1:
+        stage = "consistent"
+    elif days_active >= 21 and kept >= missed and outputs >= 2:
+        stage = "advanced"
+    elif days_active <= 3 or len(commitments) <= 2:
+        stage = "beginner"
+    else:
+        stage = "intermediate"
+
+    style = str(communication_style or "").strip().lower()
+    if style not in {"short", "normal", "detailed"}:
+        style = "short" if stage in {"burned_out", "beginner"} else "normal"
+
+    stage_instructions = {
+        "beginner": "Educate only enough to remove confusion, then ask for one concrete proof step.",
+        "intermediate": "Prioritize accountability: compare promise, deadline, proof, and pattern before accepting a new plan.",
+        "advanced": "Use strategy sparingly. Optimize constraints, leverage, and feedback loops after proof exists.",
+        "burned_out": "Reduce scope without lowering accountability. Ask for a smaller proof step, not a bigger plan.",
+        "consistent": "Optimize rhythm. Increase proof quality or frequency without adding unnecessary complexity.",
+    }
+
+    return {
+        "stage": stage,
+        "communication_style": style,
+        "instruction": stage_instructions[stage],
+        "evidence": {
+            "commitments_recent": len(recent_commitments),
+            "commitments_kept": kept,
+            "commitments_missed": missed,
+            "commitments_pending": pending,
+            "outputs_this_week": outputs,
+            "recent_outputs": len(recent_outputs),
+        },
+    }
+
+
 def build_tone_calibration(
     *,
     coach_tone: str | None,
     pattern_label: str | None,
     identity_mirror: dict[str, Any] | None,
     goal_roadmap: dict[str, Any] | None,
+    adaptive_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return response rules that keep Forge direct, specific, and emotionally aware."""
 
@@ -713,6 +802,9 @@ def build_tone_calibration(
     next_milestone = roadmap.get("next_milestone") or "the next concrete milestone"
     identity_gap = identity.get("identity_gap") or "the gap between stated goal and current behavior"
     pattern = pattern_label or roadmap.get("primary_risk") or "the user's current behavior pattern"
+    adaptive = adaptive_profile or {}
+    adaptive_stage = adaptive.get("stage") or "beginner"
+    adaptive_instruction = adaptive.get("instruction") or "Coach according to the user's current proof level."
 
     tone_map = {
         "direct": {
@@ -758,6 +850,8 @@ def build_tone_calibration(
             f"next milestone “{next_milestone}”, identity gap “{identity_gap}”."
         ),
         "emotional_validation_rule": selected["emotional_validation_rule"],
+        "adaptive_stage": adaptive_stage,
+        "adaptive_instruction": adaptive_instruction,
         "forbidden_phrases": list(GENERIC_COACHING_PHRASES),
         "required_references": [
             str(mission),
@@ -784,6 +878,7 @@ def build_system_prompt(context: dict[str, Any]) -> str:
     roadmap = context.get("goal_roadmap") or {}
     review = context.get("weekly_review") or {}
     retention = context.get("retention_nudge") or {}
+    adaptive = context.get("adaptive_profile") or {}
     tone = context.get("tone_calibration") or {}
 
     output_lines = [
@@ -816,6 +911,10 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             f"Active commitment: {commitment.get('text') or 'None locked'}",
             f"Commitment deadline: {_iso_value(commitment.get('deadline')) or 'None'}",
             f"Commitment status: {commitment.get('status') or 'None'}",
+            f"Commitment progress: {commitment.get('progress') or 'not_started'}",
+            f"Commitment why it matters: {commitment.get('why_it_matters') or 'None recorded'}",
+            f"Commitment proof required: {commitment.get('proof_required') or 'Written proof of what exists now.'}",
+            f"Commitment proof level: {commitment.get('proof_level') or 'medium'}",
             f"Commitment needs check-in now: {bool(context.get('needs_checkin'))}",
             f"Check-in prompt: {context.get('checkin_prompt') or 'None'}",
             f"Times carried: {int(commitment.get('times_carried') or 0)}",
@@ -846,15 +945,22 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             "RETENTION PROMPTS",
             f"Morning prompt: {retention.get('morning_prompt') or 'What is the one thing that matters today?'}",
             f"Inactivity nudge: {retention.get('inactivity_prompt') or 'None'}",
+            "ADAPTIVE COACHING MODE",
+            f"Stage: {adaptive.get('stage') or 'beginner'}",
+            f"Communication style: {adaptive.get('communication_style') or 'short'}",
+            f"Stage instruction: {adaptive.get('instruction') or 'Coach according to the user’s current proof level.'}",
             "TONE CALIBRATION AND SPECIFICITY AUDIT",
             f"Selected tone: {tone.get('label') or 'Direct'}",
             f"Tone instruction: {tone.get('instruction') or 'Be concise, direct, and specific.'}",
             f"Emotional validation rule: {tone.get('emotional_validation_rule') or 'Acknowledge emotion when present before action.'}",
+            f"Adaptive rule: {tone.get('adaptive_instruction') or adaptive.get('instruction') or 'Match the coaching level to the user’s behavior.'}",
             f"Specificity rule: {tone.get('specificity_rule') or 'Reference concrete memory before advice.'}",
             f"Forbidden generic phrases: {', '.join(tone.get('forbidden_phrases') or GENERIC_COACHING_PHRASES)}",
             "Before sending any response, silently audit it:",
             "  - Does it reference this user's actual mission, commitment, pattern, output, or roadmap?",
             "  - Does it name the emotional pressure or avoidance behavior before prescribing action when emotion is present?",
+            "  - Is it short enough for a real text conversation: one to three sentences unless the user explicitly asks for detail?",
+            "  - Has the conversation converged toward proof, a decision, or a commitment instead of opening more questions?",
             "  - Could this response apply to a random user? If yes, rewrite it.",
             "Recent pattern evidence:",
             *pattern_lines,

@@ -139,6 +139,49 @@
   line-height: 1.7;
 }
 
+.summaryPanel {
+  display: grid;
+  gap: 14px;
+  max-width: 620px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.summaryPanel > p {
+  margin: 0;
+  color: var(--mid);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.summaryCommitment {
+  display: grid;
+  gap: 7px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.summaryCommitment span,
+.summaryCommitment small,
+.commitmentMetaGrid span,
+.inlineFields span {
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.summaryCommitment strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.45;
+}
+
 .lockedPreview {
   width: min(100%, 620px);
   padding-top: clamp(36px, 8vh, 92px);
@@ -396,6 +439,41 @@
   gap: 10px;
 }
 
+.adaptivePanel {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.adaptivePanel span {
+  display: block;
+  color: var(--mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.adaptivePanel strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 680;
+  letter-spacing: -0.04em;
+  text-transform: capitalize;
+}
+
+.adaptivePanel p {
+  margin: 0;
+  color: var(--mid);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .reviewList {
   display: grid;
   gap: 8px;
@@ -487,6 +565,28 @@
   font-weight: 580;
   letter-spacing: -0.02em;
   line-height: 1.42;
+}
+
+.commitmentMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.commitmentMetaGrid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--raised);
+}
+
+.commitmentMetaGrid p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .decisionPanel {
@@ -613,6 +713,45 @@
   text-decoration: none;
 }
 
+.proofBlock small {
+  display: block;
+  margin-top: 7px;
+  color: var(--mid);
+  font-size: 10px;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.inlineFields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+}
+
+.inlineFields label {
+  display: grid;
+  gap: 7px;
+}
+
+.inlineFields select,
+.inlineFields input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.inlineFields select:focus,
+.inlineFields input:focus {
+  border-color: var(--border-strong);
+}
+
 .outputForm > p {
   margin: -8px 0 0;
   color: var(--dim);
@@ -643,6 +782,15 @@
   color: var(--mid);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.outputLink {
+  display: inline-flex;
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .patternHero h1 {
@@ -980,6 +1128,11 @@
   }
 
   .toneGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .commitmentMetaGrid,
+  .inlineFields {
     grid-template-columns: 1fr;
   }
 

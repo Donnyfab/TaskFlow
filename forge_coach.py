@@ -13,6 +13,7 @@ COACH_MESSAGE_ROLES = {"user", "assistant"}
 FORGE_COMMITMENT_PREFIX = "FORGE_COMMITMENT||"
 COMMITMENT_CAPTURE_MAX_TEXT_CHARS = 1_000
 CHECKIN_OUTCOMES = {"kept", "missed", "partial"}
+PROOF_LEVELS = {"low", "medium", "high"}
 
 AVOIDANCE_PATTERN_RULES: tuple[dict[str, Any], ...] = (
     {
@@ -121,12 +122,15 @@ COMMITMENT CAPTURE PROTOCOL
 When the user explicitly commits to a concrete next action with a real deadline,
 append exactly one machine-readable line after your normal coach response:
 
-{FORGE_COMMITMENT_PREFIX}{{"commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00"}}
+{FORGE_COMMITMENT_PREFIX}{{"commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00","why_it_matters":"...","proof_required":"...","proof_level":"medium"}}
 
 Rules:
 - Only emit this line after the commitment is specific and the user has accepted it.
 - The action must be concrete enough that another person can verify whether it happened.
 - The deadline must include date, time, and explicit UTC offset or Z.
+- why_it_matters must explain how this promise advances the user's active mission.
+- proof_required must name the evidence Forge should ask for later.
+- proof_level must be low, medium, or high. Prefer high when the proof is public, shipped, sent, recorded, or visible.
 - Never emit this line for hedged language such as "I'll try", "maybe", "soon", or "this week" without an exact day and time.
 - Do not mention the machine-readable line to the user. The app will hide it.
 """.strip()
@@ -163,6 +167,11 @@ def _row_to_dict(row) -> dict[str, Any] | None:
 
 def _normalize_text(value: Any) -> str:
     return " ".join(str(value or "").split())
+
+
+def _normalize_proof_level(value: Any) -> str:
+    level = _normalize_text(value).lower()
+    return level if level in PROOF_LEVELS else "medium"
 
 
 def _normalize_content(content: Any) -> str:
@@ -279,6 +288,11 @@ def split_commitment_capture(reply: str) -> tuple[str, dict[str, str] | None]:
         captured = {
             "commitment_text": commitment_text,
             "commitment_deadline": commitment_deadline,
+            "why_it_matters": _normalize_text(payload.get("why_it_matters"))
+            or "It moves the active mission from intention into evidence.",
+            "proof_required": _normalize_text(payload.get("proof_required"))
+            or "Written proof of what exists now.",
+            "proof_level": _normalize_proof_level(payload.get("proof_level")),
         }
 
     cleaned_reply = "\n".join(cleaned_lines).strip()
@@ -299,6 +313,13 @@ def persist_commitment_capture(
     user_id = _validate_user_id(user_id)
     commitment_text = _normalize_text(payload.get("commitment_text"))
     commitment_deadline = _normalize_text(payload.get("commitment_deadline"))
+    why_it_matters = _normalize_text(payload.get("why_it_matters")) or (
+        "It moves the active mission from intention into evidence."
+    )
+    proof_required = _normalize_text(payload.get("proof_required")) or (
+        "Written proof of what exists now."
+    )
+    proof_level = _normalize_proof_level(payload.get("proof_level"))
     if not commitment_text or not commitment_deadline:
         return None
 
@@ -330,7 +351,8 @@ def persist_commitment_capture(
         cursor.execute(
             """
             SELECT id, mission_id, text, deadline, status, times_carried,
-                   created_at, updated_at
+                   why_it_matters, proof_required, proof_level, progress,
+                   last_followup_at, created_at, updated_at
             FROM commitments
             WHERE user_id = %s
               AND mission_id = %s
@@ -349,13 +371,23 @@ def persist_commitment_capture(
         cursor.execute(
             """
             INSERT INTO commitments (
-                user_id, mission_id, text, deadline, status, times_carried
+                user_id, mission_id, text, deadline, status, times_carried,
+                why_it_matters, proof_required, proof_level, progress
             )
-            VALUES (%s, %s, %s, %s, 'pending', 0)
+            VALUES (%s, %s, %s, %s, 'pending', 0, %s, %s, %s, 'not_started')
             RETURNING id, mission_id, text, deadline, status, times_carried,
-                      created_at, updated_at
+                      why_it_matters, proof_required, proof_level, progress,
+                      last_followup_at, created_at, updated_at
             """,
-            (user_id, mission["id"], commitment_text, commitment_deadline),
+            (
+                user_id,
+                mission["id"],
+                commitment_text,
+                commitment_deadline,
+                why_it_matters,
+                proof_required,
+                proof_level,
+            ),
         )
         return _row_to_dict(cursor.fetchone())
     finally:
@@ -462,6 +494,11 @@ def record_checkin_outcome(
         return None
 
     status = "kept" if normalized_outcome == "kept" else "missed"
+    progress = {
+        "kept": "done",
+        "partial": "in_progress",
+        "missed": "blocked",
+    }[normalized_outcome]
     cursor = _resolve_db(db).cursor(dictionary=True)
     try:
         cursor.execute(
@@ -469,6 +506,8 @@ def record_checkin_outcome(
             UPDATE commitments
             SET status = %s,
                 checkin_outcome = %s,
+                progress = %s,
+                last_followup_at = NOW(),
                 times_carried = CASE
                     WHEN %s = 'missed' THEN times_carried + 1
                     ELSE times_carried
@@ -476,9 +515,17 @@ def record_checkin_outcome(
                 updated_at = NOW()
             WHERE id = %s AND user_id = %s AND status = 'pending'
             RETURNING id, mission_id, text, deadline, status, times_carried,
-                      created_at, updated_at
+                      checkin_outcome, why_it_matters, proof_required, proof_level,
+                      progress, last_followup_at, created_at, updated_at
             """,
-            (status, normalized_outcome, status, normalized_commitment_id, user_id),
+            (
+                status,
+                normalized_outcome,
+                progress,
+                status,
+                normalized_commitment_id,
+                user_id,
+            ),
         )
         commitment = _row_to_dict(cursor.fetchone())
         if commitment is None:

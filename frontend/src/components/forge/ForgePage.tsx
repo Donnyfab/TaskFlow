@@ -31,6 +31,11 @@ type Commitment = {
   status: 'kept' | 'missed' | 'pending'
   checkin_outcome?: 'kept' | 'missed' | 'partial' | null
   times_carried?: number
+  why_it_matters?: string | null
+  proof_required?: string | null
+  proof_level?: 'low' | 'medium' | 'high' | null
+  progress?: 'not_started' | 'in_progress' | 'blocked' | 'done' | null
+  last_followup_at?: string | null
   created_at?: string | null
   updated_at?: string | null
 }
@@ -41,6 +46,10 @@ type Output = {
   commitment_id?: number | null
   mission_title?: string | null
   description: string
+  proof_level?: 'low' | 'medium' | 'high' | null
+  proof_url?: string | null
+  review_status?: 'logged' | 'accepted' | 'needs_review' | null
+  coach_feedback?: string | null
   logged_at?: string | null
 }
 
@@ -120,6 +129,20 @@ type ToneCalibration = {
   required_references: string[]
 }
 
+type AdaptiveProfile = {
+  stage: 'beginner' | 'intermediate' | 'advanced' | 'burned_out' | 'consistent'
+  communication_style: 'short' | 'normal' | 'detailed'
+  instruction: string
+  evidence?: {
+    commitments_recent?: number
+    commitments_kept?: number
+    commitments_missed?: number
+    commitments_pending?: number
+    outputs_this_week?: number
+    recent_outputs?: number
+  }
+}
+
 type ForgeContext = {
   mission?: Mission | null
   active_commitment?: Commitment | null
@@ -137,6 +160,7 @@ type ForgeContext = {
   goal_roadmap?: GoalRoadmap
   weekly_review?: WeeklyReview
   retention_nudge?: RetentionNudge
+  adaptive_profile?: AdaptiveProfile
   coach_tone?: CoachTone
   tone_calibration?: ToneCalibration
 }
@@ -423,6 +447,24 @@ function MissionPage({ context, refresh }: { context: ForgeContext; refresh: () 
       ) : (
         <>
           <section className={styles.section}>
+            <Label>Coach summary</Label>
+            <div className={styles.summaryPanel}>
+              <p>{context.summary || 'Forge has not built enough history yet. The next check-in will make this sharper.'}</p>
+              {context.active_commitment ? (
+                <div className={styles.summaryCommitment}>
+                  <span>Today&apos;s accountability</span>
+                  <strong>{context.active_commitment.text}</strong>
+                  {context.active_commitment.proof_required ? (
+                    <small>Proof: {context.active_commitment.proof_required}</small>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <div className={styles.rule} />
+
+          <section className={styles.section}>
             <Label>What finished looks like</Label>
             <p className={styles.bodyCopy}>{mission.outcome || mission.description || 'No outcome has been written yet.'}</p>
           </section>
@@ -621,6 +663,24 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
           <div className={styles.commitmentCard}>
             <h1 className={styles.commitmentTitle}>{active.text}</h1>
             <p className={styles.deadline}>{dateTimeValue(active.deadline)}</p>
+            <div className={styles.commitmentMetaGrid}>
+              <div>
+                <span>Why it matters</span>
+                <p>{active.why_it_matters || 'Forge has not captured the reason yet.'}</p>
+              </div>
+              <div>
+                <span>Proof required</span>
+                <p>{active.proof_required || 'Written proof of what exists now.'}</p>
+              </div>
+              <div>
+                <span>Progress</span>
+                <p>{(active.progress || 'not_started').replace(/_/g, ' ')}</p>
+              </div>
+              <div>
+                <span>Proof level</span>
+                <p>{active.proof_level || 'medium'}</p>
+              </div>
+            </div>
             <div className={styles.splitActions}>
               <button
                 className={styles.primaryButton}
@@ -741,6 +801,11 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
             rows={3}
             placeholder="What did you actually finish today?"
           />
+          {active?.proof_required ? (
+            <p>Expected proof: {active.proof_required}</p>
+          ) : (
+            <p>Log proof that would make the work verifiable later.</p>
+          )}
           <button className={styles.primaryButton} type="submit" disabled={loggingOutput || !outputText.trim()}>
             {loggingOutput ? 'Logging…' : 'Log output'}
           </button>
@@ -763,6 +828,9 @@ function CommitmentsPage({ context, refresh }: { context: ForgeContext; refresh:
                     <div className={styles.proofBlock}>
                       <span>Proof</span>
                       <p>{proofByCommitment.get(item.id)?.description}</p>
+                      <small>
+                        {(proofByCommitment.get(item.id)?.proof_level || item.proof_level || 'medium')} proof · {proofByCommitment.get(item.id)?.review_status || 'logged'}
+                      </small>
                     </div>
                   ) : null}
                 </div>
@@ -782,6 +850,8 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
   const outputs = context.recent_outputs || []
   const [adding, setAdding] = useState(false)
   const [description, setDescription] = useState('')
+  const [proofLevel, setProofLevel] = useState<'low' | 'medium' | 'high'>('medium')
+  const [proofUrl, setProofUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -793,9 +863,15 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
     try {
       await jsonRequest('/api/forge/outputs', {
         method: 'POST',
-        body: JSON.stringify({ description: description.trim() }),
+        body: JSON.stringify({
+          description: description.trim(),
+          proof_level: proofLevel,
+          proof_url: proofUrl.trim() || null,
+        }),
       })
       setDescription('')
+      setProofLevel('medium')
+      setProofUrl('')
       setAdding(false)
       await refresh()
     } catch (requestError) {
@@ -818,6 +894,28 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
               placeholder="A real thing you shipped, sent, posted, or published."
               rows={3}
             />
+            <div className={styles.inlineFields}>
+              <label>
+                <span>Proof strength</span>
+                <select
+                  value={proofLevel}
+                  onChange={event => setProofLevel(event.target.value as 'low' | 'medium' | 'high')}
+                >
+                  <option value="low">Low — written claim</option>
+                  <option value="medium">Medium — private proof</option>
+                  <option value="high">High — public/shipped/sent</option>
+                </select>
+              </label>
+              <label>
+                <span>Proof link</span>
+                <input
+                  value={proofUrl}
+                  onChange={event => setProofUrl(event.target.value)}
+                  placeholder="Optional URL"
+                  type="url"
+                />
+              </label>
+            </div>
             <p>Log outcomes, not activity.</p>
             {error ? <div className={styles.error}>{error}</div> : null}
             <div className={styles.actions}>
@@ -838,7 +936,24 @@ function OutputLogPage({ context, refresh }: { context: ForgeContext; refresh: (
             <article key={output.id}>
               <span>{dateValue(output.logged_at)}</span>
               <p>{output.description}</p>
-              <small>{output.mission_title ? `Mission: ${output.mission_title}` : 'Mission linked'}</small>
+              <small>
+                {output.mission_title ? `Mission: ${output.mission_title}` : 'Mission linked'}
+                {' · '}
+                {output.proof_level || 'medium'} proof
+                {' · '}
+                {output.review_status || 'logged'}
+              </small>
+              {output.proof_url ? (
+                <a className={styles.outputLink} href={output.proof_url} rel="noreferrer" target="_blank">
+                  Open proof
+                </a>
+              ) : null}
+              {output.coach_feedback ? (
+                <div className={styles.proofBlock}>
+                  <span>Coach feedback</span>
+                  <p>{output.coach_feedback}</p>
+                </div>
+              ) : null}
             </article>
           ))}
           <p className={styles.quietNote}>This is the proof: work that exists outside your plans.</p>
@@ -867,6 +982,7 @@ function PatternsPage({ context, refresh }: { context: ForgeContext; refresh: ()
   const identity = context.identity_mirror
   const review = context.weekly_review
   const tone = context.tone_calibration
+  const adaptive = context.adaptive_profile
   const activeTone = context.coach_tone || tone?.tone || 'direct'
   const [savingTone, setSavingTone] = useState<CoachTone | null>(null)
   const [toneError, setToneError] = useState('')
@@ -939,6 +1055,30 @@ function PatternsPage({ context, refresh }: { context: ForgeContext; refresh: ()
           <p className={styles.bodyCopy}>
             Forge needs a mission and a few resolved commitments before it can build the mirror.
           </p>
+        )}
+      </section>
+
+      <div className={styles.rule} />
+
+      <section className={styles.section}>
+        <Label>Adaptive coaching mode</Label>
+        {adaptive ? (
+          <div className={styles.adaptivePanel}>
+            <div>
+              <span>Stage</span>
+              <strong>{adaptive.stage.replace(/_/g, ' ')}</strong>
+            </div>
+            <p>{adaptive.instruction}</p>
+            {adaptive.evidence ? (
+              <div className={styles.roadmapStats}>
+                <span>{adaptive.evidence.commitments_kept || 0} kept</span>
+                <span>{adaptive.evidence.commitments_missed || 0} missed</span>
+                <span>{adaptive.evidence.outputs_this_week || 0} outputs this week</span>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className={styles.bodyCopy}>Forge is still learning which coaching mode fits your behavior.</p>
         )}
       </section>
 

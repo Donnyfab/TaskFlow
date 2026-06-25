@@ -160,6 +160,9 @@ class ForgeCoachHelperTests(unittest.TestCase):
             {
                 "commitment_text": "Publish one demo clip",
                 "commitment_deadline": "2026-06-24T18:00:00-05:00",
+                "why_it_matters": "It moves the active mission from intention into evidence.",
+                "proof_required": "Written proof of what exists now.",
+                "proof_level": "medium",
             },
         )
 
@@ -186,6 +189,10 @@ class ForgeCoachHelperTests(unittest.TestCase):
                     "deadline": now,
                     "status": "pending",
                     "times_carried": 0,
+                    "why_it_matters": "It creates visible proof.",
+                    "proof_required": "A public demo link.",
+                    "proof_level": "high",
+                    "progress": "not_started",
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -197,6 +204,9 @@ class ForgeCoachHelperTests(unittest.TestCase):
             {
                 "commitment_text": "Publish one demo clip",
                 "commitment_deadline": "2026-06-24T18:00:00-05:00",
+                "why_it_matters": "It creates visible proof.",
+                "proof_required": "A public demo link.",
+                "proof_level": "high",
             },
             db=db,
         )
@@ -205,7 +215,15 @@ class ForgeCoachHelperTests(unittest.TestCase):
         self.assertIn("INSERT INTO commitments", db.cursor_instance.executions[2][0])
         self.assertEqual(
             db.cursor_instance.executions[2][1],
-            (7, 3, "Publish one demo clip", "2026-06-24T18:00:00-05:00"),
+            (
+                7,
+                3,
+                "Publish one demo clip",
+                "2026-06-24T18:00:00-05:00",
+                "It creates visible proof.",
+                "A public demo link.",
+                "high",
+            ),
         )
 
     def test_persist_commitment_capture_reuses_duplicate_pending_commitment(self):
@@ -220,6 +238,10 @@ class ForgeCoachHelperTests(unittest.TestCase):
                     "deadline": now,
                     "status": "pending",
                     "times_carried": 0,
+                    "why_it_matters": "It creates visible proof.",
+                    "proof_required": "A public demo link.",
+                    "proof_level": "high",
+                    "progress": "not_started",
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -295,6 +317,10 @@ class ForgeCoachHelperTests(unittest.TestCase):
                     "deadline": now,
                     "status": "missed",
                     "times_carried": 2,
+                    "why_it_matters": "It creates visible proof.",
+                    "proof_required": "A public demo link.",
+                    "proof_level": "high",
+                    "progress": "in_progress",
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -306,6 +332,7 @@ class ForgeCoachHelperTests(unittest.TestCase):
 
         self.assertEqual(commitment["status"], "missed")
         self.assertEqual(commitment["checkin_outcome"], "partial")
+        self.assertEqual(db.cursor_instance.executions[0][1][2], "in_progress")
         self.assertIn("UPDATE commitments", db.cursor_instance.executions[0][0])
         self.assertIn("times_carried + 1", db.cursor_instance.executions[0][0])
         self.assertIn("INSERT INTO coach_memory", db.cursor_instance.executions[1][0])

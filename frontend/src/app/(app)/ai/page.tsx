@@ -37,6 +37,10 @@ type Commitment = {
   deadline?: string | null
   status: string
   times_carried?: number
+  why_it_matters?: string | null
+  proof_required?: string | null
+  proof_level?: 'low' | 'medium' | 'high' | null
+  progress?: string | null
 }
 
 type CoachContext = {
@@ -80,6 +84,9 @@ type CompletionPayload = {
   pattern_label: string
   identity_gap: string
   deadline: string
+  commitment_why_it_matters: string
+  proof_required: string
+  proof_level: 'low' | 'medium' | 'high'
   commitment_text: string
   commitment_deadline: string
 }
@@ -90,6 +97,9 @@ type CompletionResult = {
   identityGap: string
   commitment: string
   commitmentDeadline: string
+  whyItMatters?: string
+  proofRequired?: string
+  proofLevel?: string
 }
 
 function localDateKey(date = new Date()) {
@@ -240,6 +250,10 @@ export default function CoachPage() {
         commitment: result.commitment || payload.commitment_text,
         commitmentDeadline:
           result.commitment_deadline || payload.commitment_deadline,
+        whyItMatters:
+          result.commitment_why_it_matters || payload.commitment_why_it_matters,
+        proofRequired: result.proof_required || payload.proof_required,
+        proofLevel: result.proof_level || payload.proof_level,
       })
       setOnboardingMessages(current => current.filter(message => (
         !message.content.trim().startsWith(COMPLETION_PREFIX)
@@ -849,6 +863,27 @@ export default function CoachPage() {
                 <p className={styles.completeValue}>{completion.commitment}</p>
               </div>
               <div className={styles.divider} />
+              {completion.whyItMatters ? (
+                <>
+                  <div className={styles.completeRow}>
+                    <p className={styles.completeKey}>Why it matters</p>
+                    <p className={styles.completeValue}>{completion.whyItMatters}</p>
+                  </div>
+                  <div className={styles.divider} />
+                </>
+              ) : null}
+              {completion.proofRequired ? (
+                <>
+                  <div className={styles.completeRow}>
+                    <p className={styles.completeKey}>Proof required</p>
+                    <p className={styles.completeValue}>
+                      {completion.proofRequired}
+                      {completion.proofLevel ? ` (${completion.proofLevel})` : ''}
+                    </p>
+                  </div>
+                  <div className={styles.divider} />
+                </>
+              ) : null}
               <div className={styles.completeRow}>
                 <p className={styles.completeKey}>Deadline</p>
                 <p className={styles.completeValue}>

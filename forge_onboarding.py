@@ -20,6 +20,9 @@ REQUIRED_COMPLETION_FIELDS = (
     "pattern_label",
     "identity_gap",
     "deadline",
+    "commitment_why_it_matters",
+    "proof_required",
+    "proof_level",
     "commitment_text",
     "commitment_deadline",
 )
@@ -36,8 +39,13 @@ FIELD_MAX_LENGTHS = {
     "obstacle": 2_000,
     "pattern_label": 200,
     "identity_gap": 2_000,
+    "commitment_why_it_matters": 1_000,
+    "proof_required": 1_000,
+    "proof_level": 20,
     "commitment_text": 1_000,
 }
+
+PROOF_LEVELS = {"low", "medium", "high"}
 
 FORGE_ONBOARDING_COMPLETION_PROTOCOL = """
 ONBOARDING COMPLETION PROTOCOL
@@ -91,9 +99,13 @@ Stage 2 — Human Intake:
 Stage 3 — Pattern Detection:
 - Ask what they have actually done in the last 30 days before accepting a commitment.
 - Classify the user's current avoidance pattern from their answers.
+- If the user says one project consumes all their time and another priority gets neglected,
+  treat it as hyperfocus or poor attention distribution first. Do not label it perfectionism
+  unless the user confirms they are delaying because the work is not good enough.
+- Confirm the pattern in plain language before treating it as final.
 - Use a short, plain label such as "researching instead of shipping",
-  "waiting for confidence", "overbuilding before feedback", "commits without proof",
-  or another accurate label.
+  "waiting for confidence", "overbuilding before feedback", "hyperfocus starving other priorities",
+  "commits without proof", or another accurate label.
 
 Stage 4 — Identity Gap:
 - Reflect the gap between who the user says they want to become and what their
@@ -105,6 +117,19 @@ Stage 5 — First Commitment:
 - Only after enough intake, transition with this idea: "Now we can make this real."
 - End with one specific, time-bound action this week.
 - The commitment must be provable later.
+- Capture why this commitment matters and what exact proof will count.
+
+Conversation convergence:
+- Use this shape: learn, reflect, challenge, help, summarize, plan, commit, finish.
+- Do not run an endless interview. Once the required values are known, stop asking and summarize.
+- Aim to complete within six to eight meaningful user replies. If the user is vague after that,
+  state the clearest honest interpretation and ask for the single missing detail.
+- Before the final commitment, solve the biggest active blocker in one sentence. Do not create a
+  full roadmap or research plan during onboarding.
+- If the goal is a build, help choose the immediate MVP slice, one dependency, and what can wait.
+  Keep it to the next execution decision, not a full roadmap.
+- After the commitment is accepted, ask only for missing deadline/proof details. Do not open a new
+  topic.
 
 Identify all required values before completion:
 - name: the user's preferred name
@@ -119,6 +144,9 @@ Identify all required values before completion:
 - pattern_label: the short behavioral pattern label detected during intake
 - identity_gap: one direct sentence naming the gap between the user's stated goal and current behavior
 - deadline: a specific calendar date for the mission
+- commitment_why_it_matters: why this first commitment matters to the user's mission
+- proof_required: the concrete proof Forge should request later
+- proof_level: low, medium, or high based on how verifiable the proof is
 - commitment_text: one concrete action the user will complete this week
 - commitment_deadline: the exact date, time, and UTC offset for that action
 
@@ -135,7 +163,7 @@ If the user corrects it, update the values and confirm again.
 Only after the user explicitly confirms the summary, respond with exactly one line in this
 format and nothing else:
 
-FORGE_COMPLETE||{"name":"...","desired_identity":"...","current_struggle":"...","avoided_task":"...","what_matters":"...","fall_off_trigger":"...","mission":"...","outcome":"...","obstacle":"...","pattern_label":"...","identity_gap":"...","deadline":"YYYY-MM-DD","commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00"}
+FORGE_COMPLETE||{"name":"...","desired_identity":"...","current_struggle":"...","avoided_task":"...","what_matters":"...","fall_off_trigger":"...","mission":"...","outcome":"...","obstacle":"...","pattern_label":"...","identity_gap":"...","deadline":"YYYY-MM-DD","commitment_why_it_matters":"...","proof_required":"...","proof_level":"medium","commitment_text":"...","commitment_deadline":"YYYY-MM-DDTHH:MM:SS-05:00"}
 
 Rules for the completion line:
 - Do not include prose, markdown, or code fences before or after it.
@@ -144,6 +172,7 @@ Rules for the completion line:
 - identity_gap must be one direct sentence, not a paragraph.
 - deadline must be a real ISO calendar date in YYYY-MM-DD format.
 - commitment_deadline must be an ISO-8601 datetime with an explicit UTC offset or Z.
+- proof_level must be exactly low, medium, or high.
 - If the user gave a date but no time, ask for a time before requesting confirmation.
 - Never emit the completion line before explicit confirmation.
 - Never ask "What are you trying to make real right now?" as the first question. Learn the user first.
@@ -229,6 +258,14 @@ def validate_completion_payload(data: Any) -> dict[str, str]:
                 "commitment_deadline must be a valid ISO-8601 datetime with a UTC offset"
             )
 
+    proof_level = normalized.get("proof_level")
+    if proof_level:
+        proof_level = proof_level.lower()
+        if proof_level not in PROOF_LEVELS:
+            errors.append("proof_level must be one of: low, medium, high")
+        else:
+            normalized["proof_level"] = proof_level
+
     if errors:
         raise OnboardingValidationError(errors)
     return normalized
@@ -268,7 +305,7 @@ def _existing_completion(cursor, user_id: int) -> dict[str, Any]:
 
     cursor.execute(
         """
-        SELECT id, text, deadline
+        SELECT id, text, deadline, why_it_matters, proof_required, proof_level, progress
         FROM commitments
         WHERE user_id = %s
           AND (%s IS NULL OR mission_id = %s)
@@ -305,6 +342,10 @@ def _existing_completion(cursor, user_id: int) -> dict[str, Any]:
         "deadline": _serialize(mission.get("deadline")),
         "commitment": commitment.get("text"),
         "commitment_deadline": _serialize(commitment.get("deadline")),
+        "commitment_why_it_matters": commitment.get("why_it_matters"),
+        "proof_required": commitment.get("proof_required"),
+        "proof_level": commitment.get("proof_level"),
+        "progress": commitment.get("progress"),
     }
 
 
@@ -366,9 +407,10 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
         cursor.execute(
             """
             INSERT INTO commitments (
-                user_id, mission_id, text, deadline, status, times_carried
+                user_id, mission_id, text, deadline, status, times_carried,
+                why_it_matters, proof_required, proof_level, progress
             )
-            VALUES (%s, %s, %s, %s, 'pending', 0)
+            VALUES (%s, %s, %s, %s, 'pending', 0, %s, %s, %s, 'not_started')
             RETURNING id
             """,
             (
@@ -376,6 +418,9 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
                 mission["id"],
                 payload["commitment_text"],
                 payload["commitment_deadline"],
+                payload["commitment_why_it_matters"],
+                payload["proof_required"],
+                payload["proof_level"],
             ),
         )
         commitment = _row_to_dict(cursor.fetchone())
@@ -391,7 +436,10 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
             f"Mission: {payload['mission']}. Outcome: {payload['outcome']}. "
             f"Current obstacle: {payload['obstacle']}. "
             f"Pattern: {payload['pattern_label']}. "
-            f"Identity gap: {payload['identity_gap']}"
+            f"Identity gap: {payload['identity_gap']}. "
+            f"First commitment: {payload['commitment_text']}. "
+            f"Why it matters: {payload['commitment_why_it_matters']}. "
+            f"Proof required: {payload['proof_required']} ({payload['proof_level']})"
         )
         cursor.execute(
             """
@@ -444,6 +492,10 @@ def complete_onboarding(user_id: int, data: Any, db) -> dict[str, Any]:
             "deadline": payload["deadline"],
             "commitment": payload["commitment_text"],
             "commitment_deadline": payload["commitment_deadline"],
+            "commitment_why_it_matters": payload["commitment_why_it_matters"],
+            "proof_required": payload["proof_required"],
+            "proof_level": payload["proof_level"],
+            "progress": "not_started",
         }
     except Exception:
         raw_connection.rollback()

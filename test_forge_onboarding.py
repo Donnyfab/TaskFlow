@@ -25,6 +25,9 @@ VALID_PAYLOAD = {
     "deadline": "2026-08-01",
     "commitment_text": "Invite the first tester",
     "commitment_deadline": "2026-06-22T18:00:00-05:00",
+    "commitment_why_it_matters": "It gets Forge in front of a real person instead of staying private.",
+    "proof_required": "A sent invite message or screenshot.",
+    "proof_level": "high",
 }
 
 
@@ -106,6 +109,15 @@ class ForgeOnboardingTests(unittest.TestCase):
         self.assertTrue(any("YYYY-MM-DD" in error for error in raised.exception.errors))
         self.assertTrue(any("UTC offset" in error for error in raised.exception.errors))
 
+    def test_validation_rejects_invalid_proof_level(self):
+        payload = dict(VALID_PAYLOAD)
+        payload["proof_level"] = "public"
+
+        with self.assertRaises(OnboardingValidationError) as raised:
+            validate_completion_payload(payload)
+
+        self.assertIn("proof_level must be one of: low, medium, high", raised.exception.errors)
+
     def test_status_comes_from_database(self):
         db = FakeDatabase([{"onboarding_complete": True}])
 
@@ -144,6 +156,7 @@ class ForgeOnboardingTests(unittest.TestCase):
         self.assertEqual(memory_params[1], "polishing instead of testing")
         self.assertEqual(memory_params[2], "Asking real users to test the product")
         self.assertIn("Identity gap:", memory_params[3])
+        self.assertIn("Proof required:", memory_params[3])
         update_params = db.cursor_instance.executions[4][1]
         self.assertEqual(update_params[0], "Donald")
 
@@ -179,6 +192,10 @@ class ForgeOnboardingTests(unittest.TestCase):
                     "id": 21,
                     "text": "Invite a tester",
                     "deadline": datetime(2026, 6, 22, 23, 0, tzinfo=timezone.utc),
+                    "why_it_matters": "It gets Forge in front of a real person.",
+                    "proof_required": "A sent invite message.",
+                    "proof_level": "high",
+                    "progress": "not_started",
                 },
                 {
                     "pattern_label": "polishing instead of testing",

@@ -47,6 +47,7 @@ from forge_memory import (
     update_pattern,
 )
 from forge_coach import (
+    COACH_MESSAGE_MAX_CHARS,
     FORGE_COMMITMENT_CAPTURE_PROTOCOL,
     classify_checkin_reply,
     detect_avoidance_profile,
@@ -1770,8 +1771,19 @@ def ensure_base_schema_columns():
         ("focus_sessions", "created_at",        "TIMESTAMP NULL DEFAULT NOW()"),
         # Forge accountability spine
         ("commitments", "checkin_outcome", "VARCHAR(32) NULL"),
+        ("commitments", "why_it_matters", "TEXT NULL"),
+        ("commitments", "proof_required", "TEXT NOT NULL DEFAULT 'Written proof of what exists now.'"),
+        ("commitments", "proof_level", "VARCHAR(16) NOT NULL DEFAULT 'medium'"),
+        ("commitments", "progress", "VARCHAR(32) NOT NULL DEFAULT 'not_started'"),
+        ("commitments", "last_followup_at", "TIMESTAMP NULL"),
         ("outputs", "commitment_id", "BIGINT NULL"),
+        ("outputs", "proof_level", "VARCHAR(16) NOT NULL DEFAULT 'medium'"),
+        ("outputs", "proof_url", "TEXT NULL"),
+        ("outputs", "review_status", "VARCHAR(32) NOT NULL DEFAULT 'logged'"),
+        ("outputs", "coach_feedback", "TEXT NULL"),
         ("coach_memory", "coach_tone", "VARCHAR(32) NOT NULL DEFAULT 'direct'"),
+        ("coach_memory", "coach_stage", "VARCHAR(32) NOT NULL DEFAULT 'beginner'"),
+        ("coach_memory", "communication_style", "VARCHAR(32) NOT NULL DEFAULT 'normal'"),
         # users — auth columns that may be absent in older schemas
         ("users", "is_verified",          "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("users", "email_verify_token",   "VARCHAR(512) NULL"),
@@ -5054,7 +5066,8 @@ def api_daily_commitment_reminders():
                 ps.timezone,
                 ps.last_sent_on,
                 c.text AS commitment_text,
-                c.deadline
+                c.deadline,
+                c.proof_required
             FROM push_subscriptions ps
             JOIN commitments c
               ON c.user_id = ps.user_id
@@ -5092,7 +5105,7 @@ def api_daily_commitment_reminders():
             deadline = row.get("deadline")
             due_for_checkin = _commitment_deadline_is_due(deadline, tz, local_now)
             notification_body = (
-                f"Did you do it? “{commitment}”"
+                f"Did you do it? “{commitment}” Proof: {row.get('proof_required') or 'what exists now'}"
                 if due_for_checkin
                 else f"Today: {commitment}"
             )
@@ -5330,6 +5343,12 @@ def api_update_forge_commitment(commitment_id):
     user_id = session["user_id"]
     status = "missed" if requested_status == "partial" else requested_status
     checkin_outcome = requested_status if requested_status in {"kept", "missed", "partial"} else None
+    progress = {
+        "kept": "done",
+        "partial": "in_progress",
+        "missed": "blocked",
+        "pending": "not_started",
+    }[requested_status]
     proof_output = None
     cursor = get_db().cursor(dictionary=True)
     try:
@@ -5339,6 +5358,11 @@ def api_update_forge_commitment(commitment_id):
             SET
                 status = %s,
                 checkin_outcome = %s,
+                progress = %s,
+                last_followup_at = CASE
+                    WHEN %s IN ('kept', 'missed') THEN NOW()
+                    ELSE last_followup_at
+                END,
                 times_carried = CASE
                     WHEN %s = 'missed' THEN times_carried + 1
                     ELSE times_carried
@@ -5346,19 +5370,29 @@ def api_update_forge_commitment(commitment_id):
                 updated_at = NOW()
             WHERE id = %s AND user_id = %s
             RETURNING id, mission_id, text, deadline, status, times_carried,
-                      checkin_outcome, created_at, updated_at
+                      checkin_outcome, why_it_matters, proof_required, proof_level,
+                      progress, last_followup_at, created_at, updated_at
             """,
-            (status, checkin_outcome, status, commitment_id, user_id),
+            (status, checkin_outcome, progress, status, status, commitment_id, user_id),
         )
         commitment = cursor.fetchone()
         if commitment is not None and proof:
             cursor.execute(
                 """
-                INSERT INTO outputs (user_id, mission_id, commitment_id, description)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id, mission_id, commitment_id, description, logged_at
+                INSERT INTO outputs (
+                    user_id, mission_id, commitment_id, description, proof_level, review_status
+                )
+                VALUES (%s, %s, %s, %s, %s, 'logged')
+                RETURNING id, mission_id, commitment_id, description, logged_at,
+                          proof_level, proof_url, review_status, coach_feedback
                 """,
-                (user_id, commitment["mission_id"], commitment["id"], proof),
+                (
+                    user_id,
+                    commitment["mission_id"],
+                    commitment["id"],
+                    proof,
+                    commitment.get("proof_level") or "medium",
+                ),
             )
             proof_output = cursor.fetchone()
         if commitment is not None and status in {"kept", "missed"}:
@@ -5418,25 +5452,34 @@ def api_create_forge_output():
 
     data = request.get_json(silent=True)
     description = " ".join(str((data or {}).get("description") or "").split()).strip()
+    proof_level = str((data or {}).get("proof_level") or "medium").strip().lower()
+    proof_url = " ".join(str((data or {}).get("proof_url") or "").split()).strip() or None
     if not description:
         return jsonify({"ok": False, "error": "Describe what you finished."}), 422
     if len(description) > 2_000:
         return jsonify({"ok": False, "error": "Output cannot exceed 2,000 characters."}), 422
+    if proof_level not in {"low", "medium", "high"}:
+        return jsonify({"ok": False, "error": "proof_level must be low, medium, or high."}), 422
+    if proof_url and len(proof_url) > 1_000:
+        return jsonify({"ok": False, "error": "Proof link cannot exceed 1,000 characters."}), 422
 
     user_id = session["user_id"]
     cursor = get_db().cursor(dictionary=True)
     try:
         cursor.execute(
             """
-            INSERT INTO outputs (user_id, mission_id, commitment_id, description)
-            SELECT %s, id, NULL, %s
+            INSERT INTO outputs (
+                user_id, mission_id, commitment_id, description, proof_level, proof_url, review_status
+            )
+            SELECT %s, id, NULL, %s, %s, %s, 'logged'
             FROM missions
             WHERE user_id = %s AND status = 'active'
             ORDER BY updated_at DESC, id DESC
             LIMIT 1
-            RETURNING id, mission_id, commitment_id, description, logged_at
+            RETURNING id, mission_id, commitment_id, description, logged_at,
+                      proof_level, proof_url, review_status, coach_feedback
             """,
-            (user_id, description, user_id),
+            (user_id, description, proof_level, proof_url, user_id),
         )
         output = cursor.fetchone()
     finally:
@@ -5581,15 +5624,19 @@ def api_forge_coach():
                         try:
                             proof_cursor.execute(
                                 """
-                                INSERT INTO outputs (user_id, mission_id, commitment_id, description)
-                                VALUES (%s, %s, %s, %s)
-                                RETURNING id, mission_id, commitment_id, description, logged_at
+                                INSERT INTO outputs (
+                                    user_id, mission_id, commitment_id, description, proof_level, review_status
+                                )
+                                VALUES (%s, %s, %s, %s, %s, 'logged')
+                                RETURNING id, mission_id, commitment_id, description, logged_at,
+                                          proof_level, proof_url, review_status, coach_feedback
                                 """,
                                 (
                                     user_id,
                                     checkin_result["mission_id"],
                                     checkin_result["id"],
                                     latest_user_message,
+                                    checkin_result.get("proof_level") or "medium",
                                 ),
                             )
                             checkin_proof_output = proof_cursor.fetchone()
@@ -5748,6 +5795,115 @@ def api_forge_coach():
         return jsonify({"ok": False, "error": "User not found."}), 404
     except Exception as exc:
         app.logger.exception("Forge Coach response failed for user %s", user_id)
+        return jsonify(
+            {
+                "ok": False,
+                "error": humanize_anthropic_error(
+                    exc,
+                    "Forge could not respond right now. Try again in a moment.",
+                ),
+            }
+        ), 503
+
+
+def _phone_request_is_authorized() -> bool:
+    configured_secret = (os.environ.get("PHONE_WEBHOOK_SECRET") or "").strip()
+    if not configured_secret:
+        return False
+    provided_secret = (
+        request.headers.get("X-Forge-Phone-Secret")
+        or request.args.get("secret")
+        or ""
+    ).strip()
+    return provided_secret == configured_secret
+
+
+@app.route("/api/phone/coach", methods=["POST"])
+def api_phone_coach():
+    """Secret-protected text-message bridge for future SMS/iMessage providers."""
+
+    if not _phone_request_is_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Request body must be JSON."}), 400
+
+    try:
+        user_id = int(data.get("user_id"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "user_id is required."}), 422
+
+    message = " ".join(str(data.get("message") or "").split()).strip()
+    if not message:
+        return jsonify({"ok": False, "error": "message is required."}), 422
+    if len(message) > COACH_MESSAGE_MAX_CHARS:
+        return jsonify({"ok": False, "error": "message is too long."}), 422
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        return jsonify({"ok": False, "error": "Forge Coach is not configured."}), 503
+
+    try:
+        db = get_db()
+        context = get_user_context(user_id, db=db)
+        detected_profile = detect_avoidance_profile(message)
+        if detected_profile:
+            update_pattern(
+                user_id,
+                detected_profile["label"],
+                reason=detected_profile.get("reason"),
+                evidence=detected_profile.get("evidence") or [],
+                db=db,
+            )
+            invalidate_user_cached_data(user_id)
+            context = get_user_context(user_id, db=db)
+
+        system_prompt = (
+            f"{build_system_prompt(context)}\n\n"
+            f"{FORGE_COMMITMENT_CAPTURE_PROTOCOL}\n\n"
+            "PHONE COACH CHANNEL\n"
+            "- This user is texting Forge. Keep the response to one to three short sentences.\n"
+            "- Do not mention dashboards, sidebars, or UI unless the user asks.\n"
+            "- If the user claims completion, ask for or evaluate proof.\n"
+            "- End with one concrete reply target, not a menu."
+        )
+        stored_messages = get_coach_messages(user_id, limit=8, db=db)
+        model_messages = [
+            {"role": item["role"], "content": item["content"]}
+            for item in stored_messages
+        ]
+        model_messages.append({"role": "user", "content": message})
+
+        saved_user_message = save_coach_message(user_id, "user", message, db=db)
+        response = call_anthropic_messages_api(
+            create_anthropic_client(anthropic_key),
+            model=ANTHROPIC_DEFAULT_MODEL,
+            max_tokens=min(FORGE_COACH_MAX_TOKENS, 500),
+            system=system_prompt,
+            messages=model_messages,
+        )
+        visible_reply, commitment_payload = split_commitment_capture(
+            extract_anthropic_text(response)
+        )
+        if not visible_reply:
+            visible_reply = "Commitment locked."
+        commitment = persist_commitment_capture(user_id, commitment_payload, db=db)
+        saved_coach_message = save_coach_message(user_id, "assistant", visible_reply, db=db)
+        if commitment:
+            invalidate_user_cached_data(user_id)
+        return jsonify(
+            {
+                "ok": True,
+                "reply": visible_reply,
+                "commitment": commitment,
+                "messages": [saved_user_message, saved_coach_message],
+            }
+        )
+    except LookupError:
+        return jsonify({"ok": False, "error": "User not found."}), 404
+    except Exception as exc:
+        app.logger.exception("Phone Coach response failed for user %s", user_id)
         return jsonify(
             {
                 "ok": False,
