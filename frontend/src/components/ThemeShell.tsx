@@ -28,7 +28,16 @@ export default function ThemeShell({ children }: { children: React.ReactNode }) 
   }, [])
 
   return (
-    <div suppressHydrationWarning style={{ display: 'flex', minHeight: '100vh', background: bg }}>
+    <div
+      suppressHydrationWarning
+      style={{
+        display: 'flex',
+        height: '100dvh',
+        minHeight: '100vh',
+        overflow: 'hidden',
+        background: bg,
+      }}
+    >
       {children}
     </div>
   )

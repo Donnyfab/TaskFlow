@@ -11,10 +11,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           style={{
             flex: 1,
             overflowY: 'auto',
-            minHeight: '100vh',
+            height: '100dvh',
+            minHeight: 0,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
+            overscrollBehavior: 'contain',
           }}
         >
           {children}
